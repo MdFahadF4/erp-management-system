@@ -145,6 +145,7 @@ if (menuButtons) {
       const target = e.currentTarget.getAttribute('data-target');
       if (templates[target] && mainContent) {
         mainContent.innerHTML = templates[target];
+        document.body.classList.remove('erp-mobile-ledger-open');
         setDashboardDrawersSectionVisible(target === 'dashboard');
 
         const toggleBtn = document.getElementById('toggle-ledger-btn');
@@ -161,8 +162,10 @@ if (menuButtons) {
               toggleBtn.textContent = isHidden ? 'Ledger View' : 'Back to Form';
               toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
               toggleBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
-              if (!isHidden) {
-                setTimeout(() => ledgerContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+              document.body.classList.toggle('erp-mobile-ledger-open', !isHidden);
+              closeMenu();
+              if (!isHidden && mainContent) {
+                mainContent.scrollTo({ top: 0, behavior: 'smooth' });
               }
               return;
             }
