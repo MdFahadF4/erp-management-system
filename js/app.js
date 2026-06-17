@@ -134,27 +134,47 @@ function syncMobileHeaderHeight() {
   document.documentElement.style.setProperty('--erp-mobile-header-h', `${height}px`);
 }
 
-function hideModuleToolbar() {
-  const toolbar = document.getElementById('erp-module-toolbar');
-  if (toolbar) toolbar.classList.add('hidden');
-}
+function syncMobileChrome(target) {
+  const appBody = document.getElementById('app-body');
+  const dashPanel = document.getElementById('dashboard-insights-panel');
+  if (!appBody) return;
 
-function resetModuleToolbar() {
-  hideModuleToolbar();
-  activeMobileSnapshot = null;
-}
+  if (target) activeModuleTarget = target;
 
-function showModuleToolbar(label, defaultSummary) {
-  const toolbar = document.getElementById('erp-module-toolbar');
-  const labelEl = document.getElementById('erp-module-toolbar-label');
-  const summaryEl = document.getElementById('erp-module-toolbar-summary');
-  if (!toolbar || !isMobileViewport()) {
-    hideModuleToolbar();
+  const resolvedTarget = target || activeModuleTarget;
+  const hasModulePage = Boolean(mainContent?.querySelector('.erp-module-page'));
+
+  if (!isMobileViewport()) {
+    appBody.setAttribute('data-mobile-chrome', 'none');
+    if (dashPanel) dashPanel.classList.toggle('hidden', resolvedTarget !== 'dashboard');
     return;
   }
-  if (labelEl) labelEl.textContent = label;
-  if (summaryEl) summaryEl.textContent = defaultSummary;
-  toolbar.classList.remove('hidden');
+
+  if (resolvedTarget === 'dashboard') {
+    appBody.setAttribute('data-mobile-chrome', 'dashboard');
+    dashPanel?.classList.remove('hidden');
+    initDashboardInsightsToggle(true);
+  } else {
+    if (resolvedTarget !== 'dashboard') {
+      document.getElementById('admin-global-balance-container')?.replaceChildren();
+    }
+    if (hasModulePage) {
+      appBody.setAttribute('data-mobile-chrome', 'module');
+      dashPanel?.classList.add('hidden');
+    } else {
+      appBody.setAttribute('data-mobile-chrome', 'none');
+      dashPanel?.classList.add('hidden');
+    }
+  }
+
+  syncMobileHeaderHeight();
+}
+
+function updateModuleToolbarText(label, summary) {
+  const labelEl = document.getElementById('erp-module-toolbar-label');
+  const summaryEl = document.getElementById('erp-module-toolbar-summary');
+  if (labelEl && label) labelEl.textContent = label;
+  if (summaryEl && summary) summaryEl.textContent = summary;
 }
 
 function bindModuleToolbarToggleOnce() {
@@ -195,15 +215,15 @@ function createMobileSnapshotController(pageRoot, options = {}) {
   let summaryOverride = null;
 
   bindModuleToolbarToggleOnce();
+  updateModuleToolbarText(label, defaultSummary);
 
   const applyState = () => {
     if (!isMobileViewport()) {
       pageRoot.classList.remove('erp-mobile-snapshot-collapsed');
-      hideModuleToolbar();
       return;
     }
 
-    showModuleToolbar(label, defaultSummary);
+    syncMobileChrome(activeModuleTarget);
     pageRoot.classList.toggle('erp-mobile-snapshot-collapsed', collapsed);
     updateModuleToolbarUi(collapsed, summaryOverride, defaultSummary);
   };
@@ -245,13 +265,8 @@ function bindMobileSnapshotResizeOnce() {
   if (window._erpMobileSnapshotResizeBound) return;
   window._erpMobileSnapshotResizeBound = true;
   window.addEventListener('resize', () => {
-    syncMobileHeaderHeight();
-    if (activeModuleTarget === 'dashboard') {
-      hideModuleToolbar();
-      initDashboardInsightsToggle(false);
-    } else if (activeMobileSnapshot) {
-      activeMobileSnapshot.refresh();
-    }
+    syncMobileChrome(activeModuleTarget);
+    activeMobileSnapshot?.refresh?.();
   });
 }
 
@@ -262,7 +277,7 @@ function onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer) {
 }
 
 function initMobileModuleSnapshot(target) {
-  resetModuleToolbar();
+  activeMobileSnapshot = null;
   if (target === 'dashboard') return null;
 
   const pageRoot = mainContent?.querySelector('.erp-module-page');
@@ -312,14 +327,14 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   document.body.classList.remove('erp-mobile-ledger-open');
   activeModuleTarget = target;
   syncMobileHeaderHeight();
-  setDashboardDrawersSectionVisible(target === 'dashboard');
-  mainContent.scrollTo({ top: 0, behavior: 'auto' });
 
   const pageRoot = mainContent.querySelector('.erp-module-page');
   const mobileSnapshot = initMobileModuleSnapshot(target);
   if (pageRoot && mobileSnapshot) pageRoot._mobileSnapshot = mobileSnapshot;
   bindMobileSnapshotResizeOnce();
   bindModuleToolbarToggleOnce();
+
+  mainContent.scrollTo({ top: 0, behavior: 'auto' });
 
   const toggleBtn = document.getElementById('toggle-ledger-btn');
   const formContainer = document.getElementById('form-container');
@@ -431,6 +446,9 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     initUserManagementFormListener();
     await loadUserDirectories();
   }
+
+  syncMobileChrome(target);
+  requestAnimationFrame(() => syncMobileChrome(target));
 
   if (pushHistory) {
     history.pushState({ module: target }, '', `#${target}`);
@@ -2123,7 +2141,7 @@ function initReportsSystem() {
   const fDateInput = document.getElementById('report-from');
   const tDateInput = document.getElementById('report-to');
   const pageRoot = document.querySelector('.erp-module-page');
-  const mobileSnapshot = pageRoot?._mobileSnapshot;
+  const mobileSnapshot = activeMobileSnapshot || pageRoot?._mobileSnapshot;
   
   const now = new Date();
   const pad = n => (n < 10 ? '0'+n : n);
@@ -4769,16 +4787,9 @@ function initUserManagementFormListener() {
 
 
 function setDashboardDrawersSectionVisible(visible) {
-  const panel = document.getElementById('dashboard-insights-panel');
   const adminContainer = document.getElementById('admin-global-balance-container');
-  if (panel) panel.classList.toggle('hidden', !visible);
-  if (visible) {
-    resetModuleToolbar();
-    syncMobileHeaderHeight();
-    initDashboardInsightsToggle(true);
-  } else if (adminContainer) {
-    adminContainer.innerHTML = '';
-  }
+  if (!visible && adminContainer) adminContainer.innerHTML = '';
+  syncMobileChrome(visible ? 'dashboard' : activeModuleTarget);
 }
 
 function initDashboardInsightsToggle(forceReapply = false) {
@@ -4786,7 +4797,9 @@ function initDashboardInsightsToggle(forceReapply = false) {
   const toggle = document.getElementById('dashboard-insights-toggle');
   const body = document.getElementById('dashboard-insights-body');
   const chevron = document.getElementById('insights-toggle-chevron');
-  if (!panel || panel.classList.contains('hidden') || !toggle || !body) return;
+  const appBody = document.getElementById('app-body');
+  if (!panel || !toggle || !body) return;
+  if (panel.classList.contains('hidden') && appBody?.getAttribute('data-mobile-chrome') !== 'dashboard') return;
 
   const applyLayout = () => {
     if (isMobileViewport()) {

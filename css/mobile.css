@@ -27,13 +27,22 @@
     z-index: 70;
   }
 
-  /* Toolbar slots stay above scrolling content, below fixed header */
-  #dashboard-insights-panel:not(.hidden),
-  #erp-module-toolbar:not(.hidden) {
+  /* Mobile chrome bars — visibility controlled by data-mobile-chrome, never JS hidden class */
+  #dashboard-insights-panel,
+  #erp-module-toolbar {
+    display: none !important;
     position: relative;
     z-index: 55;
     flex-shrink: 0;
-    background: rgba(249, 250, 251, 0.95);
+    background: rgba(249, 250, 251, 0.98);
+  }
+
+  #app-body[data-mobile-chrome="dashboard"] #dashboard-insights-panel {
+    display: block !important;
+  }
+
+  #app-body[data-mobile-chrome="module"] #erp-module-toolbar {
+    display: block !important;
   }
 
   #insights-toggle-chevron.rotate-180,
@@ -397,6 +406,15 @@
 }
 
 @media (min-width: 768px) {
+  #erp-module-toolbar {
+    display: none !important;
+  }
+
+  #app-body[data-mobile-chrome="dashboard"] #dashboard-insights-panel,
+  #dashboard-insights-panel:not(.hidden) {
+    display: block !important;
+  }
+
   .erp-report-scroll::after {
     display: none;
   }
