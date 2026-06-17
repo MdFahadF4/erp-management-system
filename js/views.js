@@ -744,8 +744,8 @@ export const templates = {
   `,
   reports: `
     <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
-      <div class="erp-mobile-sticky-tools print:hidden">
-        <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 erp-mobile-page-bar">
+      <div class="erp-report-tools print:hidden">
+        <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <h2 class="text-lg md:text-2xl font-bold text-gray-800">Enterprise Reporting System</h2>
           <button onclick="window.print()" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded text-sm transition shadow-sm flex items-center justify-center gap-2">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
@@ -753,7 +753,12 @@ export const templates = {
           </button>
         </div>
 
-        <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mb-4 md:mb-0 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-report-filters">
+        <div id="report-filters-collapsed-bar" class="hidden md:hidden bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mt-2 flex items-center justify-between gap-2">
+          <span class="text-xs font-bold text-blue-800">Report loaded — scroll down to view data</span>
+          <button type="button" id="btn-toggle-report-filters" class="shrink-0 text-xs font-bold text-blue-600 underline">Change filters</button>
+        </div>
+
+        <div id="report-filters-panel" class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mt-3 md:mt-4 mb-2 md:mb-0 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-report-filters">
           <div class="w-full md:flex-1 md:min-w-[200px]">
             <label class="block text-gray-600 font-bold mb-1">Select Master Report</label>
             <select id="report-type" class="w-full border rounded p-2.5 outline-none bg-white focus:border-blue-500 font-medium text-sm">
@@ -782,8 +787,10 @@ export const templates = {
           <div class="w-full md:w-auto"><button id="btn-generate-report" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]">Execute Query</button></div>
         </div>
       </div>
+
+      <div id="report-results-anchor" aria-hidden="true"></div>
       
-      <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-visible print:shadow-none print:border-none print:p-0">
+      <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-visible print:shadow-none print:border-none print:p-0 erp-report-results">
         <div id="report-print-header" class="hidden mb-4 md:mb-6 text-center border-b pb-4 print:block">
           <h1 class="text-lg md:text-2xl font-black text-gray-800 uppercase tracking-wide md:tracking-widest px-2" id="report-title-display">Report Name</h1>
           <p class="text-xs md:text-sm font-medium text-gray-500 mt-1 px-2" id="report-date-display">Date Range: </p>

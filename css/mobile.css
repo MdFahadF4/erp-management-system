@@ -27,11 +27,10 @@
     z-index: 70;
   }
 
-  /* Sticky module toolbar (title + Ledger View / Back to Form) */
-  #main-content > .erp-module-page > .border-b,
-  #main-content > div > .border-b.pb-3,
-  #main-content > div > .border-b.pb-4,
-  .erp-mobile-page-bar {
+  /* Sticky module toolbar (Ledger View etc.) — not reports */
+  #main-content > .erp-module-page > .border-b:not(.erp-mobile-page-bar),
+  #main-content > div:not(.erp-module-page) > .border-b.pb-3,
+  #main-content > div:not(.erp-module-page) > .border-b.pb-4 {
     position: sticky;
     top: 0;
     z-index: 45;
@@ -44,23 +43,38 @@
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
 
-  /* Reports: keep title + filters sticky while scrolling results */
-  .erp-mobile-sticky-tools {
-    position: sticky;
-    top: 0;
-    z-index: 44;
-    background: #f3f4f6;
-    margin-left: -0.75rem;
-    margin-right: -0.75rem;
-    padding: 0.25rem 0.75rem 0.5rem;
-    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+  /* Reports: filters scroll away — do NOT stick over results */
+  .erp-report-tools {
+    position: relative;
+    z-index: 1;
   }
 
-  .erp-report-filters {
-    margin-bottom: 0 !important;
+  .erp-report-tools.erp-report-filters-collapsed {
+    margin-bottom: 0.5rem;
   }
 
-  /* Report table headers scroll with page (avoid covering nav) */
+  .erp-report-tools.erp-report-filters-collapsed > .border-b:first-of-type {
+    display: none;
+  }
+
+  #report-filters-panel.hidden {
+    display: none !important;
+  }
+
+  #report-filters-collapsed-bar:not(.hidden) {
+    display: flex !important;
+  }
+
+  .erp-report-results {
+    position: relative;
+    z-index: 2;
+  }
+
+  #report-results-anchor {
+    scroll-margin-top: 0.5rem;
+  }
+
+  /* Page headers (title + action buttons) ── */
   .erp-report-table thead,
   .erp-report-table thead th,
   #report-table-head {

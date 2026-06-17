@@ -1899,6 +1899,30 @@ function initReportsSystem() {
   
   const fDateInput = document.getElementById('report-from');
   const tDateInput = document.getElementById('report-to');
+  const filtersPanel = document.getElementById('report-filters-panel');
+  const collapsedBar = document.getElementById('report-filters-collapsed-bar');
+  const toggleFiltersBtn = document.getElementById('btn-toggle-report-filters');
+  const reportTools = document.querySelector('.erp-report-tools');
+  
+  const showReportFilters = () => {
+    if (filtersPanel) filtersPanel.classList.remove('hidden');
+    if (collapsedBar) collapsedBar.classList.add('hidden');
+    reportTools?.classList.remove('erp-report-filters-collapsed');
+  };
+
+  const collapseReportFiltersMobile = () => {
+    if (!window.matchMedia('(max-width: 767px)').matches) return;
+    if (filtersPanel) filtersPanel.classList.add('hidden');
+    if (collapsedBar) collapsedBar.classList.remove('hidden');
+    reportTools?.classList.add('erp-report-filters-collapsed');
+  };
+
+  if (toggleFiltersBtn) {
+    toggleFiltersBtn.addEventListener('click', () => {
+      showReportFilters();
+      filtersPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
   
   const now = new Date();
   const pad = n => (n < 10 ? '0'+n : n);
@@ -1999,7 +2023,13 @@ if (typeSelect) {
       }
 
       await executeReportGeneration(repType, fDateInput.value, tDateInput.value, secSelect.value, secSelect.options[secSelect.selectedIndex]?.text);
-      if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+      collapseReportFiltersMobile();
+      const resultsAnchor = document.getElementById('report-results-anchor');
+      if (window.matchMedia('(max-width: 767px)').matches && resultsAnchor) {
+        setTimeout(() => resultsAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+      } else if (mainContent) {
+        mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+      }
     });
   }
 }
