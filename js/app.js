@@ -139,29 +139,7 @@ function syncMobileHeaderHeight() {
 }
 
 function syncChromeBarHeight() {
-  let h = 44;
-  if (document.body.classList.contains('erp-mobile-dashboard')) {
-    const panel = document.getElementById('dashboard-insights-panel');
-    const body = document.getElementById('dashboard-insights-body');
-    const toggle = document.getElementById('dashboard-insights-toggle');
-    if (panel && body && !body.classList.contains('hidden')) {
-      h = Math.ceil(panel.getBoundingClientRect().height);
-    } else if (toggle) {
-      h = Math.ceil(toggle.getBoundingClientRect().height);
-    }
-  } else if (document.body.classList.contains('erp-mobile-module')) {
-    const mod = document.getElementById('erp-module-toolbar');
-    if (mod) h = Math.ceil(mod.getBoundingClientRect().height);
-  }
-  document.documentElement.style.setProperty('--erp-mobile-chrome-h', `${h}px`);
-  if (isCompactLayout() && (document.body.classList.contains('erp-mobile-dashboard') || document.body.classList.contains('erp-mobile-module'))) {
-    document.getElementById('app-body')?.style.setProperty(
-      'padding-top',
-      `calc(var(--erp-mobile-header-h) + ${h}px)`
-    );
-  } else {
-    document.getElementById('app-body')?.style.removeProperty('padding-top');
-  }
+  /* Chrome bars are in-flow; no fixed offset math needed */
 }
 
 function clearChromeInlineStyles() {
@@ -175,19 +153,29 @@ function clearChromeInlineStyles() {
 }
 
 function forceChromeBarVisible(mode) {
+  clearChromeInlineStyles();
   const dash = document.getElementById('dashboard-insights-panel');
   const mod = document.getElementById('erp-module-toolbar');
   if (mode === 'dashboard') {
     dash?.classList.remove('hidden');
-    dash?.style.setProperty('display', 'block', 'important');
-    dash?.style.setProperty('visibility', 'visible', 'important');
-    mod?.style.setProperty('display', 'none', 'important');
   } else if (mode === 'module') {
-    mod?.style.setProperty('display', 'block', 'important');
-    mod?.style.setProperty('visibility', 'visible', 'important');
-    dash?.style.setProperty('display', 'none', 'important');
+    mod?.classList.remove('hidden');
   }
-  syncChromeBarHeight();
+}
+
+function scrollMainToElement(el, offset = 8) {
+  if (!el || !mainContent) return;
+  const mcRect = mainContent.getBoundingClientRect();
+  const elRect = el.getBoundingClientRect();
+  const nextTop = mainContent.scrollTop + (elRect.top - mcRect.top) - offset;
+  mainContent.scrollTo({ top: Math.max(0, nextTop), behavior: 'smooth' });
+}
+
+function scrollMainToElementAfterLayout(el, offset = 8) {
+  if (!el || !isCompactLayout()) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => scrollMainToElement(el, offset));
+  });
 }
 
 function setMobilePageMode(target) {
@@ -222,7 +210,6 @@ function setMobilePageMode(target) {
   }
 
   syncMobileHeaderHeight();
-  syncChromeBarHeight();
 }
 
 function updateModuleToolbarText(label, summary) {
@@ -293,7 +280,8 @@ function createMobileSnapshotController(pageRoot, options = {}) {
     setMobilePageMode(activeModuleTarget);
     forceChromeBarVisible('module');
     requestAnimationFrame(() => {
-      pageRoot.querySelector('.erp-mobile-snapshot-target')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      const target = pageRoot.querySelector('.erp-mobile-snapshot-target');
+      if (target) scrollMainToElement(target);
     });
   };
 
@@ -331,7 +319,10 @@ function bindMobileSnapshotResizeOnce() {
 function onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer) {
   if (ledgerContainer && !ledgerContainer.classList.contains('hidden')) {
     mobileSnapshot?.collapse('Ledger loaded · Tap to show entry form');
+    setMobilePageMode(activeModuleTarget);
     forceChromeBarVisible('module');
+    const ledger = ledgerContainer.querySelector('.erp-ledger-wrap') || ledgerContainer;
+    scrollMainToElementAfterLayout(ledger);
   }
 }
 
@@ -413,7 +404,9 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
         if (!isHidden) {
           mobileSnapshot?.collapse('Viewing ledger · Tap to show form');
           setMobilePageMode(activeModuleTarget);
-          mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+          forceChromeBarVisible('module');
+          const ledger = ledgerContainer.querySelector('.erp-ledger-wrap') || ledgerContainer;
+          scrollMainToElementAfterLayout(ledger);
         } else {
           mobileSnapshot?.expand();
           setMobilePageMode(activeModuleTarget);
@@ -500,7 +493,8 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
       await loadAllTxnTableRecords(true);
       mobileSnapshot?.collapse('Showing audit records · Tap to change filters');
       setMobilePageMode('all_transactions');
-      mainContent.querySelector('.erp-ledger-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      forceChromeBarVisible('module');
+      scrollMainToElementAfterLayout(mainContent.querySelector('.erp-ledger-wrap'));
     });
   } else if (target === 'reports') {
     initReportsSystem();
@@ -2313,8 +2307,8 @@ if (typeSelect) {
       setMobilePageMode('reports');
       forceChromeBarVisible('module');
       const resultsAnchor = document.getElementById('report-results-anchor');
-      if (isMobileViewport() && resultsAnchor) {
-        setTimeout(() => resultsAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+      if (isCompactLayout() && resultsAnchor) {
+        scrollMainToElementAfterLayout(resultsAnchor, 4);
       } else if (mainContent) {
         mainContent.scrollTo({ top: 0, behavior: 'smooth' });
       }

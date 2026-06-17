@@ -19,14 +19,25 @@
     z-index: 60;
   }
 
-  #app-body {
-    padding-top: var(--erp-mobile-header-h);
+  html,
+  body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 
-  /* Reserve space for fixed chrome bar so scroll content stays below it */
-  body.erp-mobile-dashboard #app-body,
-  body.erp-mobile-module #app-body {
-    padding-top: calc(var(--erp-mobile-header-h) + var(--erp-mobile-chrome-h));
+  #app-shell {
+    min-height: 0;
+    height: 100%;
+  }
+
+  #app-body {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: hidden;
+    padding-top: var(--erp-mobile-header-h) !important;
   }
 
   #sidebar,
@@ -34,39 +45,39 @@
     z-index: 70;
   }
 
-  /* Mobile chrome — fixed below header, NEVER hidden when page mode is set */
+  /*
+   * Chrome bars live IN the flex column (not fixed) — they sit above #main-content
+   * so report/ledger results never slide under the toggle row.
+   */
   #dashboard-insights-panel,
   #erp-module-toolbar {
     display: none !important;
-    position: fixed;
-    left: 0;
-    right: 0;
-    top: var(--erp-mobile-header-h);
-    z-index: 55;
-    flex-shrink: 0;
+    position: relative;
+    flex: 0 0 auto;
+    width: 100%;
+    z-index: 10;
     background: #fff;
     border-bottom: 1px solid #e5e7eb;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-    visibility: visible !important;
-    opacity: 1 !important;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
   }
 
   body.erp-mobile-dashboard #dashboard-insights-panel {
     display: block !important;
-    max-height: calc(100dvh - var(--erp-mobile-header-h));
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
   }
 
   body.erp-mobile-module #erp-module-toolbar {
     display: block !important;
   }
 
-  body.erp-mobile-dashboard #dashboard-insights-panel.hidden {
-    display: block !important;
+  body.erp-mobile-dashboard #erp-module-toolbar {
+    display: none !important;
   }
 
-  body.erp-mobile-module #erp-module-toolbar.hidden {
+  body.erp-mobile-module #dashboard-insights-panel {
+    display: none !important;
+  }
+
+  body.erp-mobile-dashboard #dashboard-insights-panel.hidden {
     display: block !important;
   }
 
@@ -76,21 +87,33 @@
     min-height: 2.75rem;
   }
 
-  body.erp-mobile-dashboard #main-content,
-  body.erp-mobile-module #main-content {
-    margin-top: 0;
-    padding-top: 0;
+  body.erp-mobile-dashboard #dashboard-insights-body:not(.hidden) {
+    max-height: 38vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
-  #report-results-anchor,
-  .erp-report-results,
-  .erp-report-panel,
-  .erp-ledger-wrap,
-  #main-content .erp-module-page {
-    scroll-margin-top: 0.75rem;
+  /* Scrollable page area — only this region scrolls; chrome stays above it */
+  #main-content {
+    position: relative;
+    z-index: 0;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
+    overflow-x: hidden !important;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-padding-top: 0.5rem;
+    padding-bottom: 2rem;
   }
 
-  #insights-toggle-chevron.rotate-180,
+  /* Sticky table headers stick to #main-content top, not the window */
+  #main-content thead.sticky,
+  #main-content .sticky.top-0 {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+  }
   .erp-mobile-snapshot-chevron.rotate-180 {
     transform: rotate(180deg);
   }
@@ -223,17 +246,6 @@
 
   .erp-module-page {
     padding-bottom: 1.5rem;
-  }
-
-  /* Prevent content painting over fixed header */
-  #main-content {
-    position: relative;
-    z-index: 0;
-    isolation: isolate;
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    padding-bottom: 2rem;
   }
 
   .erp-ledger-panel {
