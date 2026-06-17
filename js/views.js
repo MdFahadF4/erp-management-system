@@ -710,7 +710,7 @@ export const templates = {
       </div>
       <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-visible md:overflow-hidden md:h-[85vh]">
         
-        <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mb-4 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner">
+        <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mb-4 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-mobile-filter-bar">
           <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="filter-from-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
           <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
           <div class="flex-1 min-w-[160px]">
@@ -751,11 +751,6 @@ export const templates = {
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             Print / Export
           </button>
-        </div>
-
-        <div id="report-filters-collapsed-bar" class="hidden md:hidden bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 mt-2 flex items-center justify-between gap-2">
-          <span class="text-xs font-bold text-blue-800">Report loaded — scroll down to view data</span>
-          <button type="button" id="btn-toggle-report-filters" class="shrink-0 text-xs font-bold text-blue-600 underline">Change filters</button>
         </div>
 
         <div id="report-filters-panel" class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mt-3 md:mt-4 mb-2 md:mb-0 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-report-filters">
@@ -819,7 +814,7 @@ export const templates = {
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-4"><h2 class="text-2xl font-bold text-gray-800">User Access Management</h2></div>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-        <div class="bg-white p-6 rounded-xl shadow border lg:col-span-1 border-gray-200">
+        <div class="bg-white p-6 rounded-xl shadow border lg:col-span-1 border-gray-200 erp-mobile-user-form">
           <h3 class="text-lg font-semibold text-gray-700 mb-4">Provision Account</h3>
           <form id="form-create-user" class="space-y-4">
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1">Username</label><input type="text" id="new-username" required class="w-full border rounded p-2 outline-none"></div>

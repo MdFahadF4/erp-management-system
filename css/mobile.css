@@ -43,26 +43,23 @@
     box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
   }
 
+  /* Mobile module snapshot (same pattern as Dashboard Snapshot) */
+  .erp-module-page.erp-mobile-snapshot-collapsed .erp-mobile-snapshot-target {
+    display: none !important;
+  }
+
+  .erp-mobile-snapshot-toggle {
+    touch-action: manipulation;
+  }
+
+  .erp-mobile-snapshot-chevron.rotate-180 {
+    transform: rotate(180deg);
+  }
+
   /* Reports: filters scroll away — do NOT stick over results */
   .erp-report-tools {
     position: relative;
     z-index: 1;
-  }
-
-  .erp-report-tools.erp-report-filters-collapsed {
-    margin-bottom: 0.5rem;
-  }
-
-  .erp-report-tools.erp-report-filters-collapsed > .border-b:first-of-type {
-    display: none;
-  }
-
-  #report-filters-panel.hidden {
-    display: none !important;
-  }
-
-  #report-filters-collapsed-bar:not(.hidden) {
-    display: flex !important;
   }
 
   .erp-report-results {

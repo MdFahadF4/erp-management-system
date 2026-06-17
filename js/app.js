@@ -117,6 +117,154 @@ function closeMenu() {
   if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
 }
 
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 767px)').matches;
+}
+
+function markMobileSnapshotTargets(pageRoot, selectors) {
+  selectors.forEach((sel) => {
+    pageRoot.querySelectorAll(sel).forEach((el) => el.classList.add('erp-mobile-snapshot-target'));
+  });
+}
+
+function createMobileSnapshotController(pageRoot, options = {}) {
+  if (!pageRoot) return null;
+
+  const label = options.label || 'Module Options';
+  const defaultSummary = options.defaultSummary || 'Tap to show form & options';
+  let collapsed = Boolean(options.startCollapsed);
+  let summaryOverride = null;
+
+  let bar = pageRoot.querySelector('.erp-mobile-snapshot');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.className = 'erp-mobile-snapshot md:hidden shrink-0 border-b border-gray-200 bg-gray-50/80 mb-2 -mx-3';
+    bar.innerHTML = `
+      <button type="button" class="erp-mobile-snapshot-toggle w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="false">
+        <div class="min-w-0">
+          <div class="erp-mobile-snapshot-label text-[10px] font-bold text-gray-500 uppercase tracking-wider"></div>
+          <div class="erp-mobile-snapshot-summary text-xs text-gray-600 truncate"></div>
+        </div>
+        <svg class="erp-mobile-snapshot-chevron w-5 h-5 text-gray-400 shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+      </button>
+    `;
+    pageRoot.insertBefore(bar, pageRoot.firstChild);
+  }
+
+  const toggle = bar.querySelector('.erp-mobile-snapshot-toggle');
+  const labelEl = bar.querySelector('.erp-mobile-snapshot-label');
+  const summaryEl = bar.querySelector('.erp-mobile-snapshot-summary');
+  const chevron = bar.querySelector('.erp-mobile-snapshot-chevron');
+  if (labelEl) labelEl.textContent = label;
+  if (summaryEl) summaryEl.textContent = defaultSummary;
+
+  const applyState = () => {
+    if (!isMobileViewport()) {
+      pageRoot.classList.remove('erp-mobile-snapshot-collapsed');
+      toggle?.setAttribute('aria-expanded', 'true');
+      chevron?.classList.remove('rotate-180');
+      return;
+    }
+    pageRoot.classList.toggle('erp-mobile-snapshot-collapsed', collapsed);
+    toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    chevron?.classList.toggle('rotate-180', !collapsed);
+    if (summaryEl) {
+      summaryEl.textContent = collapsed
+        ? (summaryOverride || defaultSummary)
+        : defaultSummary;
+    }
+  };
+
+  const collapse = (summaryText) => {
+    if (!isMobileViewport()) return;
+    if (summaryText) summaryOverride = summaryText;
+    collapsed = true;
+    applyState();
+  };
+
+  const expand = () => {
+    summaryOverride = null;
+    collapsed = false;
+    applyState();
+    if (isMobileViewport()) {
+      pageRoot.querySelector('.erp-mobile-snapshot-target')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
+  if (toggle && toggle.dataset.bound !== 'true') {
+    toggle.dataset.bound = 'true';
+    toggle.addEventListener('click', () => {
+      if (!isMobileViewport()) return;
+      if (collapsed) expand();
+      else collapse('Tap to hide form & options');
+    });
+  }
+
+  applyState();
+  return {
+    collapse,
+    expand,
+    setSummary: (text) => { summaryOverride = text; if (summaryEl && collapsed) summaryEl.textContent = text; },
+    isCollapsed: () => collapsed,
+    refresh: applyState
+  };
+}
+
+function bindMobileSnapshotResizeOnce() {
+  if (window._erpMobileSnapshotResizeBound) return;
+  window._erpMobileSnapshotResizeBound = true;
+  window.addEventListener('resize', () => {
+    mainContent?.querySelector('.erp-module-page')?._mobileSnapshot?.refresh?.();
+  });
+}
+
+function onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer) {
+  if (isMobileViewport() && ledgerContainer && !ledgerContainer.classList.contains('hidden')) {
+    mobileSnapshot?.collapse('Ledger loaded · Tap to show entry form');
+  }
+}
+
+function initMobileModuleSnapshot(target) {
+  const pageRoot = mainContent?.querySelector('.erp-module-page');
+  if (!pageRoot) return null;
+
+  const titleText = pageRoot.querySelector('.border-b h2')?.textContent?.trim() || 'Module Options';
+
+  if (target === 'reports') {
+    markMobileSnapshotTargets(pageRoot, ['.erp-report-tools']);
+    return createMobileSnapshotController(pageRoot, {
+      label: 'Report Options',
+      defaultSummary: 'Tap to select report & dates'
+    });
+  }
+
+  if (target === 'all_transactions') {
+    markMobileSnapshotTargets(pageRoot, ['.border-b', '.erp-mobile-filter-bar']);
+    return createMobileSnapshotController(pageRoot, {
+      label: 'Audit Filters',
+      defaultSummary: 'Tap to set dates & category'
+    });
+  }
+
+  if (target === 'users') {
+    markMobileSnapshotTargets(pageRoot, ['.border-b', '.erp-mobile-user-form']);
+    return createMobileSnapshotController(pageRoot, {
+      label: 'User Management',
+      defaultSummary: 'Tap to provision new account'
+    });
+  }
+
+  if (pageRoot.querySelector('#toggle-ledger-btn')) {
+    markMobileSnapshotTargets(pageRoot, ['.border-b', '#form-container']);
+    return createMobileSnapshotController(pageRoot, {
+      label: titleText.length > 42 ? `${titleText.slice(0, 39)}…` : titleText,
+      defaultSummary: 'Tap to show entry form & actions'
+    });
+  }
+
+  return null;
+}
+
 async function loadModulePage(target, { pushHistory = false, replaceHistory = false } = {}) {
   if (!templates[target] || !mainContent) return;
 
@@ -125,24 +273,33 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   setDashboardDrawersSectionVisible(target === 'dashboard');
   mainContent.scrollTo({ top: 0, behavior: 'auto' });
 
+  const pageRoot = mainContent.querySelector('.erp-module-page');
+  const mobileSnapshot = initMobileModuleSnapshot(target);
+  if (pageRoot && mobileSnapshot) {
+    pageRoot._mobileSnapshot = mobileSnapshot;
+    bindMobileSnapshotResizeOnce();
+  }
+
   const toggleBtn = document.getElementById('toggle-ledger-btn');
   const formContainer = document.getElementById('form-container');
   const ledgerContainer = document.getElementById('ledger-container');
 
   if (toggleBtn && formContainer && ledgerContainer) {
     toggleBtn.addEventListener('click', () => {
-      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      const isMobile = isMobileViewport();
       const isHidden = ledgerContainer.classList.toggle('hidden');
 
       if (isMobile) {
-        formContainer.classList.toggle('hidden', !isHidden);
         toggleBtn.textContent = isHidden ? 'Ledger View' : 'Back to Form';
         toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         toggleBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
         document.body.classList.toggle('erp-mobile-ledger-open', !isHidden);
         closeMenu();
-        if (!isHidden && mainContent) {
+        if (!isHidden) {
+          mobileSnapshot?.collapse('Viewing ledger · Tap to show form');
           mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+        } else {
+          mobileSnapshot?.expand();
         }
         return;
       }
@@ -170,38 +327,63 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     initHRFormListeners(); await loadHRTableRecords();
   } else if (target === 'hr_transactions') {
     await populateEmployeeDropdown(); initTxnFormListeners(); await loadTxnTableRecords();
-    document.getElementById('btn-filter-hr')?.addEventListener('click', () => loadTxnTableRecords(true));
+    document.getElementById('btn-filter-hr')?.addEventListener('click', () => {
+      loadTxnTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'suppliers') {
     initSupplierFormListeners(); await loadSupplierTableRecords();
   } else if (target === 'supplier_transactions') {
     await populateSupplierTxnDropdown(); initSupplierTxnFormListeners(); await loadSupplierTxnTableRecords();
-    document.getElementById('btn-filter-sup')?.addEventListener('click', () => loadSupplierTxnTableRecords(true));
+    document.getElementById('btn-filter-sup')?.addEventListener('click', () => {
+      loadSupplierTxnTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'customers') {
     initCustomerFormListeners(); await loadCustomerTableRecords();
   } else if (target === 'customer_transactions') {
     await populateCustomerTxnDropdown(); initCustomerTxnFormListeners(); await loadCustomerTxnTableRecords();
-    document.getElementById('btn-filter-cust')?.addEventListener('click', () => loadCustomerTxnTableRecords(true));
+    document.getElementById('btn-filter-cust')?.addEventListener('click', () => {
+      loadCustomerTxnTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'internal_transfer') {
     initInternalTransferFormListeners(); await loadInternalTransferTableRecords();
-    document.getElementById('btn-filter-int')?.addEventListener('click', () => loadInternalTransferTableRecords(true));
+    document.getElementById('btn-filter-int')?.addEventListener('click', () => {
+      loadInternalTransferTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'expense_heads') {
     initExpenseHeadFormListeners(); await loadExpenseHeadTableRecords();
   } else if (target === 'expense_transactions') {
     await populateExpenseHeadDropdowns(); initExpenseTxnFormListeners(); await loadExpenseTxnTableRecords();
-    document.getElementById('btn-filter-exp')?.addEventListener('click', () => loadExpenseTxnTableRecords(true));
+    document.getElementById('btn-filter-exp')?.addEventListener('click', () => {
+      loadExpenseTxnTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'creditors') {
     initCreditorFormListeners(); await loadCreditorTableRecords();
   } else if (target === 'creditor_transactions') {
     await populateCreditorDropdowns(); initCreditorTxnFormListeners(); await loadCreditorTxnTableRecords();
-    document.getElementById('btn-filter-cred')?.addEventListener('click', () => loadCreditorTxnTableRecords(true));
+    document.getElementById('btn-filter-cred')?.addEventListener('click', () => {
+      loadCreditorTxnTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'income_heads') {
     initIncomeHeadFormListeners(); await loadIncomeHeadTableRecords();
   } else if (target === 'income_transactions') {
     await populateIncomeHeadDropdowns(); initIncomeTxnFormListeners(); await loadIncomeTxnTableRecords();
-    document.getElementById('btn-filter-inc')?.addEventListener('click', () => loadIncomeTxnTableRecords(true));
+    document.getElementById('btn-filter-inc')?.addEventListener('click', () => {
+      loadIncomeTxnTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'all_transactions') {
     await loadAllTxnTableRecords();
-    document.getElementById('btn-filter-all')?.addEventListener('click', () => loadAllTxnTableRecords(true));
+    document.getElementById('btn-filter-all')?.addEventListener('click', async () => {
+      await loadAllTxnTableRecords(true);
+      mobileSnapshot?.collapse('Showing audit records · Tap to change filters');
+      mainContent.querySelector('.erp-ledger-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   } else if (target === 'reports') {
     initReportsSystem();
   } else if (target === 'users') {
@@ -1899,30 +2081,8 @@ function initReportsSystem() {
   
   const fDateInput = document.getElementById('report-from');
   const tDateInput = document.getElementById('report-to');
-  const filtersPanel = document.getElementById('report-filters-panel');
-  const collapsedBar = document.getElementById('report-filters-collapsed-bar');
-  const toggleFiltersBtn = document.getElementById('btn-toggle-report-filters');
-  const reportTools = document.querySelector('.erp-report-tools');
-  
-  const showReportFilters = () => {
-    if (filtersPanel) filtersPanel.classList.remove('hidden');
-    if (collapsedBar) collapsedBar.classList.add('hidden');
-    reportTools?.classList.remove('erp-report-filters-collapsed');
-  };
-
-  const collapseReportFiltersMobile = () => {
-    if (!window.matchMedia('(max-width: 767px)').matches) return;
-    if (filtersPanel) filtersPanel.classList.add('hidden');
-    if (collapsedBar) collapsedBar.classList.remove('hidden');
-    reportTools?.classList.add('erp-report-filters-collapsed');
-  };
-
-  if (toggleFiltersBtn) {
-    toggleFiltersBtn.addEventListener('click', () => {
-      showReportFilters();
-      filtersPanel?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-  }
+  const pageRoot = document.querySelector('.erp-module-page');
+  const mobileSnapshot = pageRoot?._mobileSnapshot;
   
   const now = new Date();
   const pad = n => (n < 10 ? '0'+n : n);
@@ -2023,9 +2183,10 @@ if (typeSelect) {
       }
 
       await executeReportGeneration(repType, fDateInput.value, tDateInput.value, secSelect.value, secSelect.options[secSelect.selectedIndex]?.text);
-      collapseReportFiltersMobile();
+      const reportLabel = typeSelect.options[typeSelect.selectedIndex]?.text?.trim() || 'Report';
+      mobileSnapshot?.collapse(`${reportLabel} · ${fDateInput.value} to ${tDateInput.value}`);
       const resultsAnchor = document.getElementById('report-results-anchor');
-      if (window.matchMedia('(max-width: 767px)').matches && resultsAnchor) {
+      if (isMobileViewport() && resultsAnchor) {
         setTimeout(() => resultsAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
       } else if (mainContent) {
         mainContent.scrollTo({ top: 0, behavior: 'smooth' });
