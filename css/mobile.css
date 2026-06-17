@@ -86,7 +86,59 @@
     min-height: 2.75rem;
   }
 
+  .erp-module-page {
+    padding-bottom: 1.5rem;
+  }
+  /* ── Main page scroll (touch-friendly) ── */
+  #main-content {
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding-bottom: 2rem;
+  }
+
+  /* ── Module ledger panels: page scrolls up/down, table swipes sideways ── */
+  .erp-ledger-panel {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .erp-ledger-panel:not(.hidden) {
+    margin-bottom: 1rem;
+  }
+
+  .erp-ledger-wrap {
+    flex: none !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .erp-ledger-panel .flex.gap-8 {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .erp-ledger-panel .text-3xl {
+    font-size: 1.25rem !important;
+  }
+
+  /* ── Report detail ledgers: full vertical scroll on page ── */
+  .erp-report-panel {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  .erp-report-ledger-wrap {
+    max-height: none !important;
+    overflow-y: visible !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
   /* ── Ledger / data tables: horizontal scroll, readable cells ── */
+  #ledger-container .erp-ledger-wrap,
   #ledger-container .overflow-x-auto,
   #main-content .overflow-x-auto {
     -webkit-overflow-scrolling: touch;
@@ -153,7 +205,7 @@
   }
 
   .erp-report-scroll::after {
-    content: "Swipe sideways for more columns →";
+    content: "Swipe sideways for columns · scroll page up/down for more rows";
     display: block;
     font-size: 0.625rem;
     color: #6b7280;
@@ -233,11 +285,18 @@
     width: 100%;
   }
 
-  /* ── All transactions view height ── */
-  #main-content .h-\[85vh\] {
+  /* ── All transactions view: page scroll on mobile ── */
+  #main-content [class*="h-[85vh]"] {
     height: auto !important;
-    max-height: calc(100dvh - 11rem);
-    min-height: 18rem;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #main-content .overflow-y-auto.border.rounded-lg,
+  #main-content .erp-ledger-wrap {
+    overflow-y: visible !important;
+    flex: none !important;
+    max-height: none !important;
   }
 
   /* ── Users page permission grid ── */

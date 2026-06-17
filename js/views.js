@@ -112,7 +112,7 @@ export const templates = {
     </div>
   `,
   hr: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">HR Ledger & Payroll Management</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -138,9 +138,9 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition">COMMIT STAFF ENTITY</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">Personnel Database Records</h3>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr>
@@ -184,7 +184,7 @@ export const templates = {
     </div>
   `,
   hr_transactions: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">HR Transaction Ledger</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -201,14 +201,14 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition">POST TRANSACTION</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Transaction History Log</h3>
           <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="filter-from-hr" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-hr" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
             <div><button id="btn-filter-hr" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">Expand / Load Ledger</button></div>
           </div>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr><th class="p-2.5">Date</th><th class="p-2.5">Employee Name</th><th class="p-2.5">Amount</th><th class="p-2.5">Category</th><th class="p-2.5">Remarks</th><th class="p-2.5">Logged By</th><th class="p-2.5">System Stamp</th></tr>
@@ -221,7 +221,7 @@ export const templates = {
     </div>
   `,
   suppliers: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Supplier Account Management</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -243,9 +243,9 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition tracking-wider">REGISTER SUPPLIER</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">Supplier Master Accounts</h3>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr>
@@ -278,7 +278,7 @@ export const templates = {
     </div>
   `,
   supplier_transactions: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Supplier Transaction Ledger</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -295,14 +295,14 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider">POST TRANSACTION ENTRY</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Historical Book Ledger Log</h3>
           <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="filter-from-sup" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-sup" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
             <div><button id="btn-filter-sup" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">Expand / Load Ledger</button></div>
           </div>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr><th class="p-2.5">Date</th><th class="p-2.5">Supplier Name</th><th class="p-2.5">Amount</th><th class="p-2.5">Category</th><th class="p-2.5">Remarks / Reference</th><th class="p-2.5">Logged By</th><th class="p-2.5">System Stamp</th></tr>
@@ -315,7 +315,7 @@ export const templates = {
     </div>
   `,
   customers: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Customer Accounts Matrix</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -342,9 +342,9 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded text-sm transition tracking-wider">COMMIT CUSTOMER SALE</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">Customer Master Invoice Ledger</h3>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr>
@@ -383,7 +383,7 @@ export const templates = {
     </div>
   `,
   customer_transactions: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Customer Transaction Logging</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -402,14 +402,14 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider">POST TRANSACTION</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Customer Historical Ledger Log</h3>
           <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="filter-from-cust" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-cust" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
             <div><button id="btn-filter-cust" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">Expand / Load Ledger</button></div>
           </div>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr><th class="p-2.5">Date</th><th class="p-2.5">Sys UID</th><th class="p-2.5">Sold Amt</th><th class="p-2.5">Received Amt</th><th class="p-2.5">Method</th><th class="p-2.5">Txn Due</th><th class="p-2.5">Remarks</th><th class="p-2.5">Logged By</th><th class="p-2.5">Stamp</th></tr>
@@ -422,7 +422,7 @@ export const templates = {
     </div>
   `,
   internal_transfer: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Internal Cash Handover Transfer</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -437,14 +437,14 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Execute Cash Handover</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Historical Cash Transfer Ledger</h3>
           <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="filter-from-int" class="w-full border rounded p-2 outline-none focus:border-emerald-500"></div>
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-int" class="w-full border rounded p-2 outline-none focus:border-emerald-500"></div>
             <div><button id="btn-filter-int" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">Expand / Load Ledger</button></div>
           </div>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr><th class="p-2.5">Date</th><th class="p-2.5">System Unique ID</th><th class="p-2.5">Transfer Amount</th><th class="p-2.5">Description / Purpose</th><th class="p-2.5">Transferred By</th><th class="p-2.5">System Stamp</th></tr>
@@ -457,7 +457,7 @@ export const templates = {
     </div>
   `,
   expense_heads: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Expense Category Setup</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -471,9 +471,9 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Category</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Configured Expense Structures</h3>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr>
@@ -488,7 +488,7 @@ export const templates = {
     </div>
   `,
   expense_transactions: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Operational Expense Ledger</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -509,7 +509,7 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Expense Line</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           
           <div class="bg-gradient-to-r from-red-500 to-orange-600 p-6 rounded-2xl shadow-xl border text-white flex justify-between items-center mb-6">
             <div class="flex gap-8">
@@ -527,7 +527,7 @@ export const templates = {
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-exp" class="w-full border rounded p-2 outline-none focus:border-red-500"></div>
             <div><button id="btn-filter-exp" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">Expand / Load Ledger</button></div>
           </div>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr><th class="p-2.5">Date</th><th class="p-2.5">Parent Category</th><th class="p-2.5">Sub Head</th><th class="p-2.5">Deposit</th><th class="p-2.5">Paid Amt</th><th class="p-2.5">Txn Due</th><th class="p-2.5">Remarks / Vouchers</th><th class="p-2.5">Logged By</th><th class="p-2.5">Stamp</th></tr>
@@ -540,7 +540,7 @@ export const templates = {
     </div>
   `,
   creditors: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Creditor Setup (Liabilities)</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -554,9 +554,9 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-orange-600 hover:bg-orange-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Creditor</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Configured Creditor Structures</h3>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr>
@@ -571,7 +571,7 @@ export const templates = {
     </div>
   `,
   creditor_transactions: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Creditor Ledger (Loans & Returns)</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -594,7 +594,7 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-orange-600 hover:bg-orange-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Creditor Line</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           
           <div class="bg-gradient-to-r from-orange-500 to-amber-600 p-6 rounded-2xl shadow-xl border text-white flex justify-between items-center mb-6">
             <div class="flex gap-8">
@@ -609,7 +609,7 @@ export const templates = {
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-cred" class="w-full border rounded p-2 outline-none focus:border-orange-500"></div>
             <div><button id="btn-filter-cred" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">Expand / Load Ledger</button></div>
           </div>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr><th class="p-2.5">Date</th><th class="p-2.5">Parent Category</th><th class="p-2.5">Sub Head</th><th class="p-2.5">Received Amt</th><th class="p-2.5">Return Amt</th><th class="p-2.5">Txn Due</th><th class="p-2.5">Remarks</th><th class="p-2.5">Logged By</th><th class="p-2.5">Stamp</th></tr>
@@ -622,7 +622,7 @@ export const templates = {
     </div>
   `,
   income_heads: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Income Category Setup (Revenues)</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -636,9 +636,9 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Income Category</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Configured Income Structures</h3>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr>
@@ -653,7 +653,7 @@ export const templates = {
     </div>
   `,
   income_transactions: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Income Ledger Logging</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
@@ -676,7 +676,7 @@ export const templates = {
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Income Line</button>
           </form>
         </div>
-        <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
           
           <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl shadow-xl border text-white flex justify-between items-center mb-6">
             <div class="flex gap-8">
@@ -691,7 +691,7 @@ export const templates = {
             <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-inc" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
             <div><button id="btn-filter-inc" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">Expand / Load Ledger</button></div>
           </div>
-          <div class="overflow-x-auto border rounded-lg flex-1">
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
                 <tr><th class="p-2.5">Date</th><th class="p-2.5">Parent Category</th><th class="p-2.5">Sub Head</th><th class="p-2.5">Receivable</th><th class="p-2.5">Received Amt</th><th class="p-2.5">Txn Due</th><th class="p-2.5">Remarks</th><th class="p-2.5">Logged By</th><th class="p-2.5">Stamp</th></tr>
@@ -704,13 +704,13 @@ export const templates = {
     </div>
   `,
   all_transactions: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">All Transaction View (Master Audit)</h2>
       </div>
-      <div class="bg-white p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden h-[85vh]">
+      <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-visible md:overflow-hidden md:h-[85vh]">
         
-        <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg mb-4 flex flex-wrap items-end gap-4 text-xs shadow-inner">
+        <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mb-4 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner">
           <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="filter-from-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
           <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
           <div class="flex-1 min-w-[160px]">
@@ -729,7 +729,7 @@ export const templates = {
           <div><button id="btn-filter-all" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded transition shadow-sm">Search / Filter Records</button></div>
         </div>
 
-        <div class="overflow-y-auto border rounded-lg flex-1 relative">
+        <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:overflow-y-auto relative">
           <table class="w-full text-left border-collapse text-xs">
             <thead class="bg-slate-800 text-white uppercase whitespace-nowrap sticky top-0 z-10 shadow">
               <tr><th class="p-3">Date</th><th class="p-3">Category</th><th class="p-3">Transaction Details</th><th class="p-3">Financial Impact</th><th class="p-3">Remarks / Narrative</th><th class="p-3">Logged By</th><th class="p-3">Stamp</th></tr>
@@ -752,7 +752,7 @@ export const templates = {
         </button>
       </div>
       
-      <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col print:shadow-none print:border-none print:p-0">
+      <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-visible print:shadow-none print:border-none print:p-0">
         
         <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mb-4 md:mb-6 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner print:hidden">
           <div class="w-full md:flex-1 md:min-w-[200px]">
@@ -792,8 +792,8 @@ export const templates = {
         <div id="report-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6 hidden">
         </div>
 
-        <div id="report-table-container" class="border rounded-lg flex-1 relative print:border-none bg-white">
-           <div class="erp-report-scroll overflow-x-auto">
+        <div id="report-table-container" class="erp-report-panel border rounded-lg relative print:border-none bg-white">
+           <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
               <table class="erp-report-table w-full text-left border-collapse text-xs">
                 <thead id="report-table-head" class="bg-slate-800 text-white sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
                   <tr><th class="p-3 text-center text-gray-300 font-normal normal-case">Select parameters and execute query to build report.</th></tr>
@@ -808,7 +808,7 @@ export const templates = {
     </div>
   `,
   users: `
-    <div class="space-y-6">
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-4"><h2 class="text-2xl font-bold text-gray-800">User Access Management</h2></div>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div class="bg-white p-6 rounded-xl shadow border lg:col-span-1 border-gray-200">

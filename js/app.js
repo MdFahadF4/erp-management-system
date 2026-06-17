@@ -153,7 +153,20 @@ if (menuButtons) {
 
         if (toggleBtn && formContainer && ledgerContainer) {
           toggleBtn.addEventListener('click', () => {
+            const isMobile = window.matchMedia('(max-width: 767px)').matches;
             const isHidden = ledgerContainer.classList.toggle('hidden');
+
+            if (isMobile) {
+              formContainer.classList.toggle('hidden', !isHidden);
+              toggleBtn.textContent = isHidden ? 'Ledger View' : 'Back to Form';
+              toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+              toggleBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
+              if (!isHidden) {
+                setTimeout(() => ledgerContainer.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+              }
+              return;
+            }
+
             if (isHidden) {
               formContainer.classList.remove('xl:col-span-1');
               formContainer.classList.add('xl:col-span-4', 'max-w-2xl', 'mx-auto');
@@ -1966,6 +1979,7 @@ if (typeSelect) {
       }
 
       await executeReportGeneration(repType, fDateInput.value, tDateInput.value, secSelect.value, secSelect.options[secSelect.selectedIndex]?.text);
+      setTimeout(() => document.getElementById('report-table-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
     });
   }
 }
@@ -1983,7 +1997,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
   const tableContainer = document.getElementById('report-table-container');
 
   tableContainer.innerHTML = `
-     <div class="erp-report-scroll overflow-x-auto">
+     <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
         <table class="erp-report-table w-full text-left border-collapse text-xs">
           <thead id="report-table-head" class="bg-slate-800 text-white sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
           </thead>
@@ -2178,7 +2192,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
              <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">Cash & Card Flow Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-             <div class="erp-report-scroll overflow-x-auto">
+             <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
                <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Flow Type</th><th class="p-2.5 font-semibold">Source/Destination</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                   <tbody class="divide-y divide-gray-100">
                      ${flowRows.length > 0 ? flowRows.sort((a,b)=> b.d - a.d).map(r => {
@@ -2721,19 +2735,19 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         let listsHtml = '';
         if (recvCustomers.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Customer Receivables List</div><div class="overflow-x-auto max-h-80"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Customer Name & UID</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${recvCustomers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-emerald-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Customer Receivables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Customer Name & UID</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${recvCustomers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-emerald-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (recvIncome.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-indigo-50 text-indigo-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-indigo-100 text-center">Other Income Receivables List</div><div class="overflow-x-auto max-h-80"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Income Head & UID</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${recvIncome.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-indigo-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-indigo-50 text-indigo-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-indigo-100 text-center">Other Income Receivables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Income Head & UID</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${recvIncome.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-indigo-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (paySuppliers.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">Supplier Payables List</div><div class="overflow-x-auto max-h-80"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Supplier Name</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${paySuppliers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-red-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">Supplier Payables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Supplier Name</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${paySuppliers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-red-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (payHR.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-orange-50 text-orange-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-orange-100 text-center">Salary Payables List</div><div class="overflow-x-auto max-h-80"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Employee Name</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${payHR.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-orange-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-orange-50 text-orange-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-orange-100 text-center">Salary Payables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Employee Name</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${payHR.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-orange-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (payCreditors.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-purple-50 text-purple-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-purple-100 text-center">Creditor Payables (Loans) List</div><div class="overflow-x-auto max-h-80"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Creditor Name / Head</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${payCreditors.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-purple-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-purple-50 text-purple-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-purple-100 text-center">Creditor Payables (Loans) List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Creditor Name / Head</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${payCreditors.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-purple-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
 
         if (listsHtml === '') listsHtml = `<div class="col-span-2 p-6 text-center text-gray-500 font-bold border border-gray-200 bg-gray-50 rounded-xl">No outstanding Receivables or Payables found across the enterprise.</div>`;
@@ -2826,7 +2840,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Incurred Expense Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Incurred Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdIncurred.length > 0 ? cdIncurred.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
@@ -2838,7 +2852,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Made Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Paid Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdPayments.length > 0 ? cdPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -2933,7 +2947,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Funds Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Received Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReceived.length > 0 ? cdReceived.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
@@ -2945,7 +2959,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Funds Returned Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Returned Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReturned.length > 0 ? cdReturned.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -3084,7 +3098,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Receivable Ledger (Due Increasing)</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${incReceivables.length > 0 ? incReceivables.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
@@ -3104,7 +3118,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Received Ledger (Due Decreasing)</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${incReceivedLogs.length > 0 ? incReceivedLogs.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -3204,7 +3218,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Funds Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Received Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReceived.length > 0 ? cdReceived.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
@@ -3216,7 +3230,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Funds Returned Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Returned Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReturned.length > 0 ? cdReturned.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -3380,7 +3394,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Sales & Billing Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
                         <tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Sold Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
@@ -3400,7 +3414,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
                         <tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Paid Amt</th><th class="p-2.5 font-semibold">Type</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
@@ -3508,7 +3522,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Incurred Expense Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Incurred Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdIncurred.length > 0 ? cdIncurred.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
@@ -3520,7 +3534,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Made Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Paid Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdPayments.length > 0 ? cdPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -3626,7 +3640,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Funds Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Received Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReceived.length > 0 ? cdReceived.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
@@ -3647,7 +3661,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Funds Returned Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Returned Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReturned.length > 0 ? cdReturned.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -3771,7 +3785,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">Purchases Ledger (Due Increasing)</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
                         <tr><th class="p-2.5 font-semibold">Purchase Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
@@ -3794,7 +3808,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Ledger (Due Decreasing)</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
                         <tr><th class="p-2.5 font-semibold">Payment Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
@@ -3943,7 +3957,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">Month-wise Sales & Collection Performance</div>
-                <div class="erp-report-scroll overflow-x-auto">
+                <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
                   <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-3 font-semibold">Month & Year</th><th class="p-3 font-semibold text-right">Sold Amount</th><th class="p-3 font-semibold text-right">Received Amount</th><th class="p-3 font-semibold text-right">Due / Balance Generated</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${Object.keys(monthlyData).length > 0 ? Object.keys(monthlyData).sort().reverse().map(m => {
@@ -4089,14 +4103,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">User Collections (Cash & Card In)</div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category/UID</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category/UID</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${leftTable.length > 0 ? leftTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5 font-mono text-[10px] text-gray-500">${s.cat}</td><td class="p-2.5">${s.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No collections in this range.</td></tr>`}
                      </tbody>
                   </table></div></div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">User Expenditures & Transfers (Cash Out)</div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${rightTable.length > 0 ? rightTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5 font-bold text-[10px] ${p.cat === 'Internal Transfer' ? 'text-teal-600' : 'text-gray-700'}">${p.cat}</td><td class="p-2.5">${p.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No spends or transfers in this range.</td></tr>`}
                      </tbody>
@@ -4190,7 +4204,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Salary Earned Ledger (Due Increasing)</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
                         <tr><th class="p-2.5 font-semibold">Earned Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
@@ -4213,7 +4227,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Salary Paid Ledger (Due Decreasing)</div>
-                <div class="overflow-x-auto">
+                <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
                         <tr><th class="p-2.5 font-semibold">Payment Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
@@ -4367,14 +4381,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">User Collections (Cash & Card In)</div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category/UID</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category/UID</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${leftTable.length > 0 ? leftTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5 font-mono text-[10px] text-gray-500">${s.cat}</td><td class="p-2.5">${s.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No collections in this range.</td></tr>`}
                      </tbody>
                   </table></div></div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">User Expenditures & Transfers (Cash Out)</div>
-                <div class="overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${rightTable.length > 0 ? rightTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5 font-bold text-[10px] ${p.cat === 'Internal Transfer' ? 'text-teal-600' : 'text-gray-700'}">${p.cat}</td><td class="p-2.5">${p.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No spends or transfers in this range.</td></tr>`}
                      </tbody>
