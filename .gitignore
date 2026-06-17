@@ -1,0 +1,13 @@
+# Secrets and local config (never commit real client tokens)
+.env
+.env.local
+js/config.js
+JS/config.js
+
+# Dependencies (if you add npm later)
+node_modules/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
