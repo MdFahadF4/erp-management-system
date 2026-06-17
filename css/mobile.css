@@ -4,7 +4,71 @@
  */
 
 @media (max-width: 767px) {
-  /* ── Page headers (title + action buttons) ── */
+  :root {
+    --erp-mobile-header-h: 3.25rem;
+  }
+
+  /* Fixed top bar — hamburger always reachable */
+  #app-header {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    z-index: 60;
+  }
+
+  #app-shell {
+    padding-top: var(--erp-mobile-header-h);
+  }
+
+  #sidebar,
+  #sidebar-backdrop {
+    z-index: 70;
+  }
+
+  /* Sticky module toolbar (title + Ledger View / Back to Form) */
+  #main-content > .erp-module-page > .border-b,
+  #main-content > div > .border-b.pb-3,
+  #main-content > div > .border-b.pb-4,
+  .erp-mobile-page-bar {
+    position: sticky;
+    top: 0;
+    z-index: 45;
+    background: #fff;
+    padding-top: 0.25rem;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  }
+
+  /* Reports: keep title + filters sticky while scrolling results */
+  .erp-mobile-sticky-tools {
+    position: sticky;
+    top: 0;
+    z-index: 44;
+    background: #f3f4f6;
+    margin-left: -0.75rem;
+    margin-right: -0.75rem;
+    padding: 0.25rem 0.75rem 0.5rem;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.08);
+  }
+
+  .erp-report-filters {
+    margin-bottom: 0 !important;
+  }
+
+  /* Report table headers scroll with page (avoid covering nav) */
+  .erp-report-table thead,
+  .erp-report-table thead th,
+  #report-table-head {
+    position: static !important;
+    top: auto !important;
+  }
+
+  /* Page headers (title + action buttons) ── */
   #main-content > div > .border-b.flex.justify-between.items-center,
   #main-content .border-b.pb-3.flex.justify-between.items-center,
   #main-content .border-b.pb-4.flex.justify-between.items-center {
@@ -90,38 +154,15 @@
     padding-bottom: 1.5rem;
   }
 
-  /* Keep app header + module toolbar always reachable on mobile */
-  body > .flex-1.flex.flex-col > header {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-
-  #main-content > .erp-module-page > .border-b,
-  #main-content > div > .border-b.pb-3,
-  #main-content > div > .border-b.pb-4 {
-    position: sticky;
-    top: 0;
-    z-index: 40;
-    background: #fff;
-    padding-top: 0.25rem;
-    margin-left: -0.75rem;
-    margin-right: -0.75rem;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
-  }
-
-  body.erp-mobile-ledger-open #main-content > .erp-module-page > .border-b,
-  body.erp-mobile-ledger-open #main-content > div > .border-b.pb-3 {
-    top: 0;
-  }
-
-  /* Prevent ledger content from covering the header / menu button */
+  /* Prevent content painting over fixed header */
   #main-content {
     position: relative;
     z-index: 0;
     isolation: isolate;
+    overflow-y: auto !important;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    padding-bottom: 2rem;
   }
 
   .erp-ledger-panel {
@@ -132,14 +173,6 @@
 
   .erp-ledger-panel:not(.hidden) {
     margin-bottom: 1rem;
-  }
-
-  /* ── Main page scroll (touch-friendly) ── */
-  #main-content {
-    overflow-y: auto !important;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior-y: contain;
-    padding-bottom: 2rem;
   }
 
   /* ── Module ledger panels: page scrolls up/down, table swipes sideways ── */

@@ -52,12 +52,10 @@ Date.prototype.toLocaleDateString = function() {
     if (mainContent) {
       const normalizedPerms = user.permissions ? user.permissions.map(p => p.trim().toLowerCase()) : [];
       if (user.role === "Super Admin" || user.role === "Admin" || normalizedPerms.includes('dashboard')) {
-        mainContent.innerHTML = templates.dashboard || '';
-        setDashboardDrawersSectionVisible(true);
-        loadDashboardData();
-        document.getElementById('btn-refresh-dash')?.addEventListener('click', loadDashboardData);
+        await loadModulePage('dashboard', { replaceHistory: true });
       } else {
         mainContent.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl mt-10">Welcome, ${user.username}. Select a module from the menu to begin.</div>`;
+        history.replaceState({ module: 'home' }, '', '#home');
       }
     }
     
@@ -119,6 +117,112 @@ function closeMenu() {
   if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
 }
 
+async function loadModulePage(target, { pushHistory = false, replaceHistory = false } = {}) {
+  if (!templates[target] || !mainContent) return;
+
+  mainContent.innerHTML = templates[target];
+  document.body.classList.remove('erp-mobile-ledger-open');
+  setDashboardDrawersSectionVisible(target === 'dashboard');
+  mainContent.scrollTo({ top: 0, behavior: 'auto' });
+
+  const toggleBtn = document.getElementById('toggle-ledger-btn');
+  const formContainer = document.getElementById('form-container');
+  const ledgerContainer = document.getElementById('ledger-container');
+
+  if (toggleBtn && formContainer && ledgerContainer) {
+    toggleBtn.addEventListener('click', () => {
+      const isMobile = window.matchMedia('(max-width: 767px)').matches;
+      const isHidden = ledgerContainer.classList.toggle('hidden');
+
+      if (isMobile) {
+        formContainer.classList.toggle('hidden', !isHidden);
+        toggleBtn.textContent = isHidden ? 'Ledger View' : 'Back to Form';
+        toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+        toggleBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
+        document.body.classList.toggle('erp-mobile-ledger-open', !isHidden);
+        closeMenu();
+        if (!isHidden && mainContent) {
+          mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        return;
+      }
+
+      if (isHidden) {
+        formContainer.classList.remove('xl:col-span-1');
+        formContainer.classList.add('xl:col-span-4', 'max-w-2xl', 'mx-auto');
+        toggleBtn.textContent = 'Ledger View';
+        toggleBtn.classList.replace('bg-blue-600', 'bg-slate-800');
+        toggleBtn.classList.replace('hover:bg-blue-700', 'hover:bg-slate-900');
+      } else {
+        formContainer.classList.remove('xl:col-span-4', 'max-w-2xl', 'mx-auto');
+        formContainer.classList.add('xl:col-span-1');
+        toggleBtn.textContent = 'Hide Ledger';
+        toggleBtn.classList.replace('bg-slate-800', 'bg-blue-600');
+        toggleBtn.classList.replace('hover:bg-slate-900', 'hover:bg-blue-700');
+      }
+    });
+  }
+
+  if (target === 'dashboard') {
+    await loadDashboardData();
+    document.getElementById('btn-refresh-dash')?.addEventListener('click', loadDashboardData);
+  } else if (target === 'hr') {
+    initHRFormListeners(); await loadHRTableRecords();
+  } else if (target === 'hr_transactions') {
+    await populateEmployeeDropdown(); initTxnFormListeners(); await loadTxnTableRecords();
+    document.getElementById('btn-filter-hr')?.addEventListener('click', () => loadTxnTableRecords(true));
+  } else if (target === 'suppliers') {
+    initSupplierFormListeners(); await loadSupplierTableRecords();
+  } else if (target === 'supplier_transactions') {
+    await populateSupplierTxnDropdown(); initSupplierTxnFormListeners(); await loadSupplierTxnTableRecords();
+    document.getElementById('btn-filter-sup')?.addEventListener('click', () => loadSupplierTxnTableRecords(true));
+  } else if (target === 'customers') {
+    initCustomerFormListeners(); await loadCustomerTableRecords();
+  } else if (target === 'customer_transactions') {
+    await populateCustomerTxnDropdown(); initCustomerTxnFormListeners(); await loadCustomerTxnTableRecords();
+    document.getElementById('btn-filter-cust')?.addEventListener('click', () => loadCustomerTxnTableRecords(true));
+  } else if (target === 'internal_transfer') {
+    initInternalTransferFormListeners(); await loadInternalTransferTableRecords();
+    document.getElementById('btn-filter-int')?.addEventListener('click', () => loadInternalTransferTableRecords(true));
+  } else if (target === 'expense_heads') {
+    initExpenseHeadFormListeners(); await loadExpenseHeadTableRecords();
+  } else if (target === 'expense_transactions') {
+    await populateExpenseHeadDropdowns(); initExpenseTxnFormListeners(); await loadExpenseTxnTableRecords();
+    document.getElementById('btn-filter-exp')?.addEventListener('click', () => loadExpenseTxnTableRecords(true));
+  } else if (target === 'creditors') {
+    initCreditorFormListeners(); await loadCreditorTableRecords();
+  } else if (target === 'creditor_transactions') {
+    await populateCreditorDropdowns(); initCreditorTxnFormListeners(); await loadCreditorTxnTableRecords();
+    document.getElementById('btn-filter-cred')?.addEventListener('click', () => loadCreditorTxnTableRecords(true));
+  } else if (target === 'income_heads') {
+    initIncomeHeadFormListeners(); await loadIncomeHeadTableRecords();
+  } else if (target === 'income_transactions') {
+    await populateIncomeHeadDropdowns(); initIncomeTxnFormListeners(); await loadIncomeTxnTableRecords();
+    document.getElementById('btn-filter-inc')?.addEventListener('click', () => loadIncomeTxnTableRecords(true));
+  } else if (target === 'all_transactions') {
+    await loadAllTxnTableRecords();
+    document.getElementById('btn-filter-all')?.addEventListener('click', () => loadAllTxnTableRecords(true));
+  } else if (target === 'reports') {
+    initReportsSystem();
+  } else if (target === 'users') {
+    initUserManagementFormListener();
+    await loadUserDirectories();
+  }
+
+  if (pushHistory) {
+    history.pushState({ module: target }, '', `#${target}`);
+  } else if (replaceHistory) {
+    history.replaceState({ module: target }, '', `#${target}`);
+  }
+}
+
+window.addEventListener('popstate', (e) => {
+  const target = e.state?.module;
+  if (target && templates[target]) {
+    loadModulePage(target);
+  }
+});
+
 if (openSidebarBtn) openSidebarBtn.addEventListener('click', openMenu);
 if (closeSidebarBtn) closeSidebarBtn.addEventListener('click', closeMenu);
 if (sidebarBackdrop) sidebarBackdrop.addEventListener('click', closeMenu);
@@ -143,95 +247,8 @@ if (menuButtons) {
   menuButtons.forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const target = e.currentTarget.getAttribute('data-target');
-      if (templates[target] && mainContent) {
-        mainContent.innerHTML = templates[target];
-        document.body.classList.remove('erp-mobile-ledger-open');
-        setDashboardDrawersSectionVisible(target === 'dashboard');
-
-        const toggleBtn = document.getElementById('toggle-ledger-btn');
-        const formContainer = document.getElementById('form-container');
-        const ledgerContainer = document.getElementById('ledger-container');
-
-        if (toggleBtn && formContainer && ledgerContainer) {
-          toggleBtn.addEventListener('click', () => {
-            const isMobile = window.matchMedia('(max-width: 767px)').matches;
-            const isHidden = ledgerContainer.classList.toggle('hidden');
-
-            if (isMobile) {
-              formContainer.classList.toggle('hidden', !isHidden);
-              toggleBtn.textContent = isHidden ? 'Ledger View' : 'Back to Form';
-              toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
-              toggleBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
-              document.body.classList.toggle('erp-mobile-ledger-open', !isHidden);
-              closeMenu();
-              if (!isHidden && mainContent) {
-                mainContent.scrollTo({ top: 0, behavior: 'smooth' });
-              }
-              return;
-            }
-
-            if (isHidden) {
-              formContainer.classList.remove('xl:col-span-1');
-              formContainer.classList.add('xl:col-span-4', 'max-w-2xl', 'mx-auto');
-              toggleBtn.textContent = 'Ledger View';
-              toggleBtn.classList.replace('bg-blue-600', 'bg-slate-800');
-              toggleBtn.classList.replace('hover:bg-blue-700', 'hover:bg-slate-900');
-            } else {
-              formContainer.classList.remove('xl:col-span-4', 'max-w-2xl', 'mx-auto');
-              formContainer.classList.add('xl:col-span-1');
-              toggleBtn.textContent = 'Hide Ledger';
-              toggleBtn.classList.replace('bg-slate-800', 'bg-blue-600');
-              toggleBtn.classList.replace('hover:bg-slate-900', 'hover:bg-blue-700');
-            }
-          });
-        }
-        if (target === 'dashboard') {
-          await loadDashboardData();
-          document.getElementById('btn-refresh-dash')?.addEventListener('click', loadDashboardData);
-        } else // ... (make sure it connects to the "if (target === 'hr')" below it)
-
-        if (target === 'hr') {
-          initHRFormListeners(); await loadHRTableRecords();
-        } else if (target === 'hr_transactions') {
-          await populateEmployeeDropdown(); initTxnFormListeners(); await loadTxnTableRecords();
-          document.getElementById('btn-filter-hr')?.addEventListener('click', () => loadTxnTableRecords(true));
-        } else if (target === 'suppliers') {
-          initSupplierFormListeners(); await loadSupplierTableRecords();
-        } else if (target === 'supplier_transactions') {
-          await populateSupplierTxnDropdown(); initSupplierTxnFormListeners(); await loadSupplierTxnTableRecords();
-          document.getElementById('btn-filter-sup')?.addEventListener('click', () => loadSupplierTxnTableRecords(true));
-        } else if (target === 'customers') {
-          initCustomerFormListeners(); await loadCustomerTableRecords();
-        } else if (target === 'customer_transactions') {
-          await populateCustomerTxnDropdown(); initCustomerTxnFormListeners(); await loadCustomerTxnTableRecords();
-          document.getElementById('btn-filter-cust')?.addEventListener('click', () => loadCustomerTxnTableRecords(true));
-        } else if (target === 'internal_transfer') {
-          initInternalTransferFormListeners(); await loadInternalTransferTableRecords();
-          document.getElementById('btn-filter-int')?.addEventListener('click', () => loadInternalTransferTableRecords(true));
-        } else if (target === 'expense_heads') {
-          initExpenseHeadFormListeners(); await loadExpenseHeadTableRecords();
-        } else if (target === 'expense_transactions') {
-          await populateExpenseHeadDropdowns(); initExpenseTxnFormListeners(); await loadExpenseTxnTableRecords();
-          document.getElementById('btn-filter-exp')?.addEventListener('click', () => loadExpenseTxnTableRecords(true));
-        } else if (target === 'creditors') {
-          initCreditorFormListeners(); await loadCreditorTableRecords();
-        } else if (target === 'creditor_transactions') {
-          await populateCreditorDropdowns(); initCreditorTxnFormListeners(); await loadCreditorTxnTableRecords();
-          document.getElementById('btn-filter-cred')?.addEventListener('click', () => loadCreditorTxnTableRecords(true));
-        } else if (target === 'income_heads') {
-          initIncomeHeadFormListeners(); await loadIncomeHeadTableRecords();
-        } else if (target === 'income_transactions') {
-          await populateIncomeHeadDropdowns(); initIncomeTxnFormListeners(); await loadIncomeTxnTableRecords();
-          document.getElementById('btn-filter-inc')?.addEventListener('click', () => loadIncomeTxnTableRecords(true));
-        } else if (target === 'all_transactions') {
-          await loadAllTxnTableRecords();
-          document.getElementById('btn-filter-all')?.addEventListener('click', () => loadAllTxnTableRecords(true));
-        } else if (target === 'reports') {
-          initReportsSystem();
-        } else if (target === 'users') {
-          initUserManagementFormListener();
-          await loadUserDirectories();
-        }
+      if (templates[target]) {
+        await loadModulePage(target, { pushHistory: true });
       }
       closeMenu();
     });
@@ -1982,7 +1999,7 @@ if (typeSelect) {
       }
 
       await executeReportGeneration(repType, fDateInput.value, tDateInput.value, secSelect.value, secSelect.options[secSelect.selectedIndex]?.text);
-      setTimeout(() => document.getElementById('report-table-container')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 120);
+      if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
 }
