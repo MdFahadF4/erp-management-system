@@ -23,6 +23,12 @@
     padding-top: var(--erp-mobile-header-h);
   }
 
+  /* Reserve space for fixed chrome bar so scroll content stays below it */
+  body.erp-mobile-dashboard #app-body,
+  body.erp-mobile-module #app-body {
+    padding-top: calc(var(--erp-mobile-header-h) + var(--erp-mobile-chrome-h));
+  }
+
   #sidebar,
   #sidebar-backdrop {
     z-index: 70;
@@ -72,7 +78,16 @@
 
   body.erp-mobile-dashboard #main-content,
   body.erp-mobile-module #main-content {
-    margin-top: var(--erp-mobile-chrome-h);
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  #report-results-anchor,
+  .erp-report-results,
+  .erp-report-panel,
+  .erp-ledger-wrap,
+  #main-content .erp-module-page {
+    scroll-margin-top: 0.75rem;
   }
 
   #insights-toggle-chevron.rotate-180,
@@ -113,7 +128,7 @@
   }
 
   #report-results-anchor {
-    scroll-margin-top: 0.5rem;
+    scroll-margin-top: 0.75rem;
   }
 
   /* Page headers (title + action buttons) ── */

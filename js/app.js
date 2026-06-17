@@ -139,13 +139,29 @@ function syncMobileHeaderHeight() {
 }
 
 function syncChromeBarHeight() {
-  const el = document.body.classList.contains('erp-mobile-dashboard')
-    ? document.getElementById('dashboard-insights-toggle')
-    : document.body.classList.contains('erp-mobile-module')
-      ? document.getElementById('erp-module-toolbar')
-      : null;
-  const h = el ? Math.ceil(el.getBoundingClientRect().height) : 44;
+  let h = 44;
+  if (document.body.classList.contains('erp-mobile-dashboard')) {
+    const panel = document.getElementById('dashboard-insights-panel');
+    const body = document.getElementById('dashboard-insights-body');
+    const toggle = document.getElementById('dashboard-insights-toggle');
+    if (panel && body && !body.classList.contains('hidden')) {
+      h = Math.ceil(panel.getBoundingClientRect().height);
+    } else if (toggle) {
+      h = Math.ceil(toggle.getBoundingClientRect().height);
+    }
+  } else if (document.body.classList.contains('erp-mobile-module')) {
+    const mod = document.getElementById('erp-module-toolbar');
+    if (mod) h = Math.ceil(mod.getBoundingClientRect().height);
+  }
   document.documentElement.style.setProperty('--erp-mobile-chrome-h', `${h}px`);
+  if (isCompactLayout() && (document.body.classList.contains('erp-mobile-dashboard') || document.body.classList.contains('erp-mobile-module'))) {
+    document.getElementById('app-body')?.style.setProperty(
+      'padding-top',
+      `calc(var(--erp-mobile-header-h) + ${h}px)`
+    );
+  } else {
+    document.getElementById('app-body')?.style.removeProperty('padding-top');
+  }
 }
 
 function clearChromeInlineStyles() {
