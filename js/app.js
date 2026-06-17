@@ -120,6 +120,9 @@ function closeMenu() {
   if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
 }
 
+let activeModuleTarget = null;
+let activeMobileSnapshot = null;
+
 function isMobileViewport() {
   return window.matchMedia('(max-width: 767px)').matches;
 }
@@ -131,14 +134,53 @@ function syncMobileHeaderHeight() {
   document.documentElement.style.setProperty('--erp-mobile-header-h', `${height}px`);
 }
 
-function clearModuleToolbar() {
+function hideModuleToolbar() {
   const toolbar = document.getElementById('erp-module-toolbar');
-  if (!toolbar) return;
-  toolbar.innerHTML = '';
-  toolbar.classList.add('hidden');
+  if (toolbar) toolbar.classList.add('hidden');
+}
+
+function resetModuleToolbar() {
+  hideModuleToolbar();
+  activeMobileSnapshot = null;
+}
+
+function showModuleToolbar(label, defaultSummary) {
+  const toolbar = document.getElementById('erp-module-toolbar');
+  const labelEl = document.getElementById('erp-module-toolbar-label');
+  const summaryEl = document.getElementById('erp-module-toolbar-summary');
+  if (!toolbar || !isMobileViewport()) {
+    hideModuleToolbar();
+    return;
+  }
+  if (labelEl) labelEl.textContent = label;
+  if (summaryEl) summaryEl.textContent = defaultSummary;
+  toolbar.classList.remove('hidden');
+}
+
+function bindModuleToolbarToggleOnce() {
+  const toggle = document.getElementById('erp-module-toolbar-toggle');
+  if (!toggle || toggle.dataset.bound === 'true') return;
+  toggle.dataset.bound = 'true';
+  toggle.addEventListener('click', () => {
+    if (!isMobileViewport()) return;
+    const snap = activeMobileSnapshot || mainContent?.querySelector('.erp-module-page')?._mobileSnapshot;
+    if (!snap) return;
+    if (snap.isCollapsed()) snap.expand();
+    else snap.collapse('Tap to hide form & options');
+  });
+}
+
+function updateModuleToolbarUi(collapsed, summaryText, defaultSummary) {
+  const toggle = document.getElementById('erp-module-toolbar-toggle');
+  const summaryEl = document.getElementById('erp-module-toolbar-summary');
+  const chevron = document.getElementById('erp-module-toolbar-chevron');
+  if (summaryEl) summaryEl.textContent = collapsed ? (summaryText || defaultSummary) : defaultSummary;
+  toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+  chevron?.classList.toggle('rotate-180', !collapsed);
 }
 
 function markMobileSnapshotTargets(pageRoot, selectors) {
+  pageRoot.querySelectorAll('.erp-mobile-snapshot-target').forEach((el) => el.classList.remove('erp-mobile-snapshot-target'));
   selectors.forEach((sel) => {
     pageRoot.querySelectorAll(sel).forEach((el) => el.classList.add('erp-mobile-snapshot-target'));
   });
@@ -147,49 +189,23 @@ function markMobileSnapshotTargets(pageRoot, selectors) {
 function createMobileSnapshotController(pageRoot, options = {}) {
   if (!pageRoot) return null;
 
-  const toolbar = document.getElementById('erp-module-toolbar');
-  if (!toolbar) return null;
-
-  const label = options.label || 'Module Options';
   const defaultSummary = options.defaultSummary || 'Tap to show form & options';
+  const label = options.label || 'Module Options';
   let collapsed = Boolean(options.startCollapsed);
   let summaryOverride = null;
 
-  toolbar.innerHTML = `
-    <button type="button" class="erp-mobile-snapshot-toggle w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="false">
-      <div class="min-w-0">
-        <div class="erp-mobile-snapshot-label text-[10px] font-bold text-gray-500 uppercase tracking-wider"></div>
-        <div class="erp-mobile-snapshot-summary text-xs text-gray-600 truncate"></div>
-      </div>
-      <svg class="erp-mobile-snapshot-chevron w-5 h-5 text-gray-400 shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-    </button>
-  `;
-  toolbar.classList.remove('hidden');
-
-  const toggle = toolbar.querySelector('.erp-mobile-snapshot-toggle');
-  const labelEl = toolbar.querySelector('.erp-mobile-snapshot-label');
-  const summaryEl = toolbar.querySelector('.erp-mobile-snapshot-summary');
-  const chevron = toolbar.querySelector('.erp-mobile-snapshot-chevron');
-  if (labelEl) labelEl.textContent = label;
-  if (summaryEl) summaryEl.textContent = defaultSummary;
+  bindModuleToolbarToggleOnce();
 
   const applyState = () => {
     if (!isMobileViewport()) {
       pageRoot.classList.remove('erp-mobile-snapshot-collapsed');
-      clearModuleToolbar();
-      toggle?.setAttribute('aria-expanded', 'true');
-      chevron?.classList.remove('rotate-180');
+      hideModuleToolbar();
       return;
     }
-    toolbar.classList.remove('hidden');
+
+    showModuleToolbar(label, defaultSummary);
     pageRoot.classList.toggle('erp-mobile-snapshot-collapsed', collapsed);
-    toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    chevron?.classList.toggle('rotate-180', !collapsed);
-    if (summaryEl) {
-      summaryEl.textContent = collapsed
-        ? (summaryOverride || defaultSummary)
-        : defaultSummary;
-    }
+    updateModuleToolbarUi(collapsed, summaryOverride, defaultSummary);
   };
 
   const collapse = (summaryText) => {
@@ -203,27 +219,26 @@ function createMobileSnapshotController(pageRoot, options = {}) {
     summaryOverride = null;
     collapsed = false;
     applyState();
-    if (isMobileViewport()) {
+    requestAnimationFrame(() => {
       pageRoot.querySelector('.erp-mobile-snapshot-target')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
+    });
   };
 
-  if (toggle) {
-    toggle.addEventListener('click', () => {
-      if (!isMobileViewport()) return;
-      if (collapsed) expand();
-      else collapse('Tap to hide form & options');
-    });
-  }
-
   applyState();
-  return {
+
+  const controller = {
     collapse,
     expand,
-    setSummary: (text) => { summaryOverride = text; if (summaryEl && collapsed) summaryEl.textContent = text; },
+    setSummary: (text) => {
+      summaryOverride = text;
+      if (collapsed) updateModuleToolbarUi(true, summaryOverride, defaultSummary);
+    },
     isCollapsed: () => collapsed,
     refresh: applyState
   };
+
+  activeMobileSnapshot = controller;
+  return controller;
 }
 
 function bindMobileSnapshotResizeOnce() {
@@ -231,8 +246,12 @@ function bindMobileSnapshotResizeOnce() {
   window._erpMobileSnapshotResizeBound = true;
   window.addEventListener('resize', () => {
     syncMobileHeaderHeight();
-    mainContent?.querySelector('.erp-module-page')?._mobileSnapshot?.refresh?.();
-    initDashboardInsightsToggle(true);
+    if (activeModuleTarget === 'dashboard') {
+      hideModuleToolbar();
+      initDashboardInsightsToggle(false);
+    } else if (activeMobileSnapshot) {
+      activeMobileSnapshot.refresh();
+    }
   });
 }
 
@@ -243,7 +262,7 @@ function onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer) {
 }
 
 function initMobileModuleSnapshot(target) {
-  clearModuleToolbar();
+  resetModuleToolbar();
   if (target === 'dashboard') return null;
 
   const pageRoot = mainContent?.querySelector('.erp-module-page');
@@ -291,16 +310,16 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
 
   mainContent.innerHTML = templates[target];
   document.body.classList.remove('erp-mobile-ledger-open');
+  activeModuleTarget = target;
   syncMobileHeaderHeight();
   setDashboardDrawersSectionVisible(target === 'dashboard');
   mainContent.scrollTo({ top: 0, behavior: 'auto' });
 
   const pageRoot = mainContent.querySelector('.erp-module-page');
   const mobileSnapshot = initMobileModuleSnapshot(target);
-  if (pageRoot && mobileSnapshot) {
-    pageRoot._mobileSnapshot = mobileSnapshot;
-    bindMobileSnapshotResizeOnce();
-  }
+  if (pageRoot && mobileSnapshot) pageRoot._mobileSnapshot = mobileSnapshot;
+  bindMobileSnapshotResizeOnce();
+  bindModuleToolbarToggleOnce();
 
   const toggleBtn = document.getElementById('toggle-ledger-btn');
   const formContainer = document.getElementById('form-container');
@@ -4751,14 +4770,14 @@ function initUserManagementFormListener() {
 
 function setDashboardDrawersSectionVisible(visible) {
   const panel = document.getElementById('dashboard-insights-panel');
-  const toolbar = document.getElementById('erp-module-toolbar');
   const adminContainer = document.getElementById('admin-global-balance-container');
   if (panel) panel.classList.toggle('hidden', !visible);
-  if (toolbar && visible) clearModuleToolbar();
-  if (!visible && adminContainer) adminContainer.innerHTML = '';
   if (visible) {
+    resetModuleToolbar();
     syncMobileHeaderHeight();
     initDashboardInsightsToggle(true);
+  } else if (adminContainer) {
+    adminContainer.innerHTML = '';
   }
 }
 
@@ -4771,11 +4790,17 @@ function initDashboardInsightsToggle(forceReapply = false) {
 
   const applyLayout = () => {
     if (isMobileViewport()) {
-      body.classList.add('hidden');
-      toggle.setAttribute('aria-expanded', 'false');
-      if (chevron) chevron.classList.remove('rotate-180');
+      if (forceReapply) {
+        body.classList.add('hidden');
+        body.classList.remove('user-expanded');
+      } else if (!body.classList.contains('user-expanded')) {
+        body.classList.add('hidden');
+      }
+      const isExpanded = !body.classList.contains('hidden');
+      toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+      if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
     } else {
-      body.classList.remove('hidden');
+      body.classList.remove('hidden', 'user-expanded');
       toggle.setAttribute('aria-expanded', 'true');
       if (chevron) chevron.classList.remove('rotate-180');
     }
@@ -4786,13 +4811,14 @@ function initDashboardInsightsToggle(forceReapply = false) {
     toggle.addEventListener('click', () => {
       if (!isMobileViewport()) return;
       body.classList.toggle('hidden');
+      body.classList.toggle('user-expanded', !body.classList.contains('hidden'));
       const isExpanded = !body.classList.contains('hidden');
       toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
       if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
     });
   }
 
-  if (forceReapply || toggle.dataset.bound === 'true') applyLayout();
+  applyLayout();
 }
 
 function updateDashboardInsightsSummary(globalBalance, drawerCount) {

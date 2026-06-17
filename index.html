@@ -110,7 +110,15 @@
       </div>
     </div>
 
-    <div id="erp-module-toolbar" class="hidden shrink-0 border-b border-gray-200 bg-gray-50/80 z-[55] md:hidden"></div>
+    <div id="erp-module-toolbar" class="hidden shrink-0 border-b border-gray-200 bg-gray-50/80 z-[55] md:hidden">
+      <button id="erp-module-toolbar-toggle" type="button" class="erp-mobile-snapshot-toggle w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="true">
+        <div class="min-w-0">
+          <div id="erp-module-toolbar-label" class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Module Options</div>
+          <div id="erp-module-toolbar-summary" class="text-xs text-gray-600 truncate">Tap to show form &amp; options</div>
+        </div>
+        <svg id="erp-module-toolbar-chevron" class="erp-mobile-snapshot-chevron w-5 h-5 text-gray-400 shrink-0 transition-transform rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+      </button>
+    </div>
 
     <main id="main-content" class="flex-1 p-3 md:p-8 overflow-y-auto min-h-0">
     </main>
