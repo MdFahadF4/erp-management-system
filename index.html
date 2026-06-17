@@ -64,37 +64,51 @@
   </aside>
 
   <div class="flex-1 flex flex-col h-full w-full overflow-hidden">
-    <header class="bg-white shadow-sm p-4 flex justify-between items-center border-b z-30">
-      <div class="flex items-center">
-        <button id="open-sidebar" class="p-2 mr-4 text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg focus:outline-none transition">
-          <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+    <header class="bg-white shadow-sm px-2 py-2 md:p-4 flex justify-between items-center gap-2 border-b z-30 shrink-0">
+      <div class="flex items-center min-w-0">
+        <button id="open-sidebar" class="p-1.5 md:p-2 mr-1 md:mr-4 text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg focus:outline-none transition shrink-0">
+          <svg class="w-6 h-6 md:w-7 md:h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
         </button>
-        <h1 class="text-xl font-bold text-slate-800">System Workspace</h1>
+        <h1 class="text-sm md:text-xl font-bold text-slate-800 truncate">System Workspace</h1>
       </div>
       
-      <div class="flex items-center space-x-4">
+      <div class="flex items-center gap-1.5 md:gap-4 shrink-0">
         
-        <div id="user-profile-badge" class="hidden flex flex-col text-right">
-          <span id="header-username" class="text-sm font-extrabold text-slate-800 capitalize tracking-wide"></span>
-          <span id="header-role" class="text-[10px] font-bold text-blue-600 uppercase tracking-widest"></span>
+        <div id="user-profile-badge" class="hidden flex-col text-right leading-tight">
+          <span id="header-username" class="text-[11px] md:text-sm font-extrabold text-slate-800 capitalize tracking-wide max-w-[72px] md:max-w-none truncate"></span>
+          <span id="header-role" class="text-[8px] md:text-[10px] font-bold text-blue-600 uppercase tracking-wider truncate"></span>
         </div>
 
-        <div id="user-cash-drawer-badge" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold px-3 py-1.5 rounded-lg font-mono shadow-sm">
-          Cash Drawer Balance: SAR <span id="header-user-balance">0.00</span>
+        <div id="user-cash-drawer-badge" class="hidden bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] md:text-xs font-bold px-2 py-1 md:px-3 md:py-1.5 rounded-lg font-mono shadow-sm whitespace-nowrap">
+          <span class="hidden sm:inline">Cash Drawer: </span>SAR <span id="header-user-balance">0.00</span>
         </div>
       </div>
     </header>
 
-    <div id="admin-global-balance-container" class="empty:hidden px-4 md:px-8 pt-4"></div>
+    <div id="dashboard-insights-panel" class="hidden shrink-0 border-b border-gray-200 bg-gray-50/80">
+      <button id="dashboard-insights-toggle" type="button" class="md:hidden w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="false" aria-controls="dashboard-insights-body">
+        <div class="min-w-0">
+          <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Dashboard Snapshot</div>
+          <div id="insights-toggle-summary" class="text-xs text-gray-600 truncate">Tap to view balance &amp; cash drawers</div>
+        </div>
+        <svg id="insights-toggle-chevron" class="w-5 h-5 text-gray-400 shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+      </button>
 
-    <div id="dash-user-drawers-section" class="hidden px-4 md:px-8 pb-2">
-      <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2">Live User Cash Drawers</h3>
-      <div id="dash-user-drawers" class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-        <div class="col-span-full p-4 text-center text-blue-500 font-bold animate-pulse">Calculating enterprise drawer balances...</div>
+      <div id="dashboard-insights-body" class="hidden md:block px-3 md:px-6 py-2 md:py-3 max-h-[38vh] md:max-h-none overflow-y-auto md:overflow-visible space-y-2 md:space-y-3">
+        <div id="admin-global-balance-container" class="empty:hidden"></div>
+
+        <div id="dash-user-drawers-section">
+          <div class="flex items-center justify-between gap-2 mb-1.5 md:mb-2">
+            <h3 class="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider">Live User Cash Drawers</h3>
+          </div>
+          <div id="dash-user-drawers" class="flex gap-2 overflow-x-auto pb-1 md:grid md:grid-cols-3 lg:grid-cols-4 md:gap-3 md:overflow-visible snap-x snap-mandatory">
+            <div class="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">Calculating enterprise drawer balances...</div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <main id="main-content" class="flex-1 p-4 md:p-8 overflow-y-auto">
+    <main id="main-content" class="flex-1 p-3 md:p-8 overflow-y-auto min-h-0">
     </main>
   </div>
 

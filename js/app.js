@@ -4503,8 +4503,56 @@ function initUserManagementFormListener() {
 
 
 function setDashboardDrawersSectionVisible(visible) {
-  const section = document.getElementById('dash-user-drawers-section');
-  if (section) section.classList.toggle('hidden', !visible);
+  const panel = document.getElementById('dashboard-insights-panel');
+  const adminContainer = document.getElementById('admin-global-balance-container');
+  if (panel) panel.classList.toggle('hidden', !visible);
+  if (!visible && adminContainer) adminContainer.innerHTML = '';
+  if (visible) initDashboardInsightsToggle();
+}
+
+function initDashboardInsightsToggle() {
+  const toggle = document.getElementById('dashboard-insights-toggle');
+  const body = document.getElementById('dashboard-insights-body');
+  const chevron = document.getElementById('insights-toggle-chevron');
+  if (!toggle || !body) return;
+
+  const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+
+  const applyLayout = () => {
+    if (isMobile()) {
+      body.classList.add('hidden');
+      toggle.setAttribute('aria-expanded', 'false');
+      if (chevron) chevron.classList.remove('rotate-180');
+    } else {
+      body.classList.remove('hidden');
+      toggle.setAttribute('aria-expanded', 'true');
+      if (chevron) chevron.classList.remove('rotate-180');
+    }
+  };
+
+  if (toggle.dataset.bound !== 'true') {
+    toggle.dataset.bound = 'true';
+    toggle.addEventListener('click', () => {
+      if (!isMobile()) return;
+      body.classList.toggle('hidden');
+      const isExpanded = !body.classList.contains('hidden');
+      toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+      if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
+    });
+    window.addEventListener('resize', applyLayout);
+  }
+  applyLayout();
+}
+
+function updateDashboardInsightsSummary(globalBalance, drawerCount) {
+  const summary = document.getElementById('insights-toggle-summary');
+  if (!summary) return;
+  const parts = [];
+  if (globalBalance !== null && globalBalance !== undefined) {
+    parts.push(`Balance SAR ${Number(globalBalance).toFixed(2)}`);
+  }
+  if (drawerCount > 0) parts.push(`${drawerCount} drawer${drawerCount === 1 ? '' : 's'}`);
+  summary.textContent = parts.length ? parts.join(' · ') : 'Tap to view balance & cash drawers';
 }
 
 /**
@@ -4514,7 +4562,7 @@ function setDashboardDrawersSectionVisible(visible) {
  */
 async function loadDashboardData() {
   const container = document.getElementById('dash-user-drawers');
-  if (container) container.innerHTML = `<div class="col-span-full p-4 text-center text-blue-500 font-bold animate-pulse">Calculating enterprise balances...</div>`;
+  if (container) container.innerHTML = `<div class="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">Calculating enterprise balances...</div>`;
   
   try {
     const fetchS = async (sheetName) => {
@@ -4676,23 +4724,27 @@ async function loadDashboardData() {
 
     const sessionUser = fetchSessionUser();
     const adminContainer = document.getElementById('admin-global-balance-container');
+    let globalBalance = null;
     if (sessionUser && (sessionUser.role === "Super Admin" || sessionUser.role === "Admin")) {
-        let globalInflows = saleRecv + incRecv + crdRecv; let globalOutflows = purPaid + expPaid + crdRet + hrPaid; let globalBalance = globalInflows - globalOutflows;
+        let globalInflows = saleRecv + incRecv + crdRecv; let globalOutflows = purPaid + expPaid + crdRet + hrPaid; globalBalance = globalInflows - globalOutflows;
         if (adminContainer) {
-            adminContainer.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-xl p-6 mb-6 shadow-lg flex flex-wrap justify-between items-center text-white"><div class="text-left mb-4 md:mb-0"><div class="text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-1 flex items-center gap-2"><svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg> Total Project Expendable Balance (Admin Only)</div><div class="text-4xl font-black font-mono text-teal-400">SAR ${globalBalance.toFixed(2)}</div></div><div class="text-right flex gap-6"><div class="border-l border-slate-700 pl-6 text-left"><div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Total Inflows</div><div class="text-emerald-400 font-mono font-bold text-lg">SAR ${globalInflows.toFixed(2)}</div></div><div class="border-l border-slate-700 pl-6 text-left"><div class="text-[10px] text-slate-400 uppercase font-bold tracking-wider mb-1">Total Outflows</div><div class="text-red-400 font-mono font-bold text-lg">SAR ${globalOutflows.toFixed(2)}</div></div></div></div>`;
+            adminContainer.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-3 md:p-5 shadow-md text-white"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 md:gap-4"><div class="min-w-0"><div class="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1.5"><svg class="w-3 h-3 md:w-4 md:h-4 text-teal-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><span class="truncate">Global Balance</span></div><div class="text-xl sm:text-2xl md:text-3xl font-black font-mono text-teal-400 truncate">SAR ${globalBalance.toFixed(2)}</div></div><div class="grid grid-cols-2 gap-2 sm:flex sm:gap-3 shrink-0"><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Inflows</div><div class="text-emerald-400 font-mono font-bold text-xs md:text-base">SAR ${globalInflows.toFixed(2)}</div></div><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Outflows</div><div class="text-red-400 font-mono font-bold text-xs md:text-base">SAR ${globalOutflows.toFixed(2)}</div></div></div></div></div>`;
         }
     } else { if (adminContainer) adminContainer.innerHTML = ''; }
 
     let drawerHTML = "";
+    let drawerCount = 0;
     Object.keys(userCash).forEach(usr => {
        let bal = userCash[usr];
        if(Math.abs(bal) > 0.01) { 
+          drawerCount++;
           let clr = bal >= 0 ? 'text-emerald-600' : 'text-red-600';
-          drawerHTML += `<div class="bg-white border border-gray-200 rounded-xl p-4 shadow-sm text-center"><div class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">${usr}</div><div class="font-mono font-black text-xl ${clr}">SAR ${bal.toFixed(2)}</div></div>`;
+          drawerHTML += `<div class="snap-start shrink-0 w-[108px] sm:w-[120px] md:w-auto md:shrink bg-white border border-gray-200 rounded-lg p-2 md:p-3 shadow-sm text-center"><div class="text-[9px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5 truncate" title="${usr}">${usr}</div><div class="font-mono font-bold text-sm md:text-lg ${clr} whitespace-nowrap">SAR ${bal.toFixed(2)}</div></div>`;
        }
     });
-    if(drawerHTML === "" && container) drawerHTML = `<div class="col-span-full p-4 text-center text-gray-400 font-bold border border-gray-100 rounded-xl bg-gray-50">All user cash drawers are currently balanced at 0.00.</div>`;
+    if(drawerHTML === "" && container) drawerHTML = `<div class="snap-start w-full md:col-span-full p-2.5 md:p-3 text-center text-gray-400 text-xs font-semibold border border-gray-100 rounded-lg bg-white">All cash drawers balanced at 0.00</div>`;
     if(container) container.innerHTML = drawerHTML;
+    updateDashboardInsightsSummary(globalBalance, drawerCount);
 
   } catch (err) { console.error("Dashboard Load Error:", err); }
 }
