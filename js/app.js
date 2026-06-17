@@ -124,7 +124,11 @@ let activeModuleTarget = null;
 let activeMobileSnapshot = null;
 
 function isMobileViewport() {
-  return window.matchMedia('(max-width: 767px)').matches;
+  return window.matchMedia('(max-width: 1023px)').matches;
+}
+
+function isCompactLayout() {
+  return isMobileViewport();
 }
 
 function syncMobileHeaderHeight() {
@@ -132,6 +136,42 @@ function syncMobileHeaderHeight() {
   if (!header) return;
   const height = Math.ceil(header.getBoundingClientRect().height);
   document.documentElement.style.setProperty('--erp-mobile-header-h', `${height}px`);
+}
+
+function syncChromeBarHeight() {
+  const el = document.body.classList.contains('erp-mobile-dashboard')
+    ? document.getElementById('dashboard-insights-toggle')
+    : document.body.classList.contains('erp-mobile-module')
+      ? document.getElementById('erp-module-toolbar')
+      : null;
+  const h = el ? Math.ceil(el.getBoundingClientRect().height) : 44;
+  document.documentElement.style.setProperty('--erp-mobile-chrome-h', `${h}px`);
+}
+
+function clearChromeInlineStyles() {
+  ['dashboard-insights-panel', 'erp-module-toolbar'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.style.removeProperty('display');
+    el.style.removeProperty('visibility');
+    el.style.removeProperty('opacity');
+  });
+}
+
+function forceChromeBarVisible(mode) {
+  const dash = document.getElementById('dashboard-insights-panel');
+  const mod = document.getElementById('erp-module-toolbar');
+  if (mode === 'dashboard') {
+    dash?.classList.remove('hidden');
+    dash?.style.setProperty('display', 'block', 'important');
+    dash?.style.setProperty('visibility', 'visible', 'important');
+    mod?.style.setProperty('display', 'none', 'important');
+  } else if (mode === 'module') {
+    mod?.style.setProperty('display', 'block', 'important');
+    mod?.style.setProperty('visibility', 'visible', 'important');
+    dash?.style.setProperty('display', 'none', 'important');
+  }
+  syncChromeBarHeight();
 }
 
 function setMobilePageMode(target) {
@@ -142,8 +182,9 @@ function setMobilePageMode(target) {
   const hasModulePage = Boolean(mainContent?.querySelector('.erp-module-page'));
 
   document.body.classList.remove('erp-mobile-dashboard', 'erp-mobile-module');
+  clearChromeInlineStyles();
 
-  if (!isMobileViewport()) {
+  if (!isCompactLayout()) {
     dashPanel?.classList.toggle('hidden', resolved !== 'dashboard');
     syncMobileHeaderHeight();
     return;
@@ -151,11 +192,11 @@ function setMobilePageMode(target) {
 
   if (resolved === 'dashboard') {
     document.body.classList.add('erp-mobile-dashboard');
-    dashPanel?.classList.remove('hidden');
+    forceChromeBarVisible('dashboard');
     initDashboardInsightsToggle(true);
   } else if (hasModulePage) {
     document.body.classList.add('erp-mobile-module');
-    dashPanel?.classList.add('hidden');
+    forceChromeBarVisible('module');
   } else {
     dashPanel?.classList.add('hidden');
   }
@@ -165,6 +206,7 @@ function setMobilePageMode(target) {
   }
 
   syncMobileHeaderHeight();
+  syncChromeBarHeight();
 }
 
 function updateModuleToolbarText(label, summary) {
@@ -179,11 +221,11 @@ function bindModuleToolbarToggleOnce() {
   if (!toggle || toggle.dataset.bound === 'true') return;
   toggle.dataset.bound = 'true';
   toggle.addEventListener('click', () => {
-    if (!isMobileViewport()) return;
     const snap = activeMobileSnapshot || mainContent?.querySelector('.erp-module-page')?._mobileSnapshot;
     if (!snap) return;
     if (snap.isCollapsed()) snap.expand();
     else snap.collapse('Tap to hide form & options');
+    forceChromeBarVisible('module');
   });
 }
 
@@ -215,20 +257,17 @@ function createMobileSnapshotController(pageRoot, options = {}) {
   updateModuleToolbarText(label, defaultSummary);
 
   const applyState = () => {
-    if (!isMobileViewport()) {
-      pageRoot.classList.remove('erp-mobile-snapshot-collapsed');
-      return;
-    }
-    pageRoot.classList.toggle('erp-mobile-snapshot-collapsed', collapsed);
+    pageRoot.classList.toggle('erp-mobile-snapshot-collapsed', collapsed && isCompactLayout());
     updateModuleToolbarUi(collapsed, summaryOverride, defaultSummary);
+    if (isCompactLayout()) forceChromeBarVisible('module');
   };
 
   const collapse = (summaryText) => {
-    if (!isMobileViewport()) return;
     if (summaryText) summaryOverride = summaryText;
     collapsed = true;
     applyState();
     setMobilePageMode(activeModuleTarget);
+    forceChromeBarVisible('module');
   };
 
   const expand = () => {
@@ -236,6 +275,7 @@ function createMobileSnapshotController(pageRoot, options = {}) {
     collapsed = false;
     applyState();
     setMobilePageMode(activeModuleTarget);
+    forceChromeBarVisible('module');
     requestAnimationFrame(() => {
       pageRoot.querySelector('.erp-mobile-snapshot-target')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -261,15 +301,21 @@ function createMobileSnapshotController(pageRoot, options = {}) {
 function bindMobileSnapshotResizeOnce() {
   if (window._erpMobileSnapshotResizeBound) return;
   window._erpMobileSnapshotResizeBound = true;
-  window.addEventListener('resize', () => {
+  const refreshChrome = () => {
     setMobilePageMode(activeModuleTarget);
+    if (document.body.classList.contains('erp-mobile-dashboard')) forceChromeBarVisible('dashboard');
+    else if (document.body.classList.contains('erp-mobile-module')) forceChromeBarVisible('module');
     activeMobileSnapshot?.refresh?.();
-  });
+  };
+  window.addEventListener('resize', refreshChrome);
+  window.addEventListener('pageshow', refreshChrome);
+  window.addEventListener('orientationchange', () => setTimeout(refreshChrome, 100));
 }
 
 function onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer) {
-  if (isMobileViewport() && ledgerContainer && !ledgerContainer.classList.contains('hidden')) {
+  if (ledgerContainer && !ledgerContainer.classList.contains('hidden')) {
     mobileSnapshot?.collapse('Ledger loaded · Tap to show entry form');
+    forceChromeBarVisible('module');
   }
 }
 
@@ -283,7 +329,7 @@ function initMobileModuleSnapshot(target) {
   const titleText = pageRoot.querySelector('.border-b h2')?.textContent?.trim() || 'Module Options';
 
   if (target === 'reports') {
-    markMobileSnapshotTargets(pageRoot, ['.erp-report-tools']);
+    markMobileSnapshotTargets(pageRoot, ['#report-filters-panel', '.erp-report-tools > .border-b']);
     return createMobileSnapshotController(pageRoot, {
       label: 'Report Options',
       defaultSummary: 'Tap to select report & dates'
@@ -448,7 +494,11 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   }
 
   setMobilePageMode(target);
-  requestAnimationFrame(() => setMobilePageMode(target));
+  requestAnimationFrame(() => {
+    setMobilePageMode(target);
+    if (target === 'dashboard') forceChromeBarVisible('dashboard');
+    else if (mainContent.querySelector('.erp-module-page')) forceChromeBarVisible('module');
+  });
 
   if (pushHistory) {
     history.pushState({ module: target }, '', `#${target}`);
@@ -2245,6 +2295,7 @@ if (typeSelect) {
       const reportLabel = typeSelect.options[typeSelect.selectedIndex]?.text?.trim() || 'Report';
       mobileSnapshot?.collapse(`${reportLabel} · ${fDateInput.value} to ${tDateInput.value}`);
       setMobilePageMode('reports');
+      forceChromeBarVisible('module');
       const resultsAnchor = document.getElementById('report-results-anchor');
       if (isMobileViewport() && resultsAnchor) {
         setTimeout(() => resultsAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
@@ -4802,7 +4853,7 @@ function initDashboardInsightsToggle(forceReapply = false) {
   if (!document.body.classList.contains('erp-mobile-dashboard') && panel.classList.contains('hidden')) return;
 
   const applyLayout = () => {
-    if (isMobileViewport()) {
+    if (isCompactLayout()) {
       if (forceReapply) {
         body.classList.add('hidden');
         body.classList.remove('user-expanded');
@@ -4812,6 +4863,8 @@ function initDashboardInsightsToggle(forceReapply = false) {
       const isExpanded = !body.classList.contains('hidden');
       toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
       if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
+      forceChromeBarVisible('dashboard');
+      syncChromeBarHeight();
     } else {
       body.classList.remove('hidden', 'user-expanded');
       toggle.setAttribute('aria-expanded', 'true');
@@ -4822,12 +4875,14 @@ function initDashboardInsightsToggle(forceReapply = false) {
   if (toggle.dataset.bound !== 'true') {
     toggle.dataset.bound = 'true';
     toggle.addEventListener('click', () => {
-      if (!isMobileViewport()) return;
+      if (!isCompactLayout()) return;
       body.classList.toggle('hidden');
       body.classList.toggle('user-expanded', !body.classList.contains('hidden'));
       const isExpanded = !body.classList.contains('hidden');
       toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
       if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
+      syncChromeBarHeight();
+      forceChromeBarVisible('dashboard');
     });
   }
 

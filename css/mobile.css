@@ -3,9 +3,10 @@
  * Applies across all module pages, forms, ledgers, and reports.
  */
 
-@media (max-width: 767px) {
+@media (max-width: 1023px) {
   :root {
     --erp-mobile-header-h: 3.5rem;
+    --erp-mobile-chrome-h: 2.75rem;
   }
 
   /* Fixed top bar — hamburger always reachable */
@@ -27,26 +28,51 @@
     z-index: 70;
   }
 
-  /* Mobile chrome bars — always show toggle row; only form/content collapses */
+  /* Mobile chrome — fixed below header, NEVER hidden when page mode is set */
   #dashboard-insights-panel,
   #erp-module-toolbar {
     display: none !important;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--erp-mobile-header-h);
+    z-index: 55;
     flex-shrink: 0;
-    background: rgba(249, 250, 251, 0.98);
+    background: #fff;
     border-bottom: 1px solid #e5e7eb;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    visibility: visible !important;
+    opacity: 1 !important;
   }
 
   body.erp-mobile-dashboard #dashboard-insights-panel {
     display: block !important;
+    max-height: calc(100dvh - var(--erp-mobile-header-h));
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
   }
 
   body.erp-mobile-module #erp-module-toolbar {
     display: block !important;
   }
 
-  /* Override Tailwind hidden on dashboard panel when active on mobile */
   body.erp-mobile-dashboard #dashboard-insights-panel.hidden {
     display: block !important;
+  }
+
+  body.erp-mobile-module #erp-module-toolbar.hidden {
+    display: block !important;
+  }
+
+  .erp-mobile-chrome-toggle,
+  #erp-module-toolbar-toggle {
+    display: flex !important;
+    min-height: 2.75rem;
+  }
+
+  body.erp-mobile-dashboard #main-content,
+  body.erp-mobile-module #main-content {
+    margin-top: var(--erp-mobile-chrome-h);
   }
 
   #insights-toggle-chevron.rotate-180,
@@ -409,19 +435,28 @@
   }
 }
 
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   #erp-module-toolbar {
     display: none !important;
   }
 
-  body.erp-mobile-dashboard #dashboard-insights-panel,
   #dashboard-insights-panel:not(.hidden) {
     display: block !important;
+    position: static;
   }
 
-  body.erp-mobile-dashboard #dashboard-insights-panel.hidden,
-  body.erp-mobile-module #erp-module-toolbar {
+  .erp-mobile-chrome-toggle {
     display: none !important;
+  }
+
+  #dashboard-insights-body {
+    position: static !important;
+    max-height: none !important;
+  }
+
+  body.erp-mobile-dashboard #main-content,
+  body.erp-mobile-module #main-content {
+    margin-top: 0 !important;
   }
 
   .erp-report-scroll::after {
