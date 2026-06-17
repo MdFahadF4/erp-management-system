@@ -1983,9 +1983,9 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
   const tableContainer = document.getElementById('report-table-container');
 
   tableContainer.innerHTML = `
-     <div class="overflow-x-auto">
-        <table class="w-full text-left border-collapse text-xs">
-          <thead id="report-table-head" class="bg-slate-800 text-white uppercase whitespace-nowrap sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
+     <div class="erp-report-scroll overflow-x-auto">
+        <table class="erp-report-table w-full text-left border-collapse text-xs">
+          <thead id="report-table-head" class="bg-slate-800 text-white sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
           </thead>
           <tbody id="report-table-body" class="divide-y text-gray-600 font-medium">
              <tr><td class="p-6 text-center text-blue-500 font-bold animate-pulse">Running advanced ERP query...</td></tr>
@@ -2143,32 +2143,32 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         let rngNet = (rngCashIn + rngCardIn) - rngCashOut;
 
         cardsEl.innerHTML = `
-          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
-             <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
-                <div class="text-left w-1/4">
+          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-4 md:p-6 rounded-xl shadow-sm mb-2 gap-4">
+             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
+                <div class="text-left">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Cash IN</div>
-                   <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeCashIn.toFixed(2)}</div>
+                   <div class="text-xl md:text-3xl font-black text-emerald-600 font-mono mt-1 break-all">SAR ${lifeCashIn.toFixed(2)}</div>
                 </div>
-                <div class="text-center w-1/4 border-l border-gray-100">
+                <div class="text-left sm:text-center xl:border-l xl:border-gray-100 xl:pl-4">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Card IN</div>
-                   <div class="text-3xl font-black text-purple-600 font-mono mt-1">SAR ${lifeCardIn.toFixed(2)}</div>
+                   <div class="text-xl md:text-3xl font-black text-purple-600 font-mono mt-1 break-all">SAR ${lifeCardIn.toFixed(2)}</div>
                 </div>
-                <div class="text-center w-1/4 border-l border-gray-100">
+                <div class="text-left sm:text-center xl:border-l xl:border-gray-100 xl:pl-4">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Cash OUT</div>
-                   <div class="text-3xl font-black text-red-600 font-mono mt-1">SAR ${lifeCashOut.toFixed(2)}</div>
+                   <div class="text-xl md:text-3xl font-black text-red-600 font-mono mt-1 break-all">SAR ${lifeCashOut.toFixed(2)}</div>
                 </div>
-                <div class="text-right w-1/4 border-l border-gray-100">
+                <div class="text-left sm:text-right xl:border-l xl:border-gray-100 xl:pl-4">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Net Flow</div>
-                   <div class="text-3xl font-black ${lifeNet >= 0 ? 'text-blue-600' : 'text-red-600'} font-mono mt-1">SAR ${lifeNet.toFixed(2)}</div>
+                   <div class="text-xl md:text-3xl font-black ${lifeNet >= 0 ? 'text-blue-600' : 'text-red-600'} font-mono mt-1 break-all">SAR ${lifeNet.toFixed(2)}</div>
                    <div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(Cash In + Card In - Cash Out)</div>
                 </div>
              </div>
              ${hasDates ? `
-             <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Cash IN</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngCashIn.toFixed(2)}</div></div>
-                <div class="text-center border-l border-r border-blue-200 px-8"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">Range Card IN</div><div class="text-lg font-bold text-purple-700 font-mono mt-1">SAR ${rngCardIn.toFixed(2)}</div></div>
-                <div class="text-center border-r border-blue-200 pr-8"><div class="text-red-600 text-[10px] font-bold uppercase tracking-wider">Range Cash OUT</div><div class="text-lg font-bold text-red-700 font-mono mt-1">SAR ${rngCashOut.toFixed(2)}</div></div>
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Net Flow</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngNet.toFixed(2)}</div></div>
+             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-100">
+                <div class="text-left sm:text-center"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Cash IN</div><div class="text-base md:text-lg font-bold text-emerald-700 font-mono mt-1 break-all">SAR ${rngCashIn.toFixed(2)}</div></div>
+                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">Range Card IN</div><div class="text-base md:text-lg font-bold text-purple-700 font-mono mt-1 break-all">SAR ${rngCardIn.toFixed(2)}</div></div>
+                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-red-600 text-[10px] font-bold uppercase tracking-wider">Range Cash OUT</div><div class="text-base md:text-lg font-bold text-red-700 font-mono mt-1 break-all">SAR ${rngCashOut.toFixed(2)}</div></div>
+                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Net Flow</div><div class="text-base md:text-lg font-bold text-blue-700 font-mono mt-1 break-all">SAR ${rngNet.toFixed(2)}</div></div>
              </div>
              ` : ''}
           </div>
@@ -2177,9 +2177,9 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         tableContainer.innerHTML = `
           <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-             <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs border-b border-slate-900 text-center">Cash & Card Flow Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
-             <div class="overflow-x-auto">
-               <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Flow Type</th><th class="p-2.5 font-semibold">Source/Destination</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+             <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">Cash & Card Flow Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+             <div class="erp-report-scroll overflow-x-auto">
+               <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Flow Type</th><th class="p-2.5 font-semibold">Source/Destination</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
                   <tbody class="divide-y divide-gray-100">
                      ${flowRows.length > 0 ? flowRows.sort((a,b)=> b.d - a.d).map(r => {
                         let clr = r.type.includes("IN") ? (r.type.includes("Card") ? "text-purple-600" : "text-emerald-600") : "text-red-600";
@@ -3929,12 +3929,12 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         let drawerColor = pLiveDrawer >= 0 ? "text-emerald-600" : "text-red-600";
 
         cardsEl.innerHTML = `
-          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-6">
-             <div class="flex flex-wrap justify-between border-gray-100">
-                <div class="text-left w-1/5"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Sold Amount</div><div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${pLifeSold.toFixed(2)}</div></div>
-                <div class="text-left w-1/5 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Received</div><div class="text-2xl font-black text-emerald-600 font-mono mt-1">SAR ${pLifeRecv.toFixed(2)}</div><div class="text-[10px] font-bold text-gray-500 mt-2">Cash: <span class="text-emerald-500 text-sm ml-1">${pLifeCash.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">Card: <span class="text-purple-500 text-sm ml-1">${pLifeCard.toFixed(2)}</span></div></div>
-                <div class="text-left w-1/5 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due/Balance</div><div class="text-2xl font-black text-red-600 font-mono mt-1">SAR ${pLifeDue.toFixed(2)}</div></div>
-                <div class="text-right w-2/5 border-l pl-4 border-gray-100 bg-gray-50 rounded-r-xl p-3 shadow-inner"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Current Live Cash Drawer</div><div class="text-3xl font-black ${drawerColor} font-mono mt-2">SAR ${pLiveDrawer.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(${isSecValAdmin ? 'Customer Cash In - Transfers Out' : 'Customer Cash In - All Spends Out'})</div></div>
+          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-4 md:p-6 rounded-xl shadow-sm mb-2 gap-4 md:gap-6">
+             <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 border-gray-100">
+                <div class="text-left"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Sold Amount</div><div class="text-lg md:text-2xl font-black text-blue-600 font-mono mt-1 break-all">SAR ${pLifeSold.toFixed(2)}</div></div>
+                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Received</div><div class="text-lg md:text-2xl font-black text-emerald-600 font-mono mt-1 break-all">SAR ${pLifeRecv.toFixed(2)}</div><div class="text-[10px] font-bold text-gray-500 mt-2">Cash: <span class="text-emerald-500 text-sm ml-1">${pLifeCash.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">Card: <span class="text-purple-500 text-sm ml-1">${pLifeCard.toFixed(2)}</span></div></div>
+                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due/Balance</div><div class="text-lg md:text-2xl font-black text-red-600 font-mono mt-1 break-all">SAR ${pLifeDue.toFixed(2)}</div></div>
+                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100 bg-gray-50 rounded-xl p-3 shadow-inner"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Current Live Cash Drawer</div><div class="text-xl md:text-3xl font-black ${drawerColor} font-mono mt-2 break-all">SAR ${pLiveDrawer.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(${isSecValAdmin ? 'Customer Cash In - Transfers Out' : 'Customer Cash In - All Spends Out'})</div></div>
              </div>
           </div>
         `;
@@ -3942,9 +3942,9 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         tableContainer.innerHTML = `
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs border-b border-slate-900 text-center">Month-wise Sales & Collection Performance</div>
-                <div class="overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-3 font-semibold">Month & Year</th><th class="p-3 font-semibold text-right">Sold Amount</th><th class="p-3 font-semibold text-right">Received Amount</th><th class="p-3 font-semibold text-right">Due / Balance Generated</th></tr></thead>
+                <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">Month-wise Sales & Collection Performance</div>
+                <div class="erp-report-scroll overflow-x-auto">
+                  <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-3 font-semibold">Month & Year</th><th class="p-3 font-semibold text-right">Sold Amount</th><th class="p-3 font-semibold text-right">Received Amount</th><th class="p-3 font-semibold text-right">Due / Balance Generated</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${Object.keys(monthlyData).length > 0 ? Object.keys(monthlyData).sort().reverse().map(m => {
                            let d = monthlyData[m]; let monthDue = d.sold - d.recv;

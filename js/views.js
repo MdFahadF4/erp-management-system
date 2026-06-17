@@ -1,7 +1,7 @@
 export const templates = {
   dashboard: `
     <div class="space-y-6 pb-10">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Executive Dashboard</h2>
         <button id="btn-refresh-dash" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded shadow-sm text-xs uppercase tracking-wider transition">Refresh Data</button>
       </div>
@@ -113,12 +113,12 @@ export const templates = {
   `,
   hr: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">HR Ledger & Payroll Management</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">New Employee Entry</h3>
           <form id="form-hr-entry" class="space-y-3 text-xs">
             <div><label class="block font-bold text-gray-600 mb-0.5">Employee Name</label><input type="text" id="hr-name" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
@@ -135,7 +135,7 @@ export const templates = {
             </div>
             <div><label class="block font-bold text-gray-500 mb-0.5">Due Balance Salary</label><input type="number" id="hr-due" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-semibold text-red-600 outline-none text-sm"></div>
             <div><label class="block font-bold text-gray-600 mb-0.5">Employment Status</label><select id="hr-status" class="w-full border rounded p-1.5 bg-white text-sm font-medium outline-none"><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Released">Released</option></select></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition">COMMIT STAFF ENTITY</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition">COMMIT STAFF ENTITY</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -185,12 +185,12 @@ export const templates = {
   `,
   hr_transactions: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">HR Transaction Ledger</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Log Transaction</h3>
           <form id="form-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Transaction Date</label><input type="date" id="txn-date" required class="w-full border rounded p-2 text-sm outline-none"></div>
@@ -198,7 +198,7 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-1">Amount</label><input type="number" step="0.01" id="txn-amount" required class="w-full border rounded p-2 text-sm outline-none" placeholder="0.00"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Category Classification</label><select id="txn-category" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Salary Earn">Salary Earn</option><option value="Salary Paid">Salary Paid</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1">Remarks / Reference</label><textarea id="txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none" placeholder="Optional notes..."></textarea></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition">POST TRANSACTION</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition">POST TRANSACTION</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -222,12 +222,12 @@ export const templates = {
   `,
   suppliers: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Supplier Account Management</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">New Supplier Entry</h3>
           <form id="form-sup-entry" class="space-y-3 text-xs">
             <div><label class="block font-bold text-gray-600 mb-0.5">Supplier Name</label><input type="text" id="sup-name" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
@@ -240,7 +240,7 @@ export const templates = {
             </div>
             <div><label class="block font-bold text-gray-500 mb-0.5">Due / Balance (Auto Calculate)</label><input type="number" id="sup-due" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-semibold text-red-600 outline-none text-sm"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Account Status</label><select id="sup-status" class="w-full border rounded p-1.5 bg-white text-sm font-medium outline-none"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition tracking-wider">REGISTER SUPPLIER</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition tracking-wider">REGISTER SUPPLIER</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -279,12 +279,12 @@ export const templates = {
   `,
   supplier_transactions: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Supplier Transaction Ledger</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Log Supplier Transaction</h3>
           <form id="form-sup-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Transaction Date</label><input type="date" id="sup-txn-date" required class="w-full border rounded p-2 text-sm outline-none"></div>
@@ -292,7 +292,7 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-1">Transaction Amount</label><input type="number" step="0.01" id="sup-txn-amount" required class="w-full border rounded p-2 text-sm outline-none" placeholder="0.00"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Category Classification</label><select id="sup-txn-category" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Purchase">Purchase (Increases Due)</option><option value="Payment Paid">Payment Paid (Decreases Due)</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1">Remarks / Reference Info</label><textarea id="sup-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none" placeholder="Invoice reference number, notes..."></textarea></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider">POST TRANSACTION ENTRY</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider">POST TRANSACTION ENTRY</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -316,12 +316,12 @@ export const templates = {
   `,
   customers: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Customer Accounts Matrix</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">New Customer Sales Entry</h3>
           <form id="form-cust-entry" class="space-y-2.5 text-xs">
             <div><label class="block font-bold text-gray-600 mb-0.5">Invoice / Memo Number</label><input type="text" id="cust-memo" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="e.g. INV-5501"></div>
@@ -339,7 +339,7 @@ export const templates = {
               <div><label class="block font-bold text-purple-700 mb-0.5">Discount Issued</label><input type="number" step="0.01" id="cust-discount" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-purple-500 outline-none text-sm font-mono"></div>
             </div>
             <div><label class="block font-bold text-red-600 mb-0.5">Outstanding Balance Due</label><input type="number" id="cust-due" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-bold text-red-600 outline-none text-sm font-mono"></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded text-sm transition tracking-wider">COMMIT CUSTOMER SALE</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded text-sm transition tracking-wider">COMMIT CUSTOMER SALE</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -384,12 +384,12 @@ export const templates = {
   `,
   customer_transactions: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Customer Transaction Logging</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Log Customer Payment</h3>
           <form id="form-cust-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Transaction Date</label><input type="date" id="cust-txn-date" required class="w-full border rounded p-2 text-sm outline-none"></div>
@@ -399,7 +399,7 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-1">Payment Method</label><select id="cust-txn-method" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Cash">Cash</option><option value="Card">Card</option></select></div>
             <div><label class="block font-bold text-gray-500 mb-1">Transaction Due / Balance</label><input type="number" id="cust-txn-due" readonly class="w-full border rounded p-2 text-sm bg-gray-50 font-bold text-red-600 outline-none"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Remarks / Reference Info</label><textarea id="cust-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none" placeholder="Invoice details, receipt #..."></textarea></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider">POST TRANSACTION</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider">POST TRANSACTION</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -423,18 +423,18 @@ export const templates = {
   `,
   internal_transfer: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Internal Cash Handover Transfer</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Log Transfer to Owner</h3>
           <form id="form-internal-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Transfer Date</label><input type="date" id="int-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"></div>
             <div><label class="block font-bold text-emerald-700 mb-1">Transfer Cash Amount</label><input type="number" step="0.01" id="int-amount" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold" placeholder="0.00"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Description / Narrative Note</label><textarea id="int-desc" rows="3" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g. Cash handed over to owner for bank deposit..."></textarea></div>
-            <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Execute Cash Handover</button>
+            <button type="submit" class="erp-submit-btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Execute Cash Handover</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -458,17 +458,17 @@ export const templates = {
   `,
   expense_heads: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Expense Category Setup</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Create Expense Matrix</h3>
           <form id="form-exp-head-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Expense Parent Head</label><input type="text" id="exp-head-main" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Utilities, Logistics"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Sub Head Assignment</label><input type="text" id="exp-head-sub" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Electricity, Diesel Fuel"></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Category</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Category</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -489,12 +489,12 @@ export const templates = {
   `,
   expense_transactions: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Operational Expense Ledger</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Log Transaction Entry</h3>
           <form id="form-exp-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Transaction Date</label><input type="date" id="exp-txn-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-red-500"></div>
@@ -506,7 +506,7 @@ export const templates = {
               <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-red-600 mb-1">Transaction Due / Balance</label><input type="number" id="exp-txn-due" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-red-600 outline-none shadow-inner"></div>
             </div>
             <div><label class="block font-bold text-gray-600 mb-1">Remarks / Narrative</label><textarea id="exp-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-red-500" placeholder="Invoice details, voucher references..."></textarea></div>
-            <button type="submit" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Expense Line</button>
+            <button type="submit" class="erp-submit-btn w-full bg-red-600 hover:bg-red-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Expense Line</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -541,17 +541,17 @@ export const templates = {
   `,
   creditors: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Creditor Setup (Liabilities)</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Create Creditor Head</h3>
           <form id="form-cred-head-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Creditor Parent Head</label><input type="text" id="cred-head-main" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g., Bank Loans, Investor X"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Sub Head Name</label><input type="text" id="cred-head-sub" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g., Term Loan #1"></div>
-            <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Creditor</button>
+            <button type="submit" class="erp-submit-btn w-full bg-orange-600 hover:bg-orange-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Creditor</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -572,12 +572,12 @@ export const templates = {
   `,
   creditor_transactions: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Creditor Ledger (Loans & Returns)</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Log Creditor Action</h3>
           <form id="form-cred-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Transaction Date</label><input type="date" id="cred-txn-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-orange-500"></div>
@@ -591,7 +591,7 @@ export const templates = {
             </div>
 
             <div><label class="block font-bold text-gray-600 mb-1">Remarks / Narrative</label><textarea id="cred-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-orange-500" placeholder="Bank receipt, check numbers..."></textarea></div>
-            <button type="submit" class="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Creditor Line</button>
+            <button type="submit" class="erp-submit-btn w-full bg-orange-600 hover:bg-orange-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Creditor Line</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -623,17 +623,17 @@ export const templates = {
   `,
   income_heads: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Income Category Setup (Revenues)</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Create Income Matrix</h3>
           <form id="form-inc-head-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Income Parent Head</label><input type="text" id="inc-head-main" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Services, Rent"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Sub Head Assignment</label><input type="text" id="inc-head-sub" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="e.g., Consulting, Warehouse A"></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Income Category</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider">Register Income Category</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -654,12 +654,12 @@ export const templates = {
   `,
   income_transactions: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">Income Ledger Logging</h2>
         <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
-        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-[85vh] overflow-y-auto transition-all duration-300">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider">Log Income Entry</h3>
           <form id="form-inc-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1">Transaction Date</label><input type="date" id="inc-txn-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"></div>
@@ -673,7 +673,7 @@ export const templates = {
             </div>
 
             <div><label class="block font-bold text-gray-600 mb-1">Remarks / Narrative</label><textarea id="inc-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500" placeholder="Client names, details..."></textarea></div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Income Line</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase">Post Income Line</button>
           </form>
         </div>
         <div id="ledger-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-hidden hidden transition-all duration-300">
@@ -705,7 +705,7 @@ export const templates = {
   `,
   all_transactions: `
     <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800">All Transaction View (Master Audit)</h2>
       </div>
       <div class="bg-white p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-hidden h-[85vh]">
@@ -743,21 +743,21 @@ export const templates = {
     </div>
   `,
   reports: `
-    <div class="space-y-6">
-      <div class="border-b pb-3 flex justify-between items-center print:hidden">
-        <h2 class="text-2xl font-bold text-gray-800">Enterprise Reporting System</h2>
-        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm flex items-center gap-2">
+    <div class="space-y-4 md:space-y-6">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 print:hidden">
+        <h2 class="text-lg md:text-2xl font-bold text-gray-800">Enterprise Reporting System</h2>
+        <button onclick="window.print()" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded text-sm transition shadow-sm flex items-center justify-center gap-2">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
           Print / Export
         </button>
       </div>
       
-      <div class="bg-white p-5 rounded-xl shadow border border-gray-200 flex flex-col print:shadow-none print:border-none print:p-0">
+      <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col print:shadow-none print:border-none print:p-0">
         
-        <div class="bg-gray-50 border border-gray-200 p-4 rounded-lg mb-6 flex flex-wrap items-end gap-4 text-xs shadow-inner print:hidden">
-          <div class="flex-1 min-w-[200px]">
+        <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mb-4 md:mb-6 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner print:hidden">
+          <div class="w-full md:flex-1 md:min-w-[200px]">
             <label class="block text-gray-600 font-bold mb-1">Select Master Report</label>
-            <select id="report-type" class="w-full border rounded p-2 outline-none bg-white focus:border-blue-500 font-medium">
+            <select id="report-type" class="w-full border rounded p-2.5 outline-none bg-white focus:border-blue-500 font-medium text-sm">
               <option value="">-- Choose Report Type --</option>
               <option value="daily_monthly">Daily / Monthly Aggregate Report</option>
               <option value="daily_cashflow">Daily Accounts Cash Flow (IN & OUT)</option>
@@ -772,31 +772,31 @@ export const templates = {
             </select>
           </div>
           
-          <div class="flex-1 min-w-[150px] hidden" id="report-secondary-filter-container">
+          <div class="w-full md:flex-1 md:min-w-[150px] hidden" id="report-secondary-filter-container">
             <label class="block text-gray-600 font-bold mb-1" id="report-secondary-label">Specific Target</label>
-            <select id="report-secondary-filter" class="w-full border rounded p-2 outline-none bg-white focus:border-blue-500">
+            <select id="report-secondary-filter" class="w-full border rounded p-2.5 outline-none bg-white focus:border-blue-500 text-sm">
             </select>
           </div>
 
-          <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="report-from" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
-          <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="report-to" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
-          <div><button id="btn-generate-report" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded transition shadow-sm">Execute Query</button></div>
+          <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="report-from" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
+          <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="report-to" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
+          <div class="w-full md:w-auto"><button id="btn-generate-report" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]">Execute Query</button></div>
         </div>
 
-        <div id="report-print-header" class="hidden mb-6 text-center border-b pb-4 print:block">
-          <h1 class="text-2xl font-black text-gray-800 uppercase tracking-widest" id="report-title-display">Report Name</h1>
-          <p class="text-sm font-medium text-gray-500 mt-1" id="report-date-display">Date Range: </p>
-          <p class="text-xs text-gray-400 mt-1" id="report-target-display"></p>
+        <div id="report-print-header" class="hidden mb-4 md:mb-6 text-center border-b pb-4 print:block">
+          <h1 class="text-lg md:text-2xl font-black text-gray-800 uppercase tracking-wide md:tracking-widest px-2" id="report-title-display">Report Name</h1>
+          <p class="text-xs md:text-sm font-medium text-gray-500 mt-1 px-2" id="report-date-display">Date Range: </p>
+          <p class="text-[10px] md:text-xs text-gray-400 mt-1 px-2 break-words" id="report-target-display"></p>
         </div>
 
-        <div id="report-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 hidden">
+        <div id="report-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6 hidden">
         </div>
 
         <div id="report-table-container" class="border rounded-lg flex-1 relative print:border-none bg-white">
-           <div class="overflow-x-auto">
-              <table class="w-full text-left border-collapse text-xs">
-                <thead id="report-table-head" class="bg-slate-800 text-white uppercase whitespace-nowrap sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
-                  <tr><th class="p-3 text-center text-gray-300 font-normal">Select parameters and execute query to build report.</th></tr>
+           <div class="erp-report-scroll overflow-x-auto">
+              <table class="erp-report-table w-full text-left border-collapse text-xs">
+                <thead id="report-table-head" class="bg-slate-800 text-white sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
+                  <tr><th class="p-3 text-center text-gray-300 font-normal normal-case">Select parameters and execute query to build report.</th></tr>
                 </thead>
                 <tbody id="report-table-body" class="divide-y text-gray-600 font-medium">
                 </tbody>
@@ -840,7 +840,7 @@ export const templates = {
                 <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Reports"> <span class="text-purple-600 font-bold">Reports</span></label>
               </div>
             </div>
-            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2.5 rounded transition">Register User</button>
+            <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2.5 rounded transition">Register User</button>
           </form>
         </div>
         <div class="bg-white p-6 rounded-xl shadow border border-gray-200 lg:col-span-2 flex flex-col h-[70vh]">

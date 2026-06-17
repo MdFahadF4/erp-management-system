@@ -1,0 +1,258 @@
+/**
+ * ERP mobile-friendly layout fixes
+ * Applies across all module pages, forms, ledgers, and reports.
+ */
+
+@media (max-width: 767px) {
+  /* ── Page headers (title + action buttons) ── */
+  #main-content > div > .border-b.flex.justify-between.items-center,
+  #main-content .border-b.pb-3.flex.justify-between.items-center,
+  #main-content .border-b.pb-4.flex.justify-between.items-center {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.625rem;
+  }
+
+  #main-content > div > .border-b.flex.justify-between.items-center > button,
+  #main-content .border-b.pb-3.flex.justify-between.items-center > button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  #main-content h2.text-2xl {
+    font-size: 1.125rem;
+    line-height: 1.35;
+  }
+
+  /* ── Entry forms: full scroll, visible submit ── */
+  #form-container {
+    max-height: none !important;
+    padding-bottom: 6rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  #form-container form .grid-cols-2,
+  #form-container form .grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  #form-container form button[type="submit"],
+  .erp-submit-btn {
+    position: sticky;
+    bottom: 0.5rem;
+    z-index: 30;
+    min-height: 2.75rem;
+    padding: 0.75rem 1rem !important;
+    letter-spacing: 0.02em !important;
+    white-space: normal !important;
+    line-height: 1.35 !important;
+    box-shadow: 0 -6px 16px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(37, 99, 235, 0.25);
+    border-radius: 0.625rem !important;
+  }
+
+  /* HR magic action buttons stack */
+  #form-container .flex.gap-2 button,
+  #form-container .flex.space-x-2 button {
+    width: 100% !important;
+    flex: 1 1 100%;
+  }
+
+  #form-container .flex.gap-2,
+  #form-container .flex.space-x-2 {
+    flex-direction: column;
+  }
+
+  /* ── Filter bars (transactions, reports) ── */
+  #main-content .flex.flex-wrap.items-end.gap-4,
+  #main-content .bg-gray-50.border.p-4.rounded-lg.mb-6.flex {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 0.75rem;
+    padding: 0.75rem !important;
+  }
+
+  #main-content .flex.flex-wrap.items-end.gap-4 > div,
+  #main-content .bg-gray-50.border.p-4.rounded-lg.mb-6.flex > div {
+    flex: 1 1 100% !important;
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+
+  #btn-generate-report,
+  #main-content .flex.flex-wrap.items-end.gap-4 > button,
+  #main-content .flex.flex-wrap.items-end.gap-4 > div > button {
+    width: 100%;
+    min-height: 2.75rem;
+  }
+
+  /* ── Ledger / data tables: horizontal scroll, readable cells ── */
+  #ledger-container .overflow-x-auto,
+  #main-content .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #ledger-container table,
+  #table-all-txn-rows,
+  #main-content table.w-full {
+    min-width: 36rem;
+  }
+
+  #ledger-container table th,
+  #ledger-container table td {
+    padding: 0.375rem 0.5rem !important;
+    font-size: 0.6875rem !important;
+  }
+
+  /* ── Reports: summary cards stack (fix w-1/4 overlap) ── */
+  #report-summary-cards {
+    grid-template-columns: 1fr !important;
+  }
+
+  #report-summary-cards .w-1\/4,
+  #report-summary-cards [class*="w-1/4"],
+  #report-summary-cards .w-1\/5,
+  #report-summary-cards [class*="w-1/5"],
+  #report-summary-cards .w-2\/5,
+  #report-summary-cards [class*="w-2/5"],
+  #report-summary-cards .flex.flex-wrap > div,
+  #report-summary-cards .flex.justify-between > div,
+  #report-summary-cards .flex.justify-around > div {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-left: none !important;
+    border-right: none !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    text-align: left !important;
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 0.625rem !important;
+    margin-bottom: 0.625rem !important;
+  }
+
+  #report-summary-cards .text-3xl {
+    font-size: 1.25rem !important;
+    line-height: 1.3 !important;
+  }
+
+  #report-summary-cards .text-xl {
+    font-size: 1rem !important;
+  }
+
+  #report-summary-cards .flex.justify-around {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 0.75rem !important;
+  }
+
+  /* ── Reports: table scroll instead of squished overlap ── */
+  .erp-report-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+
+  .erp-report-scroll::after {
+    content: "Swipe sideways for more columns →";
+    display: block;
+    font-size: 0.625rem;
+    color: #6b7280;
+    text-align: center;
+    padding: 0.375rem 0.5rem;
+    background: #f9fafb;
+    border-top: 1px solid #e5e7eb;
+  }
+
+  .erp-report-table {
+    min-width: 36rem;
+    width: 100%;
+    table-layout: auto;
+  }
+
+  .erp-report-table th,
+  .erp-report-table td {
+    padding: 0.5rem 0.375rem !important;
+    font-size: 0.6875rem !important;
+    line-height: 1.35 !important;
+    vertical-align: top;
+  }
+
+  .erp-report-table thead th {
+    white-space: normal !important;
+    word-break: break-word;
+    hyphens: auto;
+    letter-spacing: 0.02em !important;
+    text-transform: none !important;
+    font-size: 0.625rem !important;
+  }
+
+  .erp-report-table tbody td {
+    word-break: break-word;
+    overflow-wrap: anywhere;
+  }
+
+  #report-table-head.whitespace-nowrap,
+  #report-table-head th {
+    white-space: normal !important;
+  }
+
+  /* Report cards injected into table container */
+  #report-table-container .overflow-x-auto table {
+    min-width: 36rem;
+  }
+
+  #report-table-container .flex.flex-wrap .w-1\/4,
+  #report-table-container .flex .w-2\/5,
+  #report-table-container .flex .w-1\/4 {
+    width: 100% !important;
+  }
+
+  #report-table-container .flex.flex-wrap.justify-between {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  /* ── Modals: single column, fit screen ── */
+  .fixed.inset-0 form.grid-cols-2,
+  .fixed.inset-0 form.grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  .fixed.inset-0 .max-w-xl,
+  .fixed.inset-0 .max-w-2xl {
+    max-width: calc(100vw - 1.5rem);
+    margin: 0.75rem;
+  }
+
+  .fixed.inset-0 form .col-span-2.flex.justify-end {
+    flex-direction: column-reverse;
+    gap: 0.5rem;
+  }
+
+  .fixed.inset-0 form .col-span-2.flex.justify-end button {
+    width: 100%;
+  }
+
+  /* ── All transactions view height ── */
+  #main-content .h-\[85vh\] {
+    height: auto !important;
+    max-height: calc(100dvh - 11rem);
+    min-height: 18rem;
+  }
+
+  /* ── Users page permission grid ── */
+  #form-create-user .grid-cols-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* ── Dashboard stat cards slightly smaller ── */
+  #main-content .text-4xl {
+    font-size: 1.5rem !important;
+  }
+}
+
+@media (min-width: 768px) {
+  .erp-report-scroll::after {
+    display: none;
+  }
+}
