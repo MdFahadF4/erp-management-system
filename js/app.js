@@ -134,37 +134,34 @@ function syncMobileHeaderHeight() {
   document.documentElement.style.setProperty('--erp-mobile-header-h', `${height}px`);
 }
 
-function syncMobileChrome(target) {
-  const appBody = document.getElementById('app-body');
+function setMobilePageMode(target) {
   const dashPanel = document.getElementById('dashboard-insights-panel');
-  if (!appBody) return;
-
   if (target) activeModuleTarget = target;
 
-  const resolvedTarget = target || activeModuleTarget;
+  const resolved = target || activeModuleTarget;
   const hasModulePage = Boolean(mainContent?.querySelector('.erp-module-page'));
 
+  document.body.classList.remove('erp-mobile-dashboard', 'erp-mobile-module');
+
   if (!isMobileViewport()) {
-    appBody.setAttribute('data-mobile-chrome', 'none');
-    if (dashPanel) dashPanel.classList.toggle('hidden', resolvedTarget !== 'dashboard');
+    dashPanel?.classList.toggle('hidden', resolved !== 'dashboard');
+    syncMobileHeaderHeight();
     return;
   }
 
-  if (resolvedTarget === 'dashboard') {
-    appBody.setAttribute('data-mobile-chrome', 'dashboard');
+  if (resolved === 'dashboard') {
+    document.body.classList.add('erp-mobile-dashboard');
     dashPanel?.classList.remove('hidden');
     initDashboardInsightsToggle(true);
+  } else if (hasModulePage) {
+    document.body.classList.add('erp-mobile-module');
+    dashPanel?.classList.add('hidden');
   } else {
-    if (resolvedTarget !== 'dashboard') {
-      document.getElementById('admin-global-balance-container')?.replaceChildren();
-    }
-    if (hasModulePage) {
-      appBody.setAttribute('data-mobile-chrome', 'module');
-      dashPanel?.classList.add('hidden');
-    } else {
-      appBody.setAttribute('data-mobile-chrome', 'none');
-      dashPanel?.classList.add('hidden');
-    }
+    dashPanel?.classList.add('hidden');
+  }
+
+  if (resolved !== 'dashboard') {
+    document.getElementById('admin-global-balance-container')?.replaceChildren();
   }
 
   syncMobileHeaderHeight();
@@ -222,8 +219,6 @@ function createMobileSnapshotController(pageRoot, options = {}) {
       pageRoot.classList.remove('erp-mobile-snapshot-collapsed');
       return;
     }
-
-    syncMobileChrome(activeModuleTarget);
     pageRoot.classList.toggle('erp-mobile-snapshot-collapsed', collapsed);
     updateModuleToolbarUi(collapsed, summaryOverride, defaultSummary);
   };
@@ -233,12 +228,14 @@ function createMobileSnapshotController(pageRoot, options = {}) {
     if (summaryText) summaryOverride = summaryText;
     collapsed = true;
     applyState();
+    setMobilePageMode(activeModuleTarget);
   };
 
   const expand = () => {
     summaryOverride = null;
     collapsed = false;
     applyState();
+    setMobilePageMode(activeModuleTarget);
     requestAnimationFrame(() => {
       pageRoot.querySelector('.erp-mobile-snapshot-target')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
@@ -265,7 +262,7 @@ function bindMobileSnapshotResizeOnce() {
   if (window._erpMobileSnapshotResizeBound) return;
   window._erpMobileSnapshotResizeBound = true;
   window.addEventListener('resize', () => {
-    syncMobileChrome(activeModuleTarget);
+    setMobilePageMode(activeModuleTarget);
     activeMobileSnapshot?.refresh?.();
   });
 }
@@ -353,9 +350,11 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
         closeMenu();
         if (!isHidden) {
           mobileSnapshot?.collapse('Viewing ledger · Tap to show form');
+          setMobilePageMode(activeModuleTarget);
           mainContent.scrollTo({ top: 0, behavior: 'smooth' });
         } else {
           mobileSnapshot?.expand();
+          setMobilePageMode(activeModuleTarget);
         }
         return;
       }
@@ -438,6 +437,7 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     document.getElementById('btn-filter-all')?.addEventListener('click', async () => {
       await loadAllTxnTableRecords(true);
       mobileSnapshot?.collapse('Showing audit records · Tap to change filters');
+      setMobilePageMode('all_transactions');
       mainContent.querySelector('.erp-ledger-wrap')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   } else if (target === 'reports') {
@@ -447,8 +447,8 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     await loadUserDirectories();
   }
 
-  syncMobileChrome(target);
-  requestAnimationFrame(() => syncMobileChrome(target));
+  setMobilePageMode(target);
+  requestAnimationFrame(() => setMobilePageMode(target));
 
   if (pushHistory) {
     history.pushState({ module: target }, '', `#${target}`);
@@ -2244,6 +2244,7 @@ if (typeSelect) {
       await executeReportGeneration(repType, fDateInput.value, tDateInput.value, secSelect.value, secSelect.options[secSelect.selectedIndex]?.text);
       const reportLabel = typeSelect.options[typeSelect.selectedIndex]?.text?.trim() || 'Report';
       mobileSnapshot?.collapse(`${reportLabel} · ${fDateInput.value} to ${tDateInput.value}`);
+      setMobilePageMode('reports');
       const resultsAnchor = document.getElementById('report-results-anchor');
       if (isMobileViewport() && resultsAnchor) {
         setTimeout(() => resultsAnchor.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
@@ -4789,7 +4790,7 @@ function initUserManagementFormListener() {
 function setDashboardDrawersSectionVisible(visible) {
   const adminContainer = document.getElementById('admin-global-balance-container');
   if (!visible && adminContainer) adminContainer.innerHTML = '';
-  syncMobileChrome(visible ? 'dashboard' : activeModuleTarget);
+  setMobilePageMode(visible ? 'dashboard' : activeModuleTarget);
 }
 
 function initDashboardInsightsToggle(forceReapply = false) {
@@ -4797,9 +4798,8 @@ function initDashboardInsightsToggle(forceReapply = false) {
   const toggle = document.getElementById('dashboard-insights-toggle');
   const body = document.getElementById('dashboard-insights-body');
   const chevron = document.getElementById('insights-toggle-chevron');
-  const appBody = document.getElementById('app-body');
   if (!panel || !toggle || !body) return;
-  if (panel.classList.contains('hidden') && appBody?.getAttribute('data-mobile-chrome') !== 'dashboard') return;
+  if (!document.body.classList.contains('erp-mobile-dashboard') && panel.classList.contains('hidden')) return;
 
   const applyLayout = () => {
     if (isMobileViewport()) {

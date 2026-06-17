@@ -27,21 +27,25 @@
     z-index: 70;
   }
 
-  /* Mobile chrome bars — visibility controlled by data-mobile-chrome, never JS hidden class */
+  /* Mobile chrome bars — always show toggle row; only form/content collapses */
   #dashboard-insights-panel,
   #erp-module-toolbar {
     display: none !important;
-    position: relative;
-    z-index: 55;
     flex-shrink: 0;
     background: rgba(249, 250, 251, 0.98);
+    border-bottom: 1px solid #e5e7eb;
   }
 
-  #app-body[data-mobile-chrome="dashboard"] #dashboard-insights-panel {
+  body.erp-mobile-dashboard #dashboard-insights-panel {
     display: block !important;
   }
 
-  #app-body[data-mobile-chrome="module"] #erp-module-toolbar {
+  body.erp-mobile-module #erp-module-toolbar {
+    display: block !important;
+  }
+
+  /* Override Tailwind hidden on dashboard panel when active on mobile */
+  body.erp-mobile-dashboard #dashboard-insights-panel.hidden {
     display: block !important;
   }
 
@@ -410,9 +414,14 @@
     display: none !important;
   }
 
-  #app-body[data-mobile-chrome="dashboard"] #dashboard-insights-panel,
+  body.erp-mobile-dashboard #dashboard-insights-panel,
   #dashboard-insights-panel:not(.hidden) {
     display: block !important;
+  }
+
+  body.erp-mobile-dashboard #dashboard-insights-panel.hidden,
+  body.erp-mobile-module #erp-module-toolbar {
+    display: none !important;
   }
 
   .erp-report-scroll::after {
