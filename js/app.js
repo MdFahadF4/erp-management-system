@@ -102,6 +102,9 @@ Date.prototype.toLocaleDateString = function() {
         navUsers.classList.add('hidden');
       }
     }
+
+    bindMobileSnapshotResizeOnce();
+    requestAnimationFrame(() => syncMobileHeaderHeight());
   } else {
     if (loginScreen) loginScreen.classList.remove('hidden');
   }
@@ -121,6 +124,20 @@ function isMobileViewport() {
   return window.matchMedia('(max-width: 767px)').matches;
 }
 
+function syncMobileHeaderHeight() {
+  const header = document.getElementById('app-header');
+  if (!header) return;
+  const height = Math.ceil(header.getBoundingClientRect().height);
+  document.documentElement.style.setProperty('--erp-mobile-header-h', `${height}px`);
+}
+
+function clearModuleToolbar() {
+  const toolbar = document.getElementById('erp-module-toolbar');
+  if (!toolbar) return;
+  toolbar.innerHTML = '';
+  toolbar.classList.add('hidden');
+}
+
 function markMobileSnapshotTargets(pageRoot, selectors) {
   selectors.forEach((sel) => {
     pageRoot.querySelectorAll(sel).forEach((el) => el.classList.add('erp-mobile-snapshot-target'));
@@ -130,41 +147,41 @@ function markMobileSnapshotTargets(pageRoot, selectors) {
 function createMobileSnapshotController(pageRoot, options = {}) {
   if (!pageRoot) return null;
 
+  const toolbar = document.getElementById('erp-module-toolbar');
+  if (!toolbar) return null;
+
   const label = options.label || 'Module Options';
   const defaultSummary = options.defaultSummary || 'Tap to show form & options';
   let collapsed = Boolean(options.startCollapsed);
   let summaryOverride = null;
 
-  let bar = pageRoot.querySelector('.erp-mobile-snapshot');
-  if (!bar) {
-    bar = document.createElement('div');
-    bar.className = 'erp-mobile-snapshot md:hidden shrink-0 border-b border-gray-200 bg-gray-50/80 mb-2 -mx-3';
-    bar.innerHTML = `
-      <button type="button" class="erp-mobile-snapshot-toggle w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="false">
-        <div class="min-w-0">
-          <div class="erp-mobile-snapshot-label text-[10px] font-bold text-gray-500 uppercase tracking-wider"></div>
-          <div class="erp-mobile-snapshot-summary text-xs text-gray-600 truncate"></div>
-        </div>
-        <svg class="erp-mobile-snapshot-chevron w-5 h-5 text-gray-400 shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-      </button>
-    `;
-    pageRoot.insertBefore(bar, pageRoot.firstChild);
-  }
+  toolbar.innerHTML = `
+    <button type="button" class="erp-mobile-snapshot-toggle w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="false">
+      <div class="min-w-0">
+        <div class="erp-mobile-snapshot-label text-[10px] font-bold text-gray-500 uppercase tracking-wider"></div>
+        <div class="erp-mobile-snapshot-summary text-xs text-gray-600 truncate"></div>
+      </div>
+      <svg class="erp-mobile-snapshot-chevron w-5 h-5 text-gray-400 shrink-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+    </button>
+  `;
+  toolbar.classList.remove('hidden');
 
-  const toggle = bar.querySelector('.erp-mobile-snapshot-toggle');
-  const labelEl = bar.querySelector('.erp-mobile-snapshot-label');
-  const summaryEl = bar.querySelector('.erp-mobile-snapshot-summary');
-  const chevron = bar.querySelector('.erp-mobile-snapshot-chevron');
+  const toggle = toolbar.querySelector('.erp-mobile-snapshot-toggle');
+  const labelEl = toolbar.querySelector('.erp-mobile-snapshot-label');
+  const summaryEl = toolbar.querySelector('.erp-mobile-snapshot-summary');
+  const chevron = toolbar.querySelector('.erp-mobile-snapshot-chevron');
   if (labelEl) labelEl.textContent = label;
   if (summaryEl) summaryEl.textContent = defaultSummary;
 
   const applyState = () => {
     if (!isMobileViewport()) {
       pageRoot.classList.remove('erp-mobile-snapshot-collapsed');
+      clearModuleToolbar();
       toggle?.setAttribute('aria-expanded', 'true');
       chevron?.classList.remove('rotate-180');
       return;
     }
+    toolbar.classList.remove('hidden');
     pageRoot.classList.toggle('erp-mobile-snapshot-collapsed', collapsed);
     toggle?.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
     chevron?.classList.toggle('rotate-180', !collapsed);
@@ -191,8 +208,7 @@ function createMobileSnapshotController(pageRoot, options = {}) {
     }
   };
 
-  if (toggle && toggle.dataset.bound !== 'true') {
-    toggle.dataset.bound = 'true';
+  if (toggle) {
     toggle.addEventListener('click', () => {
       if (!isMobileViewport()) return;
       if (collapsed) expand();
@@ -214,7 +230,9 @@ function bindMobileSnapshotResizeOnce() {
   if (window._erpMobileSnapshotResizeBound) return;
   window._erpMobileSnapshotResizeBound = true;
   window.addEventListener('resize', () => {
+    syncMobileHeaderHeight();
     mainContent?.querySelector('.erp-module-page')?._mobileSnapshot?.refresh?.();
+    initDashboardInsightsToggle(true);
   });
 }
 
@@ -225,6 +243,9 @@ function onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer) {
 }
 
 function initMobileModuleSnapshot(target) {
+  clearModuleToolbar();
+  if (target === 'dashboard') return null;
+
   const pageRoot = mainContent?.querySelector('.erp-module-page');
   if (!pageRoot) return null;
 
@@ -270,6 +291,7 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
 
   mainContent.innerHTML = templates[target];
   document.body.classList.remove('erp-mobile-ledger-open');
+  syncMobileHeaderHeight();
   setDashboardDrawersSectionVisible(target === 'dashboard');
   mainContent.scrollTo({ top: 0, behavior: 'auto' });
 
@@ -4729,22 +4751,26 @@ function initUserManagementFormListener() {
 
 function setDashboardDrawersSectionVisible(visible) {
   const panel = document.getElementById('dashboard-insights-panel');
+  const toolbar = document.getElementById('erp-module-toolbar');
   const adminContainer = document.getElementById('admin-global-balance-container');
   if (panel) panel.classList.toggle('hidden', !visible);
+  if (toolbar && visible) clearModuleToolbar();
   if (!visible && adminContainer) adminContainer.innerHTML = '';
-  if (visible) initDashboardInsightsToggle();
+  if (visible) {
+    syncMobileHeaderHeight();
+    initDashboardInsightsToggle(true);
+  }
 }
 
-function initDashboardInsightsToggle() {
+function initDashboardInsightsToggle(forceReapply = false) {
+  const panel = document.getElementById('dashboard-insights-panel');
   const toggle = document.getElementById('dashboard-insights-toggle');
   const body = document.getElementById('dashboard-insights-body');
   const chevron = document.getElementById('insights-toggle-chevron');
-  if (!toggle || !body) return;
-
-  const isMobile = () => window.matchMedia('(max-width: 767px)').matches;
+  if (!panel || panel.classList.contains('hidden') || !toggle || !body) return;
 
   const applyLayout = () => {
-    if (isMobile()) {
+    if (isMobileViewport()) {
       body.classList.add('hidden');
       toggle.setAttribute('aria-expanded', 'false');
       if (chevron) chevron.classList.remove('rotate-180');
@@ -4758,15 +4784,15 @@ function initDashboardInsightsToggle() {
   if (toggle.dataset.bound !== 'true') {
     toggle.dataset.bound = 'true';
     toggle.addEventListener('click', () => {
-      if (!isMobile()) return;
+      if (!isMobileViewport()) return;
       body.classList.toggle('hidden');
       const isExpanded = !body.classList.contains('hidden');
       toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
       if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
     });
-    window.addEventListener('resize', applyLayout);
   }
-  applyLayout();
+
+  if (forceReapply || toggle.dataset.bound === 'true') applyLayout();
 }
 
 function updateDashboardInsightsSummary(globalBalance, drawerCount) {

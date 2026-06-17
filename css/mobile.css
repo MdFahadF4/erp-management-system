@@ -5,7 +5,7 @@
 
 @media (max-width: 767px) {
   :root {
-    --erp-mobile-header-h: 3.25rem;
+    --erp-mobile-header-h: 3.5rem;
   }
 
   /* Fixed top bar — hamburger always reachable */
@@ -18,7 +18,7 @@
     z-index: 60;
   }
 
-  #app-shell {
+  #app-body {
     padding-top: var(--erp-mobile-header-h);
   }
 
@@ -27,20 +27,30 @@
     z-index: 70;
   }
 
-  /* Sticky module toolbar (Ledger View etc.) — not reports */
+  /* Toolbar slots stay above scrolling content, below fixed header */
+  #dashboard-insights-panel:not(.hidden),
+  #erp-module-toolbar:not(.hidden) {
+    position: relative;
+    z-index: 55;
+    flex-shrink: 0;
+    background: rgba(249, 250, 251, 0.95);
+  }
+
+  #insights-toggle-chevron.rotate-180,
+  .erp-mobile-snapshot-chevron.rotate-180 {
+    transform: rotate(180deg);
+  }
+
+  /* Module page titles scroll normally — toolbar lives outside main-content */
   #main-content > .erp-module-page > .border-b:not(.erp-mobile-page-bar),
   #main-content > div:not(.erp-module-page) > .border-b.pb-3,
   #main-content > div:not(.erp-module-page) > .border-b.pb-4 {
-    position: sticky;
-    top: 0;
-    z-index: 45;
-    background: #fff;
-    padding-top: 0.25rem;
-    margin-left: -0.75rem;
-    margin-right: -0.75rem;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+    position: static;
+    box-shadow: none;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
 
   /* Mobile module snapshot (same pattern as Dashboard Snapshot) */
@@ -50,10 +60,6 @@
 
   .erp-mobile-snapshot-toggle {
     touch-action: manipulation;
-  }
-
-  .erp-mobile-snapshot-chevron.rotate-180 {
-    transform: rotate(180deg);
   }
 
   /* Reports: filters scroll away — do NOT stick over results */
