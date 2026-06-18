@@ -126,12 +126,12 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-0.5">Date of Joining</label><input type="date" id="hr-joining" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
             <div class="grid grid-cols-2 gap-2">
               <div><label class="block font-bold text-gray-600 mb-0.5">Salary Start</label><input type="number" id="hr-sal-start" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-              <div><label class="block font-bold text-gray-600 mb-0.5">Increment Amount</label><input type="number" id="hr-sal-inc" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Increment Amount</label><input type="number" id="hr-sal-inc" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
             </div>
             <div><label class="block font-bold text-gray-500 mb-0.5">Current Salary</label><input type="number" id="hr-sal-current" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-semibold text-blue-600 outline-none text-sm"></div>
             <div class="grid grid-cols-2 gap-2">
-              <div><label class="block font-bold text-gray-600 mb-0.5">Total Earn Earning</label><input type="number" id="hr-earn" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-              <div><label class="block font-bold text-gray-600 mb-0.5">Paid Salary</label><input type="number" id="hr-paid" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Total Earn Earning</label><input type="number" id="hr-earn" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Paid Salary</label><input type="number" id="hr-paid" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
             </div>
             <div><label class="block font-bold text-gray-500 mb-0.5">Due Balance Salary</label><input type="number" id="hr-due" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-semibold text-red-600 outline-none text-sm"></div>
             <div><label class="block font-bold text-gray-600 mb-0.5">Employment Status</label><select id="hr-status" class="w-full border rounded p-1.5 bg-white text-sm font-medium outline-none"><option value="Active">Active</option><option value="Inactive">Inactive</option><option value="Released">Released</option></select></div>
@@ -231,12 +231,12 @@ export const templates = {
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">New Supplier Entry</h3>
           <form id="form-sup-entry" class="space-y-3 text-xs">
             <div><label class="block font-bold text-gray-600 mb-0.5">Supplier Name</label><input type="text" id="sup-name" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-            <div><label class="block font-bold text-gray-600 mb-0.5">Mobile Contact Number</label><input type="text" id="sup-mobile" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-            <div><label class="block font-bold text-gray-600 mb-0.5">Email Address</label><input type="email" id="sup-email" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-            <div><label class="block font-bold text-gray-600 mb-0.5">Physical Business Address</label><input type="text" id="sup-address" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+            <div><label class="block font-bold text-gray-600 mb-0.5">Mobile Contact Number</label><input type="text" id="sup-mobile" class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+            <div><label class="block font-bold text-gray-600 mb-0.5">Email Address</label><input type="email" id="sup-email" class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+            <div><label class="block font-bold text-gray-600 mb-0.5">Physical Business Address</label><input type="text" id="sup-address" class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
             <div class="grid grid-cols-2 gap-2">
-              <div><label class="block font-bold text-gray-600 mb-0.5">Total Purchase</label><input type="number" id="sup-purchase" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-              <div><label class="block font-bold text-gray-600 mb-0.5">Total Payments</label><input type="number" id="sup-payments" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Total Purchase</label><input type="number" id="sup-purchase" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Total Payments</label><input type="number" id="sup-payments" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
             </div>
             <div><label class="block font-bold text-gray-500 mb-0.5">Due / Balance (Auto Calculate)</label><input type="number" id="sup-due" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-semibold text-red-600 outline-none text-sm"></div>
             <div><label class="block font-bold text-gray-600 mb-1">Account Status</label><select id="sup-status" class="w-full border rounded p-1.5 bg-white text-sm font-medium outline-none"><option value="Active">Active</option><option value="Inactive">Inactive</option></select></div>
@@ -326,17 +326,17 @@ export const templates = {
           <form id="form-cust-entry" class="space-y-2.5 text-xs">
             <div><label class="block font-bold text-gray-600 mb-0.5">Invoice / Memo Number</label><input type="text" id="cust-memo" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="e.g. INV-5501"></div>
             <div><label class="block font-bold text-gray-600 mb-0.5">Customer Name</label><input type="text" id="cust-name" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-            <div><label class="block font-bold text-gray-600 mb-0.5">Mobile Contact</label><input type="text" id="cust-mobile" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-            <div><label class="block font-bold text-gray-600 mb-0.5">Email Address</label><input type="email" id="cust-email" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-            <div><label class="block font-bold text-gray-600 mb-0.5">Physical Address</label><input type="text" id="cust-address" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
-            <div class="border-t border-gray-100 pt-2 mt-2"><label class="block font-bold text-gray-600 mb-0.5">Total Gross Sell Amount</label><input type="number" step="0.01" id="cust-sell" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono font-bold"></div>
+            <div><label class="block font-bold text-gray-600 mb-0.5">Mobile Contact</label><input type="text" id="cust-mobile" class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+            <div><label class="block font-bold text-gray-600 mb-0.5">Email Address</label><input type="email" id="cust-email" class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+            <div><label class="block font-bold text-gray-600 mb-0.5">Physical Address</label><input type="text" id="cust-address" class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
+            <div class="border-t border-gray-100 pt-2 mt-2"><label class="block font-bold text-gray-500 mb-0.5">Total Gross Sell Amount</label><input type="number" step="0.01" id="cust-sell" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono font-bold"></div>
             <div class="grid grid-cols-2 gap-2">
-              <div><label class="block font-bold text-emerald-700 mb-0.5">Cash Paid Amt</label><input type="number" step="0.01" id="cust-cash" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-emerald-500 outline-none text-sm font-mono"></div>
-              <div><label class="block font-bold text-blue-700 mb-0.5">Card Paid Amt</label><input type="number" step="0.01" id="cust-card" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm font-mono"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Cash Paid Amt</label><input type="number" step="0.01" id="cust-cash" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Card Paid Amt</label><input type="number" step="0.01" id="cust-card" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
             </div>
             <div class="grid grid-cols-2 gap-2">
               <div><label class="block font-bold text-gray-500 mb-0.5">Total Received</label><input type="number" id="cust-received" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-semibold text-gray-700 outline-none text-sm font-mono"></div>
-              <div><label class="block font-bold text-purple-700 mb-0.5">Discount Issued</label><input type="number" step="0.01" id="cust-discount" value="0" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-purple-500 outline-none text-sm font-mono"></div>
+              <div><label class="block font-bold text-gray-500 mb-0.5">Discount Issued</label><input type="number" step="0.01" id="cust-discount" value="0" readonly tabindex="-1" class="w-full border rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"></div>
             </div>
             <div><label class="block font-bold text-red-600 mb-0.5">Outstanding Balance Due</label><input type="number" id="cust-due" value="0" readonly class="w-full border rounded p-1.5 bg-gray-50 font-bold text-red-600 outline-none text-sm font-mono"></div>
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded text-sm transition tracking-wider">COMMIT CUSTOMER SALE</button>

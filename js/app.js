@@ -729,7 +729,8 @@ function initHRFormListeners() {
     fCurrent.value = (parseFloat(fStart.value || 0) + parseFloat(fInc.value || 0)).toFixed(2);
     fDue.value = (parseFloat(fEarn.value || 0) - parseFloat(fPaid.value || 0)).toFixed(2);
   };
-  fStart.addEventListener('input', runCalculations); fInc.addEventListener('input', runCalculations); fEarn.addEventListener('input', runCalculations); fPaid.addEventListener('input', runCalculations);
+  fStart.addEventListener('input', runCalculations);
+  runCalculations();
 
   creationForm.addEventListener('submit', async (e) => {
     e.preventDefault(); const currentUser = fetchSessionUser(); runCalculations();
@@ -936,7 +937,7 @@ function initSupplierFormListeners() {
   const creationForm = document.getElementById('form-sup-entry'); if (!creationForm) return;
   const fPurchase = document.getElementById('sup-purchase'); const fPayments = document.getElementById('sup-payments'); const fDue = document.getElementById('sup-due');
   const runCalculations = () => { if (fDue) fDue.value = ((parseFloat(fPurchase.value) || 0) - (parseFloat(fPayments.value) || 0)).toFixed(2); };
-  if (fPurchase) fPurchase.addEventListener('input', runCalculations); if (fPayments) fPayments.addEventListener('input', runCalculations);
+  runCalculations();
 
   creationForm.addEventListener('submit', async (e) => {
     e.preventDefault(); const currentUser = fetchSessionUser(); runCalculations();
@@ -1088,12 +1089,9 @@ async function loadSupplierTxnTableRecords(isFilter = false) {
 function initCustomerFormListeners() {
   const creationForm = document.getElementById('form-cust-entry'); if (!creationForm) return;
   const currentUser = fetchSessionUser();
-  const isAdmin = (currentUser.role === "Super Admin" || currentUser.role === "Admin");
 
   const fSell = document.getElementById('cust-sell'); const fCash = document.getElementById('cust-cash'); const fCard = document.getElementById('cust-card');
   const fReceived = document.getElementById('cust-received'); const fDiscount = document.getElementById('cust-discount'); const fDue = document.getElementById('cust-due');
-
-  if (!isAdmin) { fDiscount.value = "0"; fDiscount.readOnly = true; fDiscount.classList.add('bg-gray-100', 'text-gray-400', 'cursor-not-allowed'); }
 
   const runCalculations = () => {
     const cashVal = parseFloat(fCash.value) || 0; const cardVal = parseFloat(fCard.value) || 0;
@@ -1103,7 +1101,7 @@ function initCustomerFormListeners() {
     fDue.value = (sellVal - receivedTotal - discVal).toFixed(2);
   };
 
-  fSell.addEventListener('input', runCalculations); fCash.addEventListener('input', runCalculations); fCard.addEventListener('input', runCalculations); fDiscount.addEventListener('input', runCalculations);
+  runCalculations();
 
   creationForm.addEventListener('submit', async (e) => {
     e.preventDefault(); runCalculations();
@@ -1128,7 +1126,7 @@ function initCustomerFormListeners() {
           "System Unique ID": generatedUniqueID,
           "Customer Name": custName
         });
-        creationForm.reset(); if(!isAdmin){ fDiscount.value = "0"; } runCalculations();
+        creationForm.reset(); runCalculations();
         await loadCustomerTableRecords();
         await populateCustomerTxnDropdown();
         await updateLiveUserCashDrawerBalance();
