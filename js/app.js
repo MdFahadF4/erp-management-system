@@ -1358,10 +1358,8 @@ async function loadExpenseHeadTableRecords() {
   const container = document.getElementById('table-exp-head-rows'); if (!container) return;
   container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">Loading master structures & tracking cross-sheet sums...</td></tr>`;
   try {
-    const resHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Heads" } });
-    const resultHeads = await resHeads.json();
-    const resTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Transactions" } });
-    const resultTxns = await resTxns.json();
+    const resultHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Heads" } });
+    const resultTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Transactions" } });
 
     if (resultHeads.success) {
       cachedExpenseHeads = resultHeads.records; const txns = resultTxns.success ? resultTxns.records : [];
@@ -1590,10 +1588,8 @@ async function loadCreditorTableRecords() {
   const container = document.getElementById('table-cred-head-rows'); if (!container) return;
   container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">Loading master structures & tracking cross-sheet sums...</td></tr>`;
   try {
-    const resHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Heads" } });
-    const resultHeads = await resHeads.json();
-    const resTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } });
-    const resultTxns = await resTxns.json();
+    const resultHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Heads" } });
+    const resultTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } });
 
     if (resultHeads.success) {
       cachedCreditors = resultHeads.records; const txns = resultTxns.success ? resultTxns.records : [];
@@ -1819,10 +1815,8 @@ async function loadIncomeHeadTableRecords() {
   const container = document.getElementById('table-inc-head-rows'); if (!container) return;
   container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">Loading master structures & tracking cross-sheet sums...</td></tr>`;
   try {
-    const resHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Heads" } });
-    const resultHeads = await resHeads.json();
-    const resTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Transactions" } });
-    const resultTxns = await resTxns.json();
+    const resultHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Heads" } });
+    const resultTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Transactions" } });
 
     if (resultHeads.success) {
       cachedIncomeHeads = resultHeads.records; const txns = resultTxns.success ? resultTxns.records : [];
@@ -2234,8 +2228,7 @@ if (typeSelect) {
         secSelect.innerHTML = `<option value="">Loading...</option>`;
         secFilterContainer.classList.remove('hidden');
         try {
-          const res = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName } });
-          const data = await res.json();
+          const data = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName } });
           if (data.success && data.records && data.records.length > 0) {
             
             // --- SMART FALLBACK SCANNER ---
@@ -2281,8 +2274,28 @@ if (typeSelect) {
       else if (val === 'user_transaction' || val === 'individual_user') await fillFilter('Users', ["Username"], ["Username"], "Select User");
       
       // EXTREMELY BROAD DICTIONARY FOR NEW REPORTS:
-      else if (val === 'expense_details') await fillFilter('Expense_Heads', ["Expense Head", "Head Name", "Name", "Head", "Category"], ["Expense Head", "Head Name", "Name", "Head", "Category"], "Select Expense Head");
-      else if (val === 'creditor_details') await fillFilter('Creditor_Heads', ["Creditor Name", "Creditor", "Name", "Head"], ["Creditor Name", "Creditor", "Name", "Head"], "Select Creditor");
+      else if (val === 'expense_details') {
+        secFilterLabel.textContent = 'Select Expense Head (Parent > Sub Head)';
+        secSelect.innerHTML = `<option value="">Loading...</option>`;
+        secFilterContainer.classList.remove('hidden');
+        try {
+          const data = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: 'Expense_Heads' } });
+          if (data.success && data.records && data.records.length > 0) {
+            secSelect.innerHTML = `<option value="">-- Select Expense Head --</option>` + data.records.map((r) => {
+              const mainHead = getCol(r, ["Expense Parent Head", "Parent Head", "Main Head", "Parent Category"]) || '';
+              const subHead = getCol(r, ["Sub Head Name", "Sub Head", "SubCategory"]) || '';
+              const display = subHead ? `${mainHead} > ${subHead}` : (mainHead || 'Unknown');
+              const value = `${mainHead}|||${subHead}`;
+              return `<option value="${String(value).replace(/"/g, '&quot;')}">${display}</option>`;
+            }).join('');
+          } else {
+            secSelect.innerHTML = `<option value="">No expense heads found</option>`;
+          }
+        } catch (err) {
+          secSelect.innerHTML = `<option value="">Error loading</option>`;
+        }
+      }
+      else if (val === 'creditor_details') await fillFilter('Creditor_Heads', ["Creditor Parent Head", "Creditor Name", "Creditor", "Name", "Head"], ["Creditor Parent Head", "Creditor Name", "Creditor", "Name", "Head"], "Select Creditor");
       
       // --- THE MISSING INCOME ROUTE! ---
       else if (val === 'income_details') await fillFilter('Income_Heads', ["Income Parent Head", "Parent Head", "Main Head", "Name"], ["System Unique ID", "Tracking ID", "ID", "Income Parent Head", "Parent Head"], "Select Income Account");
@@ -3100,12 +3113,29 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
-        
-        // UNIVERSAL SCANNER: Checks if the selected Expense Head exists in ANY column of the row!
+
+        const parseExpSelection = (val) => {
+          if (!val) return { main: '', sub: '' };
+          if (String(val).includes('|||')) {
+            const parts = String(val).split('|||');
+            return { main: String(parts[0] || '').trim(), sub: String(parts[1] || '').trim() };
+          }
+          return { main: String(val).trim(), sub: '' };
+        };
+        const expSelection = parseExpSelection(secVal);
+
         const isExpHead = (obj) => {
-            let target = cln(secVal);
-            for(let key in obj) { if (cln(obj[key]) === target) return true; }
-            return false;
+          const tMain = String(getCol(obj, ["Parent Category", "Expense Parent Head", "Main Head", "Parent Head"]) || '').trim().toUpperCase();
+          const tSub = String(getCol(obj, ["Sub Head", "Sub Head Name", "SubCategory"]) || '').trim().toUpperCase();
+          if (expSelection.sub) {
+            return tMain === expSelection.main.toUpperCase() && tSub === expSelection.sub.toUpperCase();
+          }
+          if (expSelection.main) {
+            return tMain === expSelection.main.toUpperCase() || tSub === expSelection.main.toUpperCase();
+          }
+          let target = cln(secVal);
+          for (let key in obj) { if (cln(obj[key]) === target) return true; }
+          return false;
         };
 
         let hasDates = (typeof fDate !== 'undefined' && fDate && typeof tDate !== 'undefined' && tDate && !isNaN(new Date(fDate).getTime()));
