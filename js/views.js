@@ -3,7 +3,7 @@ export const templates = {
     <div class="space-y-6 pb-10">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.dashboard.title">Executive Dashboard</h2>
-        <button id="btn-refresh-dash" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded shadow-sm text-xs uppercase tracking-wider transition" data-i18n="common.refresh">Refresh Data</button>
+        <button id="btn-refresh-dash" type="button" class="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-wait text-white font-bold px-4 py-2 rounded shadow-sm text-xs uppercase tracking-wider transition" data-i18n="common.refresh">Refresh Data</button>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">

@@ -317,6 +317,8 @@ export const REPORT_EN = {
 
   // Dashboard chrome
   'dash.calculatingBalances': 'Calculating enterprise drawer balances...',
+  'dash.refreshing': 'Refreshing...',
+  'dash.refreshDone': 'Updated!',
   'dash.inflows': 'Inflows',
   'dash.outflows': 'Outflows',
   'dash.allDrawersBalanced': 'All cash drawers balanced at 0.00',

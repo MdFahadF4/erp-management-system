@@ -190,6 +190,7 @@ async function mutateRecord(action, sheetName, recordId, rowData) {
     payload: {
       sheetName,
       recordId,
+      id: recordId,
       rowData,
       actorUsername: user.username,
       actorRole: user.role

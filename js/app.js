@@ -117,6 +117,7 @@ Date.prototype.toLocaleDateString = function() {
 
     bindMobileSnapshotResizeOnce();
     requestAnimationFrame(() => syncMobileHeaderHeight());
+    bindDashboardRefreshOnce();
 
     initTxnAdminSystem({
       reloadHandlers: {
@@ -465,7 +466,6 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
 
   if (target === 'dashboard') {
     await loadDashboardData();
-    document.getElementById('btn-refresh-dash')?.addEventListener('click', loadDashboardData);
   } else if (target === 'hr') {
     initHRFormListeners(); await loadHRTableRecords();
   } else if (target === 'hr_transactions') {
@@ -5316,6 +5316,47 @@ async function loadDashboardData() {
     updateDashboardInsightsSummary(globalBalance, drawerCount);
 
   } catch (err) { console.error("Dashboard Load Error:", err); }
+}
+
+function bindDashboardRefreshOnce() {
+  if (window._erpDashRefreshBound) return;
+  window._erpDashRefreshBound = true;
+  document.addEventListener('click', (e) => {
+    const btn = e.target.closest('#btn-refresh-dash, #btn-refresh-dash-insights');
+    if (!btn || btn.disabled) return;
+    refreshDashboardData(btn);
+  });
+}
+
+async function refreshDashboardData(triggerBtn) {
+  const btn = triggerBtn || document.getElementById('btn-refresh-dash');
+  const busyLabel = t('dash.refreshing');
+  if (btn) {
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+    if (!btn.dataset.refreshLabel) btn.dataset.refreshLabel = btn.textContent.trim();
+    btn.textContent = busyLabel;
+  }
+  try {
+    await Promise.all([loadDashboardData(), updateLiveUserCashDrawerBalance()]);
+    if (btn) {
+      btn.textContent = t('dash.refreshDone');
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        btn.textContent = btn.dataset.refreshLabel || t('common.refresh');
+        applyTranslations(btn.closest('div') || document);
+      }, 900);
+    }
+  } catch (err) {
+    console.error('Dashboard refresh failed:', err);
+    alert(t('alert.errorLoad'));
+    if (btn) {
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+      btn.textContent = btn.dataset.refreshLabel || t('common.refresh');
+    }
+  }
 }
 
 async function loadUserDirectories() {
