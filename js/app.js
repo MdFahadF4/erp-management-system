@@ -1,6 +1,7 @@
 import { processLogin, processLogout, fetchSessionUser, apiRequest } from './auth.js';
 import { templates } from './views.js';
 import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './i18n.js';
+import { initTxnAdminSystem, renderTxnActions, cacheTxnRecords } from './txn-admin.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -116,6 +117,19 @@ Date.prototype.toLocaleDateString = function() {
 
     bindMobileSnapshotResizeOnce();
     requestAnimationFrame(() => syncMobileHeaderHeight());
+
+    initTxnAdminSystem({
+      reloadHandlers: {
+        HR_Transactions: () => loadTxnTableRecords(true),
+        Supplier_Transactions: () => loadSupplierTxnTableRecords(true),
+        Customer_Transactions: () => loadCustomerTxnTableRecords(true),
+        Internal_Transfers: () => loadInternalTransferTableRecords(true),
+        Expense_Transactions: () => loadExpenseTxnTableRecords(true),
+        Creditor_Transactions: () => loadCreditorTxnTableRecords(true),
+        Income_Transactions: () => loadIncomeTxnTableRecords(true)
+      },
+      onDrawerRefresh: updateLiveUserCashDrawerBalance
+    });
   } else {
     if (loginScreen) loginScreen.classList.remove('hidden');
   }
@@ -961,10 +975,10 @@ async function loadTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-hr');
   const tDateInput = document.getElementById('filter-to-hr');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } });
     if (result.success) {
@@ -972,13 +986,14 @@ async function loadTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noResultsInRange')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noResultsInRange')}</td></tr>`; return; }
+      cacheTxnRecords("HR_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         let catColor = "text-blue-600 bg-blue-50"; if (rec["Category"] === "Salary Paid") catColor = "text-emerald-600 bg-emerald-50"; if (rec["Category"] === "Salary Increment") catColor = "text-purple-600 bg-purple-50";
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Employee Name"]||''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${getCategoryLabel(rec["Category"] || '', t)}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"]||''}">${rec["Remarks"]||'-'}</td><td>${rec["Username"]||''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"]||''}</td></tr>`;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Employee Name"]||''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${getCategoryLabel(rec["Category"] || '', t)}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"]||''}">${rec["Remarks"]||'-'}</td><td>${rec["Username"]||''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"]||''}</td>${renderTxnActions(rec, "HR_Transactions")}</tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracking')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracking')}</td></tr>`; }
 }
 
 /**
@@ -1110,10 +1125,10 @@ async function loadSupplierTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-sup');
   const tDateInput = document.getElementById('filter-to-sup');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Supplier_Transactions" } });
     if (result.success) {
@@ -1121,17 +1136,18 @@ async function loadSupplierTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noLogsInRange')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noLogsInRange')}</td></tr>`; return; }
+      cacheTxnRecords("Supplier_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         
         // Smart Badge Color Logic
         let cat = rec["Category"] || '';
         let catColor = cat.toLowerCase().includes("purchase") ? "text-blue-600 bg-blue-50" : (cat.toLowerCase().includes("previous due") ? "text-slate-700 bg-slate-200" : "text-emerald-600 bg-emerald-50");
         
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Supplier Name"] || ''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${catColor}">${getCategoryLabel(cat, t)}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"] || ''}">${rec["Remarks"] || '-'}</td><td>${rec["Username"] || ''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"] || ''}</td></tr>`;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Supplier Name"] || ''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${catColor}">${getCategoryLabel(cat, t)}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"] || ''}">${rec["Remarks"] || '-'}</td><td>${rec["Username"] || ''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"] || ''}</td>${renderTxnActions(rec, "Supplier_Transactions")}</tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTxn')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTxn')}</td></tr>`; }
 }
 
 /**
@@ -1264,10 +1280,10 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-cust');
   const tDateInput = document.getElementById('filter-to-cust');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customer_Transactions" } });
     if (result.success) {
@@ -1275,7 +1291,8 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; return; }
+      cacheTxnRecords("Customer_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         const uid = getCol(rec, ["System Unique ID", "Sys UID", "UNIQUEID"]) || '';
         const soldAmt = parseFloat(getCol(rec, ["Sold Amount", "Sold Amt", "SOLDAMT"])) || 0;
@@ -1284,10 +1301,10 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
         const dueAmt = parseFloat(getCol(rec, ["Transaction Due", "Txn Due", "TXNDUE", "Due"])) || 0;
         const remarks = getCol(rec, ["Remarks", "Remarks / Reference"]) || '-';
         const methodColor = method === "Cash" ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50";
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono">${soldAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${getCategoryLabel(method, t)}</span></td><td class="font-mono text-red-600 font-bold">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td></tr>`;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono">${soldAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${getCategoryLabel(method, t)}</span></td><td class="font-mono text-red-600 font-bold">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td>${renderTxnActions(rec, "Customer_Transactions")}</tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 function upsertCustomerInCache(customerRecord) {
@@ -1366,10 +1383,10 @@ async function loadInternalTransferTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-int');
   const tDateInput = document.getElementById('filter-to-int');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Internal_Transfers" } });
     if (result.success) {
@@ -1377,13 +1394,14 @@ async function loadInternalTransferTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noHandovers')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noHandovers')}</td></tr>`; return; }
+      cacheTxnRecords("Internal_Transfers", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         const dateVal = getCol(rec, ["Date"]); const uid = getCol(rec, ["System Unique ID", "ID", "Tracking ID"]) || ''; const amt = parseFloat(getCol(rec, ["Transfer Amount", "Amount"])) || 0; const desc = getCol(rec, ["Description", "Description / Purpose"]) || '-'; const userVal = getCol(rec, ["Transferred By", "Username", "Logged By"]) || ''; const stamp = getCol(rec, ["System Stamp", "Timestamp"]) || '';
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${dateVal ? new Date(dateVal).toLocaleDateString() : ''}</td><td class="font-mono text-gray-400 text-[11px]">${uid}</td><td class="font-mono font-bold text-emerald-600">SAR ${amt.toFixed(2)}</td><td class="max-w-xs truncate" title="${desc}">${desc}</td><td class="font-bold text-gray-800">${userVal}</td><td class="text-gray-400 text-[10px] font-mono">${stamp}</td></tr>`;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${dateVal ? new Date(dateVal).toLocaleDateString() : ''}</td><td class="font-mono text-gray-400 text-[11px]">${uid}</td><td class="font-mono font-bold text-emerald-600">SAR ${amt.toFixed(2)}</td><td class="max-w-xs truncate" title="${desc}">${desc}</td><td class="font-bold text-gray-800">${userVal}</td><td class="text-gray-400 text-[10px] font-mono">${stamp}</td>${renderTxnActions(rec, "Internal_Transfers")}</tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTransfer')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTransfer')}</td></tr>`; }
 }
 
 /**
@@ -1564,14 +1582,14 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-exp');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    container.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (paidSumBox) paidSumBox.textContent = "0.00";
     if (dueSumBox) dueSumBox.textContent = "0.00";
     return;
   }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Transactions" } });
     if (result.success) {
@@ -1583,12 +1601,13 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
       let totalDueAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noExpenditure')}</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noExpenditure')}</td></tr>`; 
         if (paidSumBox) paidSumBox.textContent = "0.00"; 
         if (dueSumBox) dueSumBox.textContent = "0.00"; 
         return; 
       }
       
+      cacheTxnRecords("Expense_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         const depAmt = getExpenseIncurredAmt(rec);
         const paidAmt = getExpensePaidAmt(rec);
@@ -1607,13 +1626,14 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
           <td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Timestamp"]) || ''}</td>
+          ${renderTxnActions(rec, "Expense_Transactions")}
         </tr>`;
       }).join('');
       
       if (paidSumBox) paidSumBox.textContent = totalPaidAcc.toFixed(2);
       if (dueSumBox) dueSumBox.textContent = totalDueAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedExpense')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedExpense')}</td></tr>`; }
 }
 
 /**
@@ -1795,13 +1815,13 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-cred');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    container.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (recSumBox) recSumBox.textContent = "0.00"; if (retSumBox) retSumBox.textContent = "0.00";
     return;
   }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-orange-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-orange-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } });
     if (result.success) {
@@ -1812,11 +1832,12 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
       let totalRecAcc = 0; let totalRetAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
         if (recSumBox) recSumBox.textContent = "0.00"; if (retSumBox) retSumBox.textContent = "0.00"; 
         return; 
       }
       
+      cacheTxnRecords("Creditor_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         const recAmt = parseFloat(getCol(rec, ["Received Amount", "Received Amt"])) || 0;
         const retAmt = parseFloat(getCol(rec, ["Return Amount", "Return Amt"])) || 0;
@@ -1834,13 +1855,14 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
           <td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Timestamp"]) || ''}</td>
+          ${renderTxnActions(rec, "Creditor_Transactions")}
         </tr>`;
       }).join('');
       
       if (recSumBox) recSumBox.textContent = totalRecAcc.toFixed(2);
       if (retSumBox) retSumBox.textContent = totalRetAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 /**
@@ -2019,13 +2041,13 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-inc');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    container.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (recSumBox) recSumBox.textContent = "0.00"; if (dueSumBox) dueSumBox.textContent = "0.00";
     return;
   }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Transactions" } });
     if (result.success) {
@@ -2036,11 +2058,12 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
       let totalRecAcc = 0; let totalDueAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
         if (recSumBox) recSumBox.textContent = "0.00"; if (dueSumBox) dueSumBox.textContent = "0.00"; 
         return; 
       }
       
+      cacheTxnRecords("Income_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         const rcvblAmt = parseFloat(getCol(rec, ["Receivable Amount", "Receivable"])) || 0;
         const recAmt = parseFloat(getCol(rec, ["Received Amount", "Received Amt"])) || 0;
@@ -2058,13 +2081,14 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
           <td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Timestamp"]) || ''}</td>
+          ${renderTxnActions(rec, "Income_Transactions")}
         </tr>`;
       }).join('');
       
       if (recSumBox) recSumBox.textContent = totalRecAcc.toFixed(2);
       if (dueSumBox) dueSumBox.textContent = totalDueAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 /**

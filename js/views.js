@@ -211,7 +211,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.employeeName">Employee Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.employeeName">Employee Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -305,7 +305,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.supplierName">Supplier Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="field.remarksReference">Remarks / Reference</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.supplierName">Supplier Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="field.remarksReference">Remarks / Reference</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-sup-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -412,7 +412,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.sysUid">Sys UID</th><th class="p-2.5" data-i18n="col.soldAmt">Sold Amt</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.method">Method</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.sysUid">Sys UID</th><th class="p-2.5" data-i18n="col.soldAmt">Sold Amt</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.method">Method</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-cust-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -447,7 +447,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.systemUniqueId">System Unique ID</th><th class="p-2.5" data-i18n="col.transferAmount">Transfer Amount</th><th class="p-2.5" data-i18n="col.descriptionPurpose">Description / Purpose</th><th class="p-2.5" data-i18n="col.transferredBy">Transferred By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.systemUniqueId">System Unique ID</th><th class="p-2.5" data-i18n="col.transferAmount">Transfer Amount</th><th class="p-2.5" data-i18n="col.descriptionPurpose">Description / Purpose</th><th class="p-2.5" data-i18n="col.transferredBy">Transferred By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-internal-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -530,7 +530,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.deposit">Deposit</th><th class="p-2.5" data-i18n="col.paidAmt">Paid Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarksVouchers">Remarks / Vouchers</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.deposit">Deposit</th><th class="p-2.5" data-i18n="col.paidAmt">Paid Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarksVouchers">Remarks / Vouchers</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-exp-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -612,7 +612,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.returnAmt">Return Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.returnAmt">Return Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-cred-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -694,7 +694,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.totalReceivable">Receivable</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.totalReceivable">Receivable</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-inc-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
