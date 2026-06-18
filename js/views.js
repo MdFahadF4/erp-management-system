@@ -762,7 +762,7 @@ export const templates = {
               <option value="daily_cashflow">Daily Accounts Cash Flow (IN & OUT)</option>
               <option value="pnl">Profit & Loss Report</option>
               <option value="receivable_payable">Receivable and Payable Report</option>
-              <option value="customer_summary">Customer Sell Summary Report</option>
+              <option value="expense_report">Expense Report</option>
               <option value="customer_details" class="font-bold text-blue-600">Customer Details Report (Statement)</option>
               <option value="supplier_details">Supplier Details Report</option>
               <option value="hr_details">HR Details Report</option>

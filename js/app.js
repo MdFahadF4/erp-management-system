@@ -630,6 +630,43 @@ function getExpensePaidAmt(rec) {
   return isNaN(v) ? 0 : v;
 }
 
+function accumulateExpenseTxnAmounts(txns, mainUpper, subUpper, rangeStart, rangeEnd) {
+  let inc = 0;
+  let paid = 0;
+  if (!Array.isArray(txns)) return { inc, paid, due: 0 };
+
+  txns.forEach((t) => {
+    const tMain = String(getCol(t, ["Parent Category", "Expense Parent Head", "Main Head", "Parent Head"]) || '').trim().toUpperCase();
+    const tSub = String(getCol(t, ["Sub Head", "Sub Head Name", "SubCategory"]) || '').trim().toUpperCase();
+    if (mainUpper !== null && subUpper !== null && (tMain !== mainUpper || tSub !== subUpper)) return;
+
+    if (rangeStart && rangeEnd) {
+      const dStr = getCol(t, ["Date", "Timestamp"]);
+      if (!dStr) return;
+      const d = new Date(dStr);
+      if (d < rangeStart || d > rangeEnd) return;
+    }
+
+    const rem = String(getRemarks(t)).trim().toUpperCase();
+    const isPrevDue = tMain.includes("PREVIOUS DUE") || tSub.includes("PREVIOUS DUE") ||
+      rem.includes("PREVIOUS DUE") || rem.includes("OPENING BALANCE");
+
+    let txnInc = getExpenseIncurredAmt(t);
+    let txnPaid = getExpensePaidAmt(t);
+    if (txnInc === 0 && txnPaid > 0) txnInc = txnPaid;
+    if (txnPaid === 0 && txnInc > 0) txnPaid = txnInc;
+
+    if (isPrevDue) {
+      inc += Math.max(txnInc, txnPaid);
+    } else {
+      inc += txnInc;
+      paid += txnPaid;
+    }
+  });
+
+  return { inc, paid, due: inc - paid };
+}
+
 // ---------------------------------------------------------------------------------
 // CENTRAL LIVE CASH DRAWER CALCULATOR (STRICT ADMIN VS USER WALLET RULES)
 // ---------------------------------------------------------------------------------
@@ -2376,11 +2413,11 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       } catch(e) { return {success: false, records: []}; }
     };
 
-    const [rCust, rCustT, rSup, rSupT, rHr, rHrT, rExp, rInc, rIncT, rCrd, rCrdT, rInt, rUsr] = await Promise.all([
+    const [rCust, rCustT, rSup, rSupT, rHr, rHrT, rExp, rExpHeads, rInc, rIncT, rCrd, rCrdT, rInt, rUsr] = await Promise.all([
       fetchSheet("Customers"), fetchSheet("Customer_Transactions"),
       fetchSheet("Suppliers"), fetchSheet("Supplier_Transactions"),
       fetchSheet("HR"), fetchSheet("HR_Transactions"),
-      fetchSheet("Expense_Transactions"),
+      fetchSheet("Expense_Transactions"), fetchSheet("Expense_Heads"),
       fetchSheet("Income_Heads"), fetchSheet("Income_Transactions"),
       fetchSheet("Creditor_Heads"), fetchSheet("Creditor_Transactions"),
       fetchSheet("Internal_Transfers"), fetchSheet("Users")
@@ -4761,6 +4798,102 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       }
 
       // ----------------------------------------------------
+      case 'expense_report': {
+        titleEl.textContent = "Expense Report";
+        tgtEl.textContent = "All Expense Heads & Sub Heads";
+
+        const txns = rExp.success && Array.isArray(rExp.records) ? rExp.records : [];
+        const heads = rExpHeads.success && Array.isArray(rExpHeads.records) ? rExpHeads.records : [];
+
+        const lifeTotals = accumulateExpenseTxnAmounts(txns, null, null, null, null);
+        const rngTotals = accumulateExpenseTxnAmounts(txns, null, null, fDate, tDate);
+
+        cardsEl.innerHTML = `
+          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
+             <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Lifetime Summary (All Time)</div>
+             <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
+                <div class="text-left w-full sm:w-1/3 mb-3 sm:mb-0">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Total Incurred / Deposit</div>
+                   <div class="text-2xl md:text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeTotals.inc.toFixed(2)}</div>
+                </div>
+                <div class="text-left sm:text-center w-full sm:w-1/3 mb-3 sm:mb-0 sm:border-l sm:border-gray-100 sm:pl-4">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Total Paid</div>
+                   <div class="text-2xl md:text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeTotals.paid.toFixed(2)}</div>
+                </div>
+                <div class="text-left sm:text-right w-full sm:w-1/3 sm:border-l sm:border-gray-100 sm:pl-4">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Due / Balance</div>
+                   <div class="text-2xl md:text-3xl font-black ${lifeTotals.due > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeTotals.due.toFixed(2)}</div>
+                </div>
+             </div>
+             <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 pt-1">Selected Date Range Summary</div>
+             <div class="flex flex-wrap justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
+                <div class="text-center px-2"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Incurred</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngTotals.inc.toFixed(2)}</div></div>
+                <div class="text-center px-2 border-l border-blue-200"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Paid</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngTotals.paid.toFixed(2)}</div></div>
+                <div class="text-center px-2 border-l border-blue-200"><div class="text-red-600 text-[10px] font-bold uppercase tracking-wider">Range Due</div><div class="text-lg font-bold ${rngTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'} font-mono mt-1">SAR ${rngTotals.due.toFixed(2)}</div></div>
+             </div>
+          </div>
+        `;
+        cardsEl.className = "grid grid-cols-1 mb-6";
+
+        const listRows = heads.map((rec) => {
+          const mainHead = getCol(rec, ["Expense Parent Head", "Parent Head", "Main Head", "Parent Category"]) || '';
+          const subHead = getCol(rec, ["Sub Head Name", "Sub Head", "SubCategory"]) || '';
+          const totals = accumulateExpenseTxnAmounts(
+            txns,
+            mainHead.trim().toUpperCase(),
+            subHead.trim().toUpperCase(),
+            null,
+            null
+          );
+          return { mainHead, subHead, ...totals };
+        }).sort((a, b) => {
+          const cmp = String(a.mainHead).localeCompare(String(b.mainHead));
+          return cmp !== 0 ? cmp : String(a.subHead).localeCompare(String(b.subHead));
+        });
+
+        tableContainer.innerHTML = `
+          <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+            <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs text-center">Expense Head & Sub Head Summary (Lifetime)</div>
+            <div class="erp-report-scroll overflow-x-auto">
+              <table class="erp-report-table w-full text-left border-collapse text-xs">
+                <thead class="bg-gray-100 text-gray-600 uppercase border-b whitespace-nowrap">
+                  <tr>
+                    <th class="p-2.5 w-12 text-center">Sl.</th>
+                    <th class="p-2.5">Parent Head</th>
+                    <th class="p-2.5">Sub Head</th>
+                    <th class="p-2.5 text-right">Total Incurred</th>
+                    <th class="p-2.5 text-right">Total Paid</th>
+                    <th class="p-2.5 text-right">Due / Balance</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-gray-700">
+                  ${listRows.length > 0 ? listRows.map((row, i) => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="p-2.5 text-center text-gray-400 font-mono">${i + 1}</td>
+                      <td class="p-2.5 font-bold text-gray-900">${row.mainHead || '-'}</td>
+                      <td class="p-2.5 text-blue-600 font-medium">${row.subHead || '-'}</td>
+                      <td class="p-2.5 text-right font-mono font-bold text-blue-600">${row.inc.toFixed(2)}</td>
+                      <td class="p-2.5 text-right font-mono font-bold text-emerald-600">${row.paid.toFixed(2)}</td>
+                      <td class="p-2.5 text-right font-mono font-bold ${row.due > 0 ? 'text-red-600' : 'text-emerald-600'}">${row.due.toFixed(2)}</td>
+                    </tr>
+                  `).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-400 font-bold">No expense heads configured. Add heads in Expense Heads module first.</td></tr>`}
+                </tbody>
+                ${listRows.length > 0 ? `
+                <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-bold">
+                  <tr>
+                    <td class="p-2.5 text-right uppercase text-[10px] text-gray-500" colspan="3">Grand Total (Lifetime)</td>
+                    <td class="p-2.5 text-right font-mono text-blue-700">${lifeTotals.inc.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono text-emerald-700">${lifeTotals.paid.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono ${lifeTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'}">${lifeTotals.due.toFixed(2)}</td>
+                  </tr>
+                </tfoot>` : ''}
+              </table>
+            </div>
+          </div>
+        `;
+        break;
+      }
+
       default:
         tBody.innerHTML = `<tr><td class="p-6 text-center text-red-500 font-bold">This specific report module is under construction or not fully defined.</td></tr>`;
     }
