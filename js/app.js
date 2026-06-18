@@ -1,5 +1,6 @@
 import { processLogin, processLogout, fetchSessionUser, apiRequest } from './auth.js';
 import { templates } from './views.js';
+import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel } from './i18n.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -26,15 +27,25 @@ if (togglePasswordBtn && loginPasswordInput) {
   togglePasswordBtn.addEventListener('click', () => {
     if (loginPasswordInput.type === 'password') {
       loginPasswordInput.type = 'text';
-      togglePasswordBtn.textContent = 'Hide';
+      togglePasswordBtn.textContent = t('common.hide');
     } else {
       loginPasswordInput.type = 'password';
-      togglePasswordBtn.textContent = 'Show';
+      togglePasswordBtn.textContent = t('common.show');
     }
   });
 }
 
 async function initApp() {
+  initLanguageSwitcher(async () => {
+    applyTranslations(document);
+    if (activeModuleTarget && templates[activeModuleTarget]) {
+      await loadModulePage(activeModuleTarget);
+    } else if (fetchSessionUser()) {
+      applyTranslations(document);
+    }
+  });
+  applyTranslations(document);
+
   // =====================================================================
 // GLOBAL DATE FORMATTER OVERRIDE (Forces DD MMM YYYY across entire app)
 // =====================================================================
@@ -54,7 +65,7 @@ Date.prototype.toLocaleDateString = function() {
       if (user.role === "Super Admin" || user.role === "Admin" || normalizedPerms.includes('dashboard')) {
         await loadModulePage('dashboard', { replaceHistory: true });
       } else {
-        mainContent.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl mt-10">Welcome, ${user.username}. Select a module from the menu to begin.</div>`;
+        mainContent.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl mt-10">${t('common.welcome', { name: user.username })}</div>`;
         history.replaceState({ module: 'home' }, '', '#home');
       }
     }
@@ -229,7 +240,7 @@ function bindModuleToolbarToggleOnce() {
     const snap = activeMobileSnapshot || mainContent?.querySelector('.erp-module-page')?._mobileSnapshot;
     if (!snap) return;
     if (snap.isCollapsed()) snap.expand();
-    else snap.collapse('Tap to hide form & options');
+    else snap.collapse(t('mobile.tapHideForm'));
     forceChromeBarVisible('module');
   });
 }
@@ -253,8 +264,8 @@ function markMobileSnapshotTargets(pageRoot, selectors) {
 function createMobileSnapshotController(pageRoot, options = {}) {
   if (!pageRoot) return null;
 
-  const defaultSummary = options.defaultSummary || 'Tap to show form & options';
-  const label = options.label || 'Module Options';
+  const defaultSummary = options.defaultSummary || t('mobile.tapShowForm');
+  const label = options.label || t('chrome.moduleOptions');
   let collapsed = Boolean(options.startCollapsed);
   let summaryOverride = null;
 
@@ -320,7 +331,7 @@ function bindMobileSnapshotResizeOnce() {
 
 function onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer) {
   if (ledgerContainer && !ledgerContainer.classList.contains('hidden')) {
-    mobileSnapshot?.collapse('Ledger loaded · Tap to show entry form');
+    mobileSnapshot?.collapse(t('mobile.collapseLedger'));
     setMobilePageMode(activeModuleTarget);
     forceChromeBarVisible('module');
     const ledger = ledgerContainer.querySelector('.erp-ledger-wrap') || ledgerContainer;
@@ -335,29 +346,29 @@ function initMobileModuleSnapshot(target) {
   const pageRoot = mainContent?.querySelector('.erp-module-page');
   if (!pageRoot) return null;
 
-  const titleText = pageRoot.querySelector('.border-b h2')?.textContent?.trim() || 'Module Options';
+  const titleText = pageRoot.querySelector('.border-b h2')?.textContent?.trim() || t('chrome.moduleOptions');
 
   if (target === 'reports') {
     markMobileSnapshotTargets(pageRoot, ['#report-filters-panel', '.erp-report-tools > .border-b']);
     return createMobileSnapshotController(pageRoot, {
-      label: 'Report Options',
-      defaultSummary: 'Tap to select report & dates'
+      label: t('mobile.reportOptions'),
+      defaultSummary: t('mobile.reportSummary')
     });
   }
 
   if (target === 'all_transactions') {
     markMobileSnapshotTargets(pageRoot, ['.border-b', '.erp-mobile-filter-bar']);
     return createMobileSnapshotController(pageRoot, {
-      label: 'Audit Filters',
-      defaultSummary: 'Tap to set dates & category'
+      label: t('mobile.auditFilters'),
+      defaultSummary: t('mobile.auditSummary')
     });
   }
 
   if (target === 'users') {
     markMobileSnapshotTargets(pageRoot, ['.border-b', '.erp-mobile-user-form']);
     return createMobileSnapshotController(pageRoot, {
-      label: 'User Management',
-      defaultSummary: 'Tap to provision new account'
+      label: t('mobile.userManagement'),
+      defaultSummary: t('mobile.userSummary')
     });
   }
 
@@ -365,7 +376,7 @@ function initMobileModuleSnapshot(target) {
     markMobileSnapshotTargets(pageRoot, ['.border-b', '#form-container']);
     return createMobileSnapshotController(pageRoot, {
       label: titleText.length > 42 ? `${titleText.slice(0, 39)}…` : titleText,
-      defaultSummary: 'Tap to show entry form & actions'
+      defaultSummary: t('mobile.formActions')
     });
   }
 
@@ -376,6 +387,7 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   if (!templates[target] || !mainContent) return;
 
   mainContent.innerHTML = templates[target];
+  applyTranslations(mainContent);
   document.body.classList.remove('erp-mobile-ledger-open');
   activeModuleTarget = target;
   syncMobileHeaderHeight();
@@ -398,13 +410,13 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
       const isHidden = ledgerContainer.classList.toggle('hidden');
 
       if (isMobile) {
-        toggleBtn.textContent = isHidden ? 'Ledger View' : 'Back to Form';
+        toggleBtn.textContent = isHidden ? t('common.ledgerView') : t('common.backToForm');
         toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         toggleBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
         document.body.classList.toggle('erp-mobile-ledger-open', !isHidden);
         closeMenu();
         if (!isHidden) {
-          mobileSnapshot?.collapse('Viewing ledger · Tap to show form');
+          mobileSnapshot?.collapse(t('mobile.viewingLedger'));
           setMobilePageMode(activeModuleTarget);
           forceChromeBarVisible('module');
           const ledger = ledgerContainer.querySelector('.erp-ledger-wrap') || ledgerContainer;
@@ -419,13 +431,13 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
       if (isHidden) {
         formContainer.classList.remove('xl:col-span-1');
         formContainer.classList.add('xl:col-span-4', 'max-w-2xl', 'mx-auto');
-        toggleBtn.textContent = 'Ledger View';
+        toggleBtn.textContent = t('common.ledgerView');
         toggleBtn.classList.replace('bg-blue-600', 'bg-slate-800');
         toggleBtn.classList.replace('hover:bg-blue-700', 'hover:bg-slate-900');
       } else {
         formContainer.classList.remove('xl:col-span-4', 'max-w-2xl', 'mx-auto');
         formContainer.classList.add('xl:col-span-1');
-        toggleBtn.textContent = 'Hide Ledger';
+        toggleBtn.textContent = t('common.hideLedger');
         toggleBtn.classList.replace('bg-slate-800', 'bg-blue-600');
         toggleBtn.classList.replace('hover:bg-slate-900', 'hover:bg-blue-700');
       }
@@ -493,7 +505,7 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     await loadAllTxnTableRecords();
     document.getElementById('btn-filter-all')?.addEventListener('click', async () => {
       await loadAllTxnTableRecords(true);
-      mobileSnapshot?.collapse('Showing audit records · Tap to change filters');
+      mobileSnapshot?.collapse(t('mobile.collapseFilters'));
       setMobilePageMode('all_transactions');
       forceChromeBarVisible('module');
       scrollMainToElementAfterLayout(mainContent.querySelector('.erp-ledger-wrap'));
@@ -2062,7 +2074,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
   const container = document.getElementById('table-all-txn-rows'); 
   if (!container) return;
 
-  container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-blue-500 font-bold animate-pulse">Aggregating enterprise logs across all modules... Please wait.</td></tr>`;
+  container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-blue-500 font-bold animate-pulse">${t('allTxn.aggregating')}</td></tr>`;
 
   const fDateInput = document.getElementById('filter-from-all');
   const tDateInput = document.getElementById('filter-to-all');
@@ -2081,7 +2093,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
      if (tDateInput) tDateInput.value = dateStr;
   } else {
      if (!fDateInput.value || !tDateInput.value) { 
-        container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500">Please select dates to search.</td></tr>`;
+        container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500">${t('allTxn.selectDates')}</td></tr>`;
         return; 
      }
      fDate = new Date(fDateInput.value); fDate.setHours(0,0,0,0);
@@ -2121,57 +2133,57 @@ async function loadAllTxnTableRecords(isFilter = false) {
     };
 
     addRecords(resHr, "HR", r => ({
-       details: `${getCol(r, ["Employee Name"])} (${getCol(r, ["Category"])})`,
-       financial: `SAR ${Number(getCol(r, ["Amount"])||0).toFixed(2)}`,
-       remarks: getCol(r, ["Remarks"]),
+       details: t('allTxn.detailsNamed', { name: getCol(r, ["Employee Name"]) || t('allTxn.noRemarks'), category: getCol(r, ["Category"]) || t('allTxn.noRemarks') }),
+       financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
     }));
     
     addRecords(resSup, "Supplier", r => ({
-       details: `${getCol(r, ["Supplier Name"])} (${getCol(r, ["Category"])})`,
-       financial: `SAR ${Number(getCol(r, ["Amount"])||0).toFixed(2)}`,
-       remarks: getCol(r, ["Remarks / Reference", "Remarks"]),
+       details: t('allTxn.detailsNamed', { name: getCol(r, ["Supplier Name"]) || t('allTxn.noRemarks'), category: getCol(r, ["Category"]) || t('allTxn.noRemarks') }),
+       financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
     }));
 
     addRecords(resCust, "Customer", r => ({
-       details: `UID: ${getCol(r, ["System Unique ID", "Sys UID"])} | ${getCol(r, ["Payment Method", "Method"])}`,
-       financial: `Sold: ${Number(getCol(r, ["Sold Amount", "Sold Amt"])||0).toFixed(2)} | Recv: ${Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2)}`,
-       remarks: getCol(r, ["Remarks / Reference", "Remarks"]),
+       details: t('allTxn.detailsUid', { uid: getCol(r, ["System Unique ID", "Sys UID"]) || t('allTxn.noRemarks'), method: getCol(r, ["Payment Method", "Method"]) || t('allTxn.noRemarks') }),
+       financial: t('allTxn.finSoldRecv', { sold: Number(getCol(r, ["Sold Amount", "Sold Amt"])||0).toFixed(2), recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
     }));
 
     addRecords(resInt, "Internal", r => ({
-       details: `Cash Handover to Owner`,
-       financial: `SAR ${Number(getCol(r, ["Transfer Amount", "Amount"])||0).toFixed(2)}`,
-       remarks: getCol(r, ["Description", "Description / Purpose", "Remarks"]),
+       details: t('allTxn.cashHandover'),
+       financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Transfer Amount", "Amount"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Description", "Description / Purpose", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Transferred By", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
     }));
 
     addRecords(resExp, "Expense", r => ({
-       details: `${getCol(r, ["Expense Parent Head", "Parent Category", "Main Head"])} > ${getCol(r, ["Sub Head", "SubCategory"])}`,
-       financial: `Dep: ${Number(getCol(r, ["Deposit", "Amount"])||0).toFixed(2)} | Paid: ${Number(getCol(r, ["Paid Amt", "Paid Amount", "Amount"])||0).toFixed(2)}`,
-       remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]),
+       details: `${getCol(r, ["Expense Parent Head", "Parent Category", "Main Head"]) || t('allTxn.noRemarks')} > ${getCol(r, ["Sub Head", "SubCategory"]) || t('allTxn.noRemarks')}`,
+       financial: t('allTxn.finDepPaid', { dep: Number(getCol(r, ["Deposit", "Amount"])||0).toFixed(2), paid: Number(getCol(r, ["Paid Amt", "Paid Amount", "Amount"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
     }));
 
     addRecords(resCred, "Creditor", r => ({
-       details: `${getCol(r, ["Creditor Parent Head", "Main Head", "Parent Head"])} > ${getCol(r, ["Sub Head"])}`,
-       financial: `Recv: ${Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2)} | Ret: ${Number(getCol(r, ["Return Amount", "Return Amt"])||0).toFixed(2)}`,
-       remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]),
+       details: `${getCol(r, ["Creditor Parent Head", "Main Head", "Parent Head"]) || t('allTxn.noRemarks')} > ${getCol(r, ["Sub Head"]) || t('allTxn.noRemarks')}`,
+       financial: t('allTxn.finRecvRet', { recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2), ret: Number(getCol(r, ["Return Amount", "Return Amt"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
     }));
 
     addRecords(resInc, "Income", r => ({
-       details: `${getCol(r, ["Income Parent Head", "Main Head", "Parent Head"])} > ${getCol(r, ["Sub Head"])}`,
-       financial: `Billed: ${Number(getCol(r, ["Receivable Amount", "Receivable"])||0).toFixed(2)} | Recv: ${Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2)}`,
-       remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]),
+       details: `${getCol(r, ["Income Parent Head", "Main Head", "Parent Head"]) || t('allTxn.noRemarks')} > ${getCol(r, ["Sub Head"]) || t('allTxn.noRemarks')}`,
+       financial: t('allTxn.finBilledRecv', { billed: Number(getCol(r, ["Receivable Amount", "Receivable"])||0).toFixed(2), recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
     }));
@@ -2183,7 +2195,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
     allRecords.sort((a, b) => b.rawDate - a.rawDate);
 
     if(allRecords.length === 0) {
-       container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 font-bold">No transactions found for the selected criteria.</td></tr>`;
+       container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 font-bold">${t('allTxn.noResults')}</td></tr>`;
        return;
     }
 
@@ -2200,10 +2212,10 @@ async function loadAllTxnTableRecords(isFilter = false) {
        return `
          <tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
            <td class="p-2.5">${rec.rawDate.toLocaleDateString()}</td>
-           <td><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${modColor}">${rec.module}</span></td>
-           <td class="font-bold text-gray-800">${rec.details || '-'}</td>
+           <td><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${modColor}">${getAllTxnModuleLabel(rec.module)}</span></td>
+           <td class="font-bold text-gray-800">${rec.details || t('allTxn.noRemarks')}</td>
            <td class="font-mono text-gray-700">${rec.financial}</td>
-           <td class="max-w-xs truncate" title="${rec.remarks || ''}">${rec.remarks || '-'}</td>
+           <td class="max-w-xs truncate" title="${rec.remarks || ''}">${rec.remarks || t('allTxn.noRemarks')}</td>
            <td>${rec.user || ''}</td>
            <td class="text-gray-400 font-mono text-[10px]">${rec.stamp || ''}</td>
          </tr>
@@ -2212,7 +2224,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
 
   } catch (err) {
      console.error(err);
-     container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 font-bold">Failed to load aggregate ledger data.</td></tr>`;
+     container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 font-bold">${t('allTxn.loadFailed')}</td></tr>`;
   }
 }
 
@@ -2251,10 +2263,11 @@ function initReportsSystem() {
           <option value="income_details">Income Details Report</option>
         `);
      }
+     translateReportSelect(typeSelect);
   }
   // ---------------------------------------------------------------------------
 
-if (typeSelect) {
+  if (typeSelect) {
     typeSelect.addEventListener('change', async (e) => {
       const val = e.target.value;
       secFilterContainer.classList.add('hidden');

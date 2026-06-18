@@ -1,0 +1,34 @@
+body.erp-rtl #sidebar {
+  left: auto;
+  right: 0;
+}
+
+body.erp-rtl #sidebar.-translate-x-full {
+  transform: translateX(100%) !important;
+}
+
+body.erp-rtl #sidebar:not(.-translate-x-full) {
+  transform: translateX(0) !important;
+}
+
+body.erp-rtl #open-sidebar {
+  margin-right: 0;
+  margin-left: 0.25rem;
+}
+
+body.erp-rtl #lang-switcher-menu {
+  left: auto;
+  right: 0;
+}
+
+body.erp-rtl .text-left {
+  text-align: right;
+}
+
+body.erp-rtl .text-right {
+  text-align: left;
+}
+
+body.erp-rtl #user-profile-badge {
+  text-align: left;
+}

@@ -2,8 +2,8 @@ export const templates = {
   dashboard: `
     <div class="space-y-6 pb-10">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Executive Dashboard</h2>
-        <button id="btn-refresh-dash" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded shadow-sm text-xs uppercase tracking-wider transition">Refresh Data</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.dashboard.title">Executive Dashboard</h2>
+        <button id="btn-refresh-dash" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded shadow-sm text-xs uppercase tracking-wider transition" data-i18n="common.refresh">Refresh Data</button>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -114,12 +114,12 @@ export const templates = {
   hr: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">HR Ledger & Payroll Management</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.hr.title">HR Ledger & Payroll Management</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
-          <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">New Employee Entry</h3>
+          <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider" data-i18n="page.hr.newEmployee">New Employee Entry</h3>
           <form id="form-hr-entry" class="space-y-3 text-xs">
             <div><label class="block font-bold text-gray-600 mb-0.5">Employee Name</label><input type="text" id="hr-name" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
             <div><label class="block font-bold text-gray-600 mb-0.5">Designation (Manual Write)</label><input type="text" id="hr-designation" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
@@ -139,7 +139,7 @@ export const templates = {
           </form>
         </div>
         <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
-          <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">Personnel Database Records</h3>
+          <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider" data-i18n="page.hr.personnelRecords">Personnel Database Records</h3>
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
@@ -186,8 +186,8 @@ export const templates = {
   hr_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">HR Transaction Ledger</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.hrTransactions.title">HR Transaction Ledger</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -223,8 +223,8 @@ export const templates = {
   suppliers: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Supplier Account Management</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.suppliers.title">Supplier Account Management</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -280,8 +280,8 @@ export const templates = {
   supplier_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Supplier Transaction Ledger</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.supplierTransactions.title">Supplier Transaction Ledger</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -317,8 +317,8 @@ export const templates = {
   customers: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Customer Accounts Matrix</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.customers.title">Customer Accounts Matrix</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -385,8 +385,8 @@ export const templates = {
   customer_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Customer Transaction Logging</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.customerTransactions.title">Customer Transaction Logging</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -424,8 +424,8 @@ export const templates = {
   internal_transfer: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Internal Cash Handover Transfer</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.internalTransfer.title">Internal Cash Handover Transfer</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -459,8 +459,8 @@ export const templates = {
   expense_heads: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Expense Category Setup</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.expenseHeads.title">Expense Category Setup</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -490,8 +490,8 @@ export const templates = {
   expense_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Operational Expense Ledger</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.expenseTransactions.title">Operational Expense Ledger</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -542,8 +542,8 @@ export const templates = {
   creditors: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Creditor Setup (Liabilities)</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.creditors.title">Creditor Setup (Liabilities)</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -573,8 +573,8 @@ export const templates = {
   creditor_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Creditor Ledger (Loans & Returns)</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.creditorTransactions.title">Creditor Ledger (Loans & Returns)</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -624,8 +624,8 @@ export const templates = {
   income_heads: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Income Category Setup (Revenues)</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.incomeHeads.title">Income Category Setup (Revenues)</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -655,8 +655,8 @@ export const templates = {
   income_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">Income Ledger Logging</h2>
-        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm">Ledger View</button>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.incomeTransactions.title">Income Ledger Logging</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
@@ -706,36 +706,44 @@ export const templates = {
   all_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800">All Transaction View (Master Audit)</h2>
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.allTransactions.title">All Transaction View (Master Audit)</h2>
       </div>
       <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-visible md:overflow-hidden md:h-[85vh]">
         
         <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mb-4 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-mobile-filter-bar">
-          <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="filter-from-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
-          <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="filter-to-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
+          <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.fromDate">From Date</label><input type="date" id="filter-from-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
+          <div class="flex-1 min-w-[140px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.toDate">To Date</label><input type="date" id="filter-to-all" class="w-full border rounded p-2 outline-none focus:border-blue-500"></div>
           <div class="flex-1 min-w-[160px]">
-            <label class="block text-gray-600 font-bold mb-1">Transaction Category</label>
+            <label class="block text-gray-600 font-bold mb-1" data-i18n="allTxn.transactionCategory">Transaction Category</label>
             <select id="filter-module-all" class="w-full border rounded p-2 outline-none bg-white focus:border-blue-500 font-medium">
-              <option value="">All Categories (Default)</option>
-              <option value="HR">HR Transactions</option>
-              <option value="Supplier">Supplier Transactions</option>
-              <option value="Customer">Customer Transactions</option>
-              <option value="Expense">Expense Transactions</option>
-              <option value="Creditor">Creditor Transactions</option>
-              <option value="Income">Income Transactions</option>
-              <option value="Internal">Internal Transfers</option>
+              <option value="" data-i18n="allTxn.categoryAll">All Categories (Default)</option>
+              <option value="HR" data-i18n="allTxn.catHR">HR Transactions</option>
+              <option value="Supplier" data-i18n="allTxn.catSupplier">Supplier Transactions</option>
+              <option value="Customer" data-i18n="allTxn.catCustomer">Customer Transactions</option>
+              <option value="Expense" data-i18n="allTxn.catExpense">Expense Transactions</option>
+              <option value="Creditor" data-i18n="allTxn.catCreditor">Creditor Transactions</option>
+              <option value="Income" data-i18n="allTxn.catIncome">Income Transactions</option>
+              <option value="Internal" data-i18n="allTxn.catInternal">Internal Transfers</option>
             </select>
           </div>
-          <div><button id="btn-filter-all" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded transition shadow-sm">Search / Filter Records</button></div>
+          <div><button id="btn-filter-all" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded transition shadow-sm" data-i18n="allTxn.searchFilter">Search / Filter Records</button></div>
         </div>
 
         <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:overflow-y-auto relative">
           <table class="w-full text-left border-collapse text-xs">
             <thead class="bg-slate-800 text-white uppercase whitespace-nowrap sticky top-0 z-10 shadow">
-              <tr><th class="p-3">Date</th><th class="p-3">Category</th><th class="p-3">Transaction Details</th><th class="p-3">Financial Impact</th><th class="p-3">Remarks / Narrative</th><th class="p-3">Logged By</th><th class="p-3">Stamp</th></tr>
+              <tr>
+                <th class="p-3" data-i18n="allTxn.colDate">Date</th>
+                <th class="p-3" data-i18n="allTxn.colCategory">Category</th>
+                <th class="p-3" data-i18n="allTxn.colDetails">Transaction Details</th>
+                <th class="p-3" data-i18n="allTxn.colFinancial">Financial Impact</th>
+                <th class="p-3" data-i18n="allTxn.colRemarks">Remarks / Narrative</th>
+                <th class="p-3" data-i18n="allTxn.colLoggedBy">Logged By</th>
+                <th class="p-3" data-i18n="allTxn.colStamp">Stamp</th>
+              </tr>
             </thead>
             <tbody id="table-all-txn-rows" class="divide-y text-gray-600 font-medium">
-              <tr><td colspan="7" class="p-6 text-center text-gray-400">Loading today's transactions...</td></tr>
+              <tr><td colspan="7" class="p-6 text-center text-gray-400" data-i18n="allTxn.loadingToday">Loading today's transactions...</td></tr>
             </tbody>
           </table>
         </div>
@@ -746,8 +754,8 @@ export const templates = {
     <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="erp-report-tools print:hidden">
         <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <h2 class="text-lg md:text-2xl font-bold text-gray-800">Enterprise Reporting System</h2>
-          <button onclick="window.print()" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded text-sm transition shadow-sm flex items-center justify-center gap-2">
+          <h2 class="text-lg md:text-2xl font-bold text-gray-800" data-i18n="page.reports.title">Enterprise Reporting System</h2>
+          <button onclick="window.print()" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded text-sm transition shadow-sm flex items-center justify-center gap-2" data-i18n="common.printExport">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
             Print / Export
           </button>
@@ -755,19 +763,19 @@ export const templates = {
 
         <div id="report-filters-panel" class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mt-3 md:mt-4 mb-2 md:mb-0 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-report-filters">
           <div class="w-full md:flex-1 md:min-w-[200px]">
-            <label class="block text-gray-600 font-bold mb-1">Select Master Report</label>
+            <label class="block text-gray-600 font-bold mb-1" data-i18n="common.selectMasterReport">Select Master Report</label>
             <select id="report-type" class="w-full border rounded p-2.5 outline-none bg-white focus:border-blue-500 font-medium text-sm">
-              <option value="">-- Choose Report Type --</option>
-              <option value="daily_monthly">Daily / Monthly Aggregate Report</option>
-              <option value="daily_cashflow">Daily Accounts Cash Flow (IN & OUT)</option>
-              <option value="pnl">Profit & Loss Report</option>
-              <option value="receivable_payable">Receivable and Payable Report</option>
-              <option value="expense_report">Expense Report</option>
-              <option value="customer_details" class="font-bold text-blue-600">Customer Details Report (Statement)</option>
-              <option value="supplier_details">Supplier Details Report</option>
-              <option value="hr_details">HR Details Report</option>
-              <option value="user_transaction">User Sells Performance Report</option>
-              <option value="individual_user">Individual User Report</option>
+              <option value="" data-i18n="common.chooseReport">-- Choose Report Type --</option>
+              <option value="daily_monthly" data-i18n-report="report.dailyMonthly">Daily / Monthly Aggregate Report</option>
+              <option value="daily_cashflow" data-i18n-report="report.dailyCashflow">Daily Accounts Cash Flow (IN & OUT)</option>
+              <option value="pnl" data-i18n-report="report.pnl">Profit & Loss Report</option>
+              <option value="receivable_payable" data-i18n-report="report.receivablePayable">Receivable and Payable Report</option>
+              <option value="expense_report" data-i18n-report="report.expenseReport">Expense Report</option>
+              <option value="customer_details" class="font-bold text-blue-600" data-i18n-report="report.customerDetails">Customer Details Report (Statement)</option>
+              <option value="supplier_details" data-i18n-report="report.supplierDetails">Supplier Details Report</option>
+              <option value="hr_details" data-i18n-report="report.hrDetails">HR Details Report</option>
+              <option value="user_transaction" data-i18n-report="report.userPerformance">User Sells Performance Report</option>
+              <option value="individual_user" data-i18n-report="report.individualUser">Individual User Report</option>
             </select>
           </div>
           
@@ -777,9 +785,9 @@ export const templates = {
             </select>
           </div>
 
-          <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">From Date</label><input type="date" id="report-from" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
-          <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1">To Date</label><input type="date" id="report-to" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
-          <div class="w-full md:w-auto"><button id="btn-generate-report" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]">Execute Query</button></div>
+          <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.fromDate">From Date</label><input type="date" id="report-from" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
+          <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.toDate">To Date</label><input type="date" id="report-to" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
+          <div class="w-full md:w-auto"><button id="btn-generate-report" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]" data-i18n="common.executeQuery">Execute Query</button></div>
         </div>
       </div>
 
@@ -812,7 +820,7 @@ export const templates = {
   `,
   users: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
-      <div class="border-b pb-4"><h2 class="text-2xl font-bold text-gray-800">User Access Management</h2></div>
+      <div class="border-b pb-4"><h2 class="text-2xl font-bold text-gray-800" data-i18n="page.users.title">User Access Management</h2></div>
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div class="bg-white p-6 rounded-xl shadow border lg:col-span-1 border-gray-200 erp-mobile-user-form">
           <h3 class="text-lg font-semibold text-gray-700 mb-4">Provision Account</h3>
