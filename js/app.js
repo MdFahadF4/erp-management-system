@@ -113,11 +113,13 @@ Date.prototype.toLocaleDateString = function() {
 function openMenu() {
   if (sidebar) sidebar.classList.remove('-translate-x-full');
   if (sidebarBackdrop) sidebarBackdrop.classList.remove('hidden');
+  document.body.classList.add('erp-sidebar-open');
 }
 
 function closeMenu() {
   if (sidebar) sidebar.classList.add('-translate-x-full');
   if (sidebarBackdrop) sidebarBackdrop.classList.add('hidden');
+  document.body.classList.remove('erp-sidebar-open');
 }
 
 let activeModuleTarget = null;

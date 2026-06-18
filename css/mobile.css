@@ -40,9 +40,12 @@
     padding-top: var(--erp-mobile-header-h) !important;
   }
 
-  #sidebar,
   #sidebar-backdrop {
-    z-index: 70;
+    z-index: 85 !important;
+  }
+
+  #sidebar {
+    z-index: 90 !important;
   }
 
   /*
@@ -463,6 +466,19 @@
 }
 
 @media (min-width: 1024px) {
+  #sidebar-backdrop {
+    z-index: 85 !important;
+  }
+
+  #sidebar {
+    z-index: 90 !important;
+  }
+
+  #dashboard-insights-panel,
+  #erp-module-toolbar {
+    z-index: 1;
+  }
+
   #erp-module-toolbar {
     display: none !important;
   }

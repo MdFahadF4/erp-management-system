@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <title>Enterprise Management System</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="./css/mobile.css?v=5">
+  <link rel="stylesheet" href="./css/mobile.css?v=6">
 </head>
 <body class="bg-gray-100 font-sans text-gray-900 flex h-screen overflow-hidden relative">
 
@@ -30,9 +30,9 @@
     </div>
   </div>
 
-  <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/50 z-40 hidden backdrop-blur-sm transition-opacity cursor-pointer"></div>
+  <div id="sidebar-backdrop" class="fixed inset-0 bg-slate-900/50 z-[85] hidden backdrop-blur-sm transition-opacity cursor-pointer"></div>
 
-  <aside id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-slate-800 text-white flex flex-col h-full shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out">
+  <aside id="sidebar" class="fixed inset-y-0 left-0 z-[90] w-64 bg-slate-800 text-white flex flex-col h-full shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out">
     <div class="p-5 text-xl font-black tracking-wider border-b border-slate-700 flex justify-between items-center">
       <span>CORE PANEL</span>
       <button id="close-sidebar" class="text-2xl text-slate-400 hover:text-white transition focus:outline-none">&times;</button>
@@ -87,7 +87,7 @@
     </header>
 
     <div id="app-body" class="flex flex-col flex-1 min-h-0 overflow-hidden md:pt-0">
-    <div id="dashboard-insights-panel" class="hidden shrink-0 border-b border-gray-200 bg-gray-50/80 z-[55]">
+    <div id="dashboard-insights-panel" class="hidden shrink-0 border-b border-gray-200 bg-gray-50/80 z-10">
       <button id="dashboard-insights-toggle" type="button" class="erp-mobile-chrome-toggle w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="false" aria-controls="dashboard-insights-body">
         <div class="min-w-0">
           <div class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Dashboard Snapshot</div>
@@ -110,7 +110,7 @@
       </div>
     </div>
 
-    <div id="erp-module-toolbar" class="erp-mobile-chrome-bar shrink-0 border-b border-gray-200 bg-gray-50/80 z-[55]">
+    <div id="erp-module-toolbar" class="erp-mobile-chrome-bar shrink-0 border-b border-gray-200 bg-gray-50/80 z-10">
       <button id="erp-module-toolbar-toggle" type="button" class="erp-mobile-snapshot-toggle w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left bg-white hover:bg-gray-50 transition" aria-expanded="true">
         <div class="min-w-0">
           <div id="erp-module-toolbar-label" class="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Module Options</div>
