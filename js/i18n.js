@@ -1,5 +1,10 @@
+import { FORM_STRINGS, getCategoryLabel } from './i18n-forms.js';
+import { REPORT_STRINGS, getReportFlowTypeLabel, getReportSourceLabel } from './i18n-reports.js';
+
 const STORAGE_KEY = 'erp-language';
 const DEFAULT_LANG = 'en';
+
+export { getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel };
 
 export const LANGUAGES = [
   { code: 'en', label: 'English', native: 'English', flag: '🇬🇧', dir: 'ltr' },
@@ -747,6 +752,16 @@ const ALL_TXN_I18N = {
 
 ['fr', 'hi', 'ur', 'es'].forEach((code) => {
   STRINGS[code] = { ...STRINGS.en, ...ALL_TXN_I18N[code] };
+});
+
+Object.entries(FORM_STRINGS).forEach(([lang, pack]) => {
+  if (STRINGS[lang]) Object.assign(STRINGS[lang], pack);
+  else STRINGS[lang] = { ...STRINGS.en, ...pack };
+});
+
+Object.entries(REPORT_STRINGS).forEach(([lang, pack]) => {
+  if (STRINGS[lang]) Object.assign(STRINGS[lang], pack);
+  else STRINGS[lang] = { ...STRINGS.en, ...pack };
 });
 
 let currentLang = localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG;

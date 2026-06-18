@@ -1,6 +1,6 @@
 import { processLogin, processLogout, fetchSessionUser, apiRequest } from './auth.js';
 import { templates } from './views.js';
-import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel } from './i18n.js';
+import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './i18n.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -788,13 +788,13 @@ function initHRFormListeners() {
     const payloadRow = [ document.getElementById('hr-name').value.trim(), document.getElementById('hr-designation').value.trim(), document.getElementById('hr-joining').value, parseFloat(fStart.value) || 0, parseFloat(fInc.value) || 0, parseFloat(fCurrent.value) || 0, parseFloat(fEarn.value) || 0, parseFloat(fPaid.value) || 0, parseFloat(fDue.value) || 0, document.getElementById('hr-status').value, currentUser.username ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "HR", rowData: payloadRow } }); alert(res.message); if (res.success) { creationForm.reset(); runCalculations(); await loadHRTableRecords(); await updateLiveUserCashDrawerBalance(); }
-    } catch (err) { alert("Error committing connection pipeline."); }
+    } catch (err) { alert(t('alert.errorCommit')); }
   });
 }
 
 async function loadHRTableRecords() {
   const container = document.getElementById('table-hr-rows'); if (!container) return;
-  container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">Querying system staff ledger...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hr.queryingLedger')}</td></tr>`;
   try {
     const [hrRes, txnRes] = await Promise.all([
         apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR" } }),
@@ -803,7 +803,7 @@ async function loadHRTableRecords() {
 
     if (hrRes.success) {
       cachedHrRecords = hrRes.records; 
-      if (cachedHrRecords.length === 0) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">No entries indexed yet.</td></tr>`; return; }
+      if (cachedHrRecords.length === 0) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hr.noEntries')}</td></tr>`; return; }
 
       // --- MASTER INTERCEPTOR: Dynamic Math Engine for ALL HR Totals ---
       let incTotals = {}; 
@@ -838,7 +838,7 @@ async function loadHRTableRecords() {
 
       container.innerHTML = cachedHrRecords.map(rec => {
         const canEdit = (fetchSessionUser().role === "Super Admin" || fetchSessionUser().role === "Admin");
-        const actionBtn = canEdit ? `<button class="btn-hr-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">Edit</button>` : `<span class="text-gray-300 italic">Locked</span>`;
+        const actionBtn = canEdit ? `<button class="btn-hr-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
         let badgeStyle = rec["Status"] === "Inactive" ? "bg-amber-100 text-amber-800" : (rec["Status"] === "Released" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800");
 
         let empName = String(rec["Employee Name"] || "").trim();
@@ -861,24 +861,24 @@ async function loadHRTableRecords() {
             <td class="font-mono text-amber-600">${dbEarned.toFixed(2)}</td>
             <td class="font-mono text-emerald-600">${dbPaid.toFixed(2)}</td>
             <td class="font-mono font-bold text-red-600">${dbDue.toFixed(2)}</td>
-            <td><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeStyle}">${rec["Status"] || 'Active'}</span></td><td>${actionBtn}</td>
+            <td><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeStyle}">${getCategoryLabel(rec["Status"] || 'Active', t)}</span></td><td>${actionBtn}</td>
           </tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">Failed to load list.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('hr.loadFailed')}</td></tr>`; }
 }
 
 /**
  * MODULE: HR TRANSACTIONS INTERACTION ENGINE
  */
 async function populateEmployeeDropdown() {
-  const dropdown = document.getElementById('txn-employee'); if (!dropdown) return; dropdown.innerHTML = `<option value="">Loading active employees...</option>`;
+  const dropdown = document.getElementById('txn-employee'); if (!dropdown) return; dropdown.innerHTML = `<option value="">${t('dropdown.loadingEmployees')}</option>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR" } });
     if (result.success && result.records.length > 0) {
-      dropdown.innerHTML = `<option value="">-- Choose Employee --</option>` + result.records.map(emp => `<option value="${emp["Employee Name"]}">${emp["Employee Name"]} (${emp["Designation"]})</option>`).join('');
-    } else { dropdown.innerHTML = `<option value="">No employees indexed yet</option>`; }
-  } catch (err) { dropdown.innerHTML = `<option value="">Error compiling records</option>`; }
+      dropdown.innerHTML = `<option value="">${t('dropdown.chooseEmployee')}</option>` + result.records.map(emp => `<option value="${emp["Employee Name"]}">${emp["Employee Name"]} (${emp["Designation"]})</option>`).join('');
+    } else { dropdown.innerHTML = `<option value="">${t('dropdown.noEmployees')}</option>`; }
+  } catch (err) { dropdown.innerHTML = `<option value="">${t('dropdown.errorRecords')}</option>`; }
 }
 
 function initTxnFormListeners() {
@@ -890,16 +890,16 @@ function initTxnFormListeners() {
   if (catInput) {
      if (catInput.tagName === 'SELECT') {
         if (!Array.from(catInput.options).some(o => o.value === 'Salary Increment')) {
-           catInput.insertAdjacentHTML('beforeend', `<option value="Salary Increment">Salary Increment</option><option value="Salary Earn">Salary Earn</option><option value="Previous Due">Previous Due</option>`);
+           catInput.insertAdjacentHTML('beforeend', `<option value="Salary Increment">${t('category.salaryIncrement')}</option><option value="Salary Earn">${t('category.salaryEarn')}</option><option value="Previous Due">${t('category.previousDue')}</option>`);
         }
      } else {
         let incBox = document.getElementById('magic-btn-container');
         if (!incBox) {
            catInput.insertAdjacentHTML('afterend', `
              <div id="magic-btn-container" class="flex gap-2 mt-3">
-               <button type="button" id="btn-magic-increment" class="w-1/3 bg-purple-50 text-purple-700 border border-purple-200 font-bold p-2.5 rounded-lg hover:bg-purple-100 transition shadow-sm uppercase tracking-wider text-[10px]"> + Increment </button>
-               <button type="button" id="btn-magic-earn" class="w-1/3 bg-amber-50 text-amber-700 border border-amber-200 font-bold p-2.5 rounded-lg hover:bg-amber-100 transition shadow-sm uppercase tracking-wider text-[10px]"> + Salary Earn </button>
-               <button type="button" id="btn-magic-prevdue" class="w-1/3 bg-slate-50 text-slate-700 border border-slate-200 font-bold p-2.5 rounded-lg hover:bg-slate-100 transition shadow-sm uppercase tracking-wider text-[10px]"> + Prev Due </button>
+               <button type="button" id="btn-magic-increment" class="w-1/3 bg-purple-50 text-purple-700 border border-purple-200 font-bold p-2.5 rounded-lg hover:bg-purple-100 transition shadow-sm uppercase tracking-wider text-[10px]">${t('hrTxn.magicIncrement')}</button>
+               <button type="button" id="btn-magic-earn" class="w-1/3 bg-amber-50 text-amber-700 border border-amber-200 font-bold p-2.5 rounded-lg hover:bg-amber-100 transition shadow-sm uppercase tracking-wider text-[10px]">${t('hrTxn.magicEarn')}</button>
+               <button type="button" id="btn-magic-prevdue" class="w-1/3 bg-slate-50 text-slate-700 border border-slate-200 font-bold p-2.5 rounded-lg hover:bg-slate-100 transition shadow-sm uppercase tracking-wider text-[10px]">${t('hrTxn.magicPrevDue')}</button>
              </div>
            `);
            
@@ -952,7 +952,7 @@ function initTxnFormListeners() {
           }
           await loadTxnTableRecords(true); await loadHRTableRecords(); await updateLiveUserCashDrawerBalance(); 
       }
-    } catch (err) { alert("Error logging transaction."); }
+    } catch (err) { alert(t('alert.errorLog')); }
   };
 }
 
@@ -961,10 +961,10 @@ async function loadTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-hr');
   const tDateInput = document.getElementById('filter-to-hr');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">Select "From Date" and "To Date" then click "Expand / Load Ledger" to view records.</td></tr>`; return; }
-  if (!fDateInput.value || !tDateInput.value) { alert("Please specify both From and To dates."); return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">Querying and filtering database...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } });
     if (result.success) {
@@ -972,13 +972,13 @@ async function loadTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">No transactions found in this date range.</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noResultsInRange')}</td></tr>`; return; }
       container.innerHTML = filtered.reverse().map(rec => {
         let catColor = "text-blue-600 bg-blue-50"; if (rec["Category"] === "Salary Paid") catColor = "text-emerald-600 bg-emerald-50"; if (rec["Category"] === "Salary Increment") catColor = "text-purple-600 bg-purple-50";
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Employee Name"]||''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${rec["Category"]||''}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"]||''}">${rec["Remarks"]||'-'}</td><td>${rec["Username"]||''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"]||''}</td></tr>`;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Employee Name"]||''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${getCategoryLabel(rec["Category"] || '', t)}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"]||''}">${rec["Remarks"]||'-'}</td><td>${rec["Username"]||''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"]||''}</td></tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">Failed to load tracking data lines.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracking')}</td></tr>`; }
 }
 
 /**
@@ -995,12 +995,12 @@ function initSupplierFormListeners() {
     const payloadRow = [ document.getElementById('sup-name').value.trim(), document.getElementById('sup-mobile').value.trim(), document.getElementById('sup-email').value.trim(), document.getElementById('sup-address').value.trim(), parseFloat(fPurchase.value) || 0, parseFloat(fPayments.value) || 0, parseFloat(fDue.value) || 0, document.getElementById('sup-status').value, currentUser.username, new Date().toLocaleString() ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Suppliers", rowData: payloadRow } }); alert(res.message); if (res.success) { creationForm.reset(); runCalculations(); await loadSupplierTableRecords(); await updateLiveUserCashDrawerBalance(); }
-    } catch (err) { alert("Error committing supplier record parameters."); }
+    } catch (err) { alert(t('alert.errorCommit')); }
   });
 }
 
 async function loadSupplierTableRecords() {
-  const container = document.getElementById('table-sup-rows'); if (!container) return; container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-gray-400">Querying active suppliers listing files...</td></tr>`;
+  const container = document.getElementById('table-sup-rows'); if (!container) return; container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-gray-400">${t('sup.queryingList')}</td></tr>`;
   try {
     // Fetch BOTH the Supplier list and their Transactions simultaneously
     const [supRes, txnRes] = await Promise.all([
@@ -1010,7 +1010,7 @@ async function loadSupplierTableRecords() {
 
     if (supRes.success) {
       cachedSupplierRecords = supRes.records; 
-      if (cachedSupplierRecords.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-gray-400">No suppliers registered.</td></tr>`; return; }
+      if (cachedSupplierRecords.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-gray-400">${t('sup.noRegistered')}</td></tr>`; return; }
 
       // --- MASTER INTERCEPTOR: Dynamic Math Engine for Supplier Totals ---
       let prevDueTotals = {};
@@ -1039,7 +1039,7 @@ async function loadSupplierTableRecords() {
 
       container.innerHTML = cachedSupplierRecords.map(rec => {
         const canEdit = (fetchSessionUser().role === "Super Admin" || fetchSessionUser().role === "Admin");
-        const actionBtn = canEdit ? `<button class="btn-sup-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">Edit</button>` : `<span class="text-gray-300 italic">Locked</span>`;
+        const actionBtn = canEdit ? `<button class="btn-sup-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
         const badgeStyle = rec["Status"] === "Inactive" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800";
 
         let supName = String(rec["Supplier Name"] || "").trim();
@@ -1061,25 +1061,25 @@ async function loadSupplierTableRecords() {
             <td class="p-2.5 font-mono">${totalPurchase.toFixed(2)}</td>
             <td class="p-2.5 font-mono text-emerald-600">${totalPaid.toFixed(2)}</td>
             <td class="p-2.5 font-mono font-bold text-red-600">${dbDue.toFixed(2)}</td>
-            <td class="p-2.5"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeStyle}">${rec["Status"] || 'Active'}</span></td><td class="p-2.5">${actionBtn}</td>
+            <td class="p-2.5"><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeStyle}">${getCategoryLabel(rec["Status"] || 'Active', t)}</span></td><td class="p-2.5">${actionBtn}</td>
           </tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">Failed to pull supplier records.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('sup.loadFailed')}</td></tr>`; }
 }
 
 /**
  * MODULE: SUPPLIER TRANSACTION LEDGER (WITH PREVIOUS DUE INJECTOR)
  */
 async function populateSupplierTxnDropdown() {
-  const dropdown = document.getElementById('sup-txn-supplier'); if (!dropdown) return; dropdown.innerHTML = `<option value="">Loading registered suppliers...</option>`;
+  const dropdown = document.getElementById('sup-txn-supplier'); if (!dropdown) return; dropdown.innerHTML = `<option value="">${t('dropdown.loadingSuppliers')}</option>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Suppliers" } });
     if (result.success && result.records.length > 0) {
       const activeSuppliers = result.records.filter(s => s["Status"] !== "Inactive");
-      dropdown.innerHTML = `<option value="">-- Choose Supplier Account --</option>` + activeSuppliers.map(sup => `<option value="${sup["Supplier Name"]}">${sup["Supplier Name"]}</option>`).join('');
-    } else { dropdown.innerHTML = `<option value="">No suppliers found in registry database</option>`; }
-  } catch (err) { dropdown.innerHTML = `<option value="">Error compiling data listings</option>`; }
+      dropdown.innerHTML = `<option value="">${t('dropdown.chooseSupplier')}</option>` + activeSuppliers.map(sup => `<option value="${sup["Supplier Name"]}">${sup["Supplier Name"]}</option>`).join('');
+    } else { dropdown.innerHTML = `<option value="">${t('dropdown.noSuppliersRegistry')}</option>`; }
+  } catch (err) { dropdown.innerHTML = `<option value="">${t('dropdown.errorData')}</option>`; }
 }
 
 function initSupplierTxnFormListeners() {
@@ -1091,7 +1091,7 @@ function initSupplierTxnFormListeners() {
   if (catInput && catInput.tagName === 'SELECT') {
       let hasPrevDue = Array.from(catInput.options).some(o => o.value === 'Previous Due');
       if (!hasPrevDue) {
-          catInput.insertAdjacentHTML('beforeend', `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">📌 Previous Due</option>`);
+          catInput.insertAdjacentHTML('beforeend', `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">${t('dropdown.previousDuePin')}</option>`);
       }
   }
   // ----------------------------------------------------------------------------------
@@ -1101,7 +1101,7 @@ function initSupplierTxnFormListeners() {
     const rowPayload = [ document.getElementById('sup-txn-date').value, document.getElementById('sup-txn-supplier').value, parseFloat(document.getElementById('sup-txn-amount').value) || 0, document.getElementById('sup-txn-category').value, document.getElementById('sup-txn-remarks').value.trim(), currentUser.username, new Date().toLocaleString() ];
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Supplier_Transactions", rowData: rowPayload } }); alert(result.message); if (result.success) { form.reset(); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0]; await loadSupplierTxnTableRecords(true); await updateLiveUserCashDrawerBalance(); }
-    } catch (err) { alert("Error pushing transaction data entry log."); }
+    } catch (err) { alert(t('alert.errorLog')); }
   };
 }
 
@@ -1110,10 +1110,10 @@ async function loadSupplierTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-sup');
   const tDateInput = document.getElementById('filter-to-sup');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">Select "From Date" and "To Date" then click "Expand / Load Ledger" to view records.</td></tr>`; return; }
-  if (!fDateInput.value || !tDateInput.value) { alert("Please specify both From and To dates."); return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">Querying and filtering database...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Supplier_Transactions" } });
     if (result.success) {
@@ -1121,17 +1121,17 @@ async function loadSupplierTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">No logs found in this date range.</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noLogsInRange')}</td></tr>`; return; }
       container.innerHTML = filtered.reverse().map(rec => {
         
         // Smart Badge Color Logic
         let cat = rec["Category"] || '';
         let catColor = cat.toLowerCase().includes("purchase") ? "text-blue-600 bg-blue-50" : (cat.toLowerCase().includes("previous due") ? "text-slate-700 bg-slate-200" : "text-emerald-600 bg-emerald-50");
         
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Supplier Name"] || ''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${catColor}">${cat}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"] || ''}">${rec["Remarks"] || '-'}</td><td>${rec["Username"] || ''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"] || ''}</td></tr>`;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Supplier Name"] || ''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${catColor}">${getCategoryLabel(cat, t)}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"] || ''}">${rec["Remarks"] || '-'}</td><td>${rec["Username"] || ''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"] || ''}</td></tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">Failed to load transaction data records.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTxn')}</td></tr>`; }
 }
 
 /**
@@ -1182,20 +1182,20 @@ function initCustomerFormListeners() {
         await populateCustomerTxnDropdown();
         await updateLiveUserCashDrawerBalance();
       }
-    } catch (err) { alert("Error connecting to your Google Arts Script pipeline."); }
+    } catch (err) { alert(t('alert.errorCommit')); }
   });
 }
 
 async function loadCustomerTableRecords() {
   const container = document.getElementById('table-cust-rows'); if (!container) return;
-  container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-gray-400">Loading master matrix...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-gray-400">${t('cust.loadingMatrix')}</td></tr>`;
   try {
     // Only fetch the Master Sheet, because your backend already maintains the running totals here perfectly!
     const resCust = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customers" } });
 
     if (resCust.success && Array.isArray(resCust.records)) {
       cachedCustomerRecords = resCust.records; 
-      if (cachedCustomerRecords.length === 0) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-gray-400">No customer invoices posted yet.</td></tr>`; return; }
+      if (cachedCustomerRecords.length === 0) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-gray-400">${t('cust.noInvoices')}</td></tr>`; return; }
       
       container.innerHTML = cachedCustomerRecords.map(rec => {
         const uid = getCol(rec, ["System Unique ID", "Sys UID", "UNIQUEID"]) || '';
@@ -1213,7 +1213,7 @@ async function loadCustomerTableRecords() {
         let due = sell - received - discount;
 
         const canEdit = (fetchSessionUser().role === "Super Admin" || fetchSessionUser().role === "Admin");
-        const actionBtn = canEdit ? `<button class="btn-cust-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">Edit</button>` : `<span class="text-gray-300 italic">Locked</span>`;
+        const actionBtn = canEdit ? `<button class="btn-cust-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
         
         return `
           <tr class="hover:bg-gray-50 whitespace-nowrap border-b border-gray-100">
@@ -1229,7 +1229,7 @@ async function loadCustomerTableRecords() {
         : (resCust.message || "Could not load customers from the server.");
       container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${hint}</td></tr>`;
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">Failed to load customer list rows.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('cust.loadFailed')}</td></tr>`; }
 }
 
 function initCustomerTxnFormListeners() {
@@ -1255,7 +1255,7 @@ function initCustomerTxnFormListeners() {
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Customer_Transactions", rowData: rowPayload } }); alert(result.message); 
       if (result.success) { form.reset(); document.getElementById('cust-txn-date').value = new Date().toISOString().split('T')[0]; runTxnCalculations(); await loadCustomerTxnTableRecords(true); await updateLiveUserCashDrawerBalance(); }
-    } catch (err) { alert("Error pushing customer transaction log."); }
+    } catch (err) { alert(t('alert.errorLog')); }
   };
 }
 
@@ -1264,10 +1264,10 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-cust');
   const tDateInput = document.getElementById('filter-to-cust');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">Select "From Date" and "To Date" then click "Expand / Load Ledger" to view records.</td></tr>`; return; }
-  if (!fDateInput.value || !tDateInput.value) { alert("Please specify both From and To dates."); return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">Querying and filtering database...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customer_Transactions" } });
     if (result.success) {
@@ -1275,7 +1275,7 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">No records found in this range.</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; return; }
       container.innerHTML = filtered.reverse().map(rec => {
         const uid = getCol(rec, ["System Unique ID", "Sys UID", "UNIQUEID"]) || '';
         const soldAmt = parseFloat(getCol(rec, ["Sold Amount", "Sold Amt", "SOLDAMT"])) || 0;
@@ -1284,10 +1284,10 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
         const dueAmt = parseFloat(getCol(rec, ["Transaction Due", "Txn Due", "TXNDUE", "Due"])) || 0;
         const remarks = getCol(rec, ["Remarks", "Remarks / Reference"]) || '-';
         const methodColor = method === "Cash" ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50";
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono">${soldAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${method}</span></td><td class="font-mono text-red-600 font-bold">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td></tr>`;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono">${soldAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${getCategoryLabel(method, t)}</span></td><td class="font-mono text-red-600 font-bold">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td></tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">Failed to load tracker rows.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 function upsertCustomerInCache(customerRecord) {
@@ -1300,7 +1300,7 @@ function upsertCustomerInCache(customerRecord) {
 }
 
 function renderCustomerTxnDropdownOptions(records) {
-  return `<option value="">-- Choose Account UID --</option>` + records.map(c => {
+  return `<option value="">${t('dropdown.chooseAccountUid')}</option>` + records.map(c => {
     const uid = getCol(c, ["System Unique ID", "Sys UID", "UNIQUEID"]);
     const name = getCol(c, ["Customer Name", "Name"]);
     return `<option value="${uid}">${uid} (${name})</option>`;
@@ -1309,7 +1309,7 @@ function renderCustomerTxnDropdownOptions(records) {
 
 async function populateCustomerTxnDropdown() {
   const dropdown = document.getElementById('cust-txn-uid'); if (!dropdown) return;
-  dropdown.innerHTML = `<option value="">Loading registered customers...</option>`;
+  dropdown.innerHTML = `<option value="">${t('dropdown.loadingCustomers')}</option>`;
 
   let records = [];
   let fetchFailed = false;
@@ -1333,7 +1333,7 @@ async function populateCustomerTxnDropdown() {
     return;
   }
 
-  dropdown.innerHTML = `<option value="">${fetchFailed ? "Could not reach server — reload or check API URL" : "No customers found yet"}</option>`;
+  dropdown.innerHTML = `<option value="">${fetchFailed ? t('dropdown.serverError') : t('dropdown.noCustomers')}</option>`;
 }
 
 /**
@@ -1357,7 +1357,7 @@ function initInternalTransferFormListeners() {
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Internal_Transfers", rowData: rowPayload } }); alert(result.message);
       if (result.success) { form.reset(); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0]; await loadInternalTransferTableRecords(true); await updateLiveUserCashDrawerBalance(); }
-    } catch (err) { alert("Error writing handover parameters."); }
+    } catch (err) { alert(t('alert.errorLog')); }
   };
 }
 
@@ -1366,10 +1366,10 @@ async function loadInternalTransferTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-int');
   const tDateInput = document.getElementById('filter-to-int');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">Select "From Date" and "To Date" then click "Expand / Load Ledger" to view records.</td></tr>`; return; }
-  if (!fDateInput.value || !tDateInput.value) { alert("Please specify both From and To dates."); return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-blue-500 font-bold">Querying and filtering database...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Internal_Transfers" } });
     if (result.success) {
@@ -1377,13 +1377,13 @@ async function loadInternalTransferTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500 font-bold">No handovers found in this range.</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noHandovers')}</td></tr>`; return; }
       container.innerHTML = filtered.reverse().map(rec => {
         const dateVal = getCol(rec, ["Date"]); const uid = getCol(rec, ["System Unique ID", "ID", "Tracking ID"]) || ''; const amt = parseFloat(getCol(rec, ["Transfer Amount", "Amount"])) || 0; const desc = getCol(rec, ["Description", "Description / Purpose"]) || '-'; const userVal = getCol(rec, ["Transferred By", "Username", "Logged By"]) || ''; const stamp = getCol(rec, ["System Stamp", "Timestamp"]) || '';
         return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${dateVal ? new Date(dateVal).toLocaleDateString() : ''}</td><td class="font-mono text-gray-400 text-[11px]">${uid}</td><td class="font-mono font-bold text-emerald-600">SAR ${amt.toFixed(2)}</td><td class="max-w-xs truncate" title="${desc}">${desc}</td><td class="font-bold text-gray-800">${userVal}</td><td class="text-gray-400 text-[10px] font-mono">${stamp}</td></tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-red-500 font-bold">Failed to load transfer logs.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="6" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTransfer')}</td></tr>`; }
 }
 
 /**
@@ -1399,20 +1399,20 @@ function initExpenseHeadFormListeners() {
     const payloadRow = [ trackingUID, mainHead, subHead, currentUser.username, new Date().toLocaleString() ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Expense_Heads", rowData: payloadRow } }); alert(res.message); if (res.success) { form.reset(); await loadExpenseHeadTableRecords(); }
-    } catch (err) { alert("Error writing configuration rules."); }
+    } catch (err) { alert(t('alert.errorCommit')); }
   });
 }
 
 async function loadExpenseHeadTableRecords() {
   const container = document.getElementById('table-exp-head-rows'); if (!container) return;
-  container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">Loading master structures & tracking cross-sheet sums...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">${t('heads.loadingStructures')}</td></tr>`;
   try {
     const resultHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Heads" } });
     const resultTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Transactions" } });
 
     if (resultHeads.success) {
       cachedExpenseHeads = resultHeads.records; const txns = resultTxns.success ? resultTxns.records : [];
-      if (cachedExpenseHeads.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">No structures mapped yet.</td></tr>`; return; }
+      if (cachedExpenseHeads.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">${t('heads.noStructures')}</td></tr>`; return; }
       
       container.innerHTML = cachedExpenseHeads.map(rec => {
         const trackingId = getCol(rec, ["Tracking ID", "System Unique ID", "ID"]) || '';
@@ -1467,7 +1467,7 @@ async function loadExpenseHeadTableRecords() {
         </tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">Failed to load structure grid.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('heads.loadFailed')}</td></tr>`; }
 }
 
 /**
@@ -1476,7 +1476,7 @@ async function loadExpenseHeadTableRecords() {
 async function populateExpenseHeadDropdowns() {
   const mainSelect = document.getElementById('exp-txn-main'); if (!mainSelect) return;
   const subSelect = document.getElementById('exp-txn-sub');
-  mainSelect.innerHTML = `<option value="">Loading system structures...</option>`;
+  mainSelect.innerHTML = `<option value="">${t('dropdown.loadingStructures')}</option>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Heads" } });
     if (result.success && result.records.length > 0) {
@@ -1484,25 +1484,25 @@ async function populateExpenseHeadDropdowns() {
       const uniqueParents = [...new Set(cachedExpenseHeads.map(r => getCol(r, ["Parent Head", "Expense Parent Head"])))];
       
       // Load the Google Sheet Heads
-      mainSelect.innerHTML = `<option value="">-- Choose Category --</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('');
+      mainSelect.innerHTML = `<option value="">${t('dropdown.chooseCategory')}</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('');
       
       // --- TIMING FIX: Inject Previous Due AFTER the Google Sheet data loads! ---
       mainSelect.insertAdjacentHTML('beforeend', `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">📌 Previous Due</option>`);
 
       mainSelect.onchange = () => {
          const selectedParent = mainSelect.value;
-         if(!selectedParent) { subSelect.innerHTML = `<option value="">-- Choose Parent First --</option>`; return; }
+         if(!selectedParent) { subSelect.innerHTML = `<option value="">${t('dropdown.chooseParentFirst')}</option>`; return; }
          
          // If they select Previous Due, safely lock the Sub-Head so it doesn't crash
-         if(selectedParent === "Previous Due") { subSelect.innerHTML = `<option value="Previous Due">📌 Previous Due</option>`; return; }
+         if(selectedParent === "Previous Due") { subSelect.innerHTML = `<option value="Previous Due">${t('dropdown.previousDuePin')}</option>`; return; }
 
          const filteredSubs = cachedExpenseHeads.filter(r => getCol(r, ["Parent Head", "Expense Parent Head"]) === selectedParent);
-         subSelect.innerHTML = `<option value="">-- Choose Sub Head --</option>` + filteredSubs.map(s => {
+         subSelect.innerHTML = `<option value="">${t('dropdown.chooseSubHead')}</option>` + filteredSubs.map(s => {
             let sName = getCol(s, ["Sub Head Name", "Sub Head"]); return `<option value="${sName}">${sName}</option>`;
          }).join('');
       };
-    } else { mainSelect.innerHTML = `<option value="">Setup Expense Heads First</option>`; }
-  } catch (err) { mainSelect.innerHTML = `<option value="">Error compiling data</option>`; }
+    } else { mainSelect.innerHTML = `<option value="">${t('dropdown.setupExpenseFirst')}</option>`; }
+  } catch (err) { mainSelect.innerHTML = `<option value="">${t('dropdown.errorCompiling')}</option>`; }
 }
 
 function initExpenseTxnFormListeners() {
@@ -1552,7 +1552,7 @@ function initExpenseTxnFormListeners() {
         await loadExpenseTxnTableRecords(true); 
         await updateLiveUserCashDrawerBalance(); 
       }
-    } catch (err) { alert("Error saving expenditure line."); }
+    } catch (err) { alert(t('alert.errorLog')); }
   };
 }
 
@@ -1564,14 +1564,14 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-exp');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">Select "From Date" and "To Date" then click "Expand / Load Ledger" to view records.</td></tr>`;
+    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (paidSumBox) paidSumBox.textContent = "0.00";
     if (dueSumBox) dueSumBox.textContent = "0.00";
     return;
   }
-  if (!fDateInput.value || !tDateInput.value) { alert("Please specify both From and To dates."); return; }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">Querying and filtering database...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Transactions" } });
     if (result.success) {
@@ -1583,7 +1583,7 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
       let totalDueAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">No expenditure lines recorded in this range.</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noExpenditure')}</td></tr>`; 
         if (paidSumBox) paidSumBox.textContent = "0.00"; 
         if (dueSumBox) dueSumBox.textContent = "0.00"; 
         return; 
@@ -1613,7 +1613,7 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
       if (paidSumBox) paidSumBox.textContent = totalPaidAcc.toFixed(2);
       if (dueSumBox) dueSumBox.textContent = totalDueAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">Failed to pull operational tracker lines.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedExpense')}</td></tr>`; }
 }
 
 /**
@@ -1629,13 +1629,13 @@ function initCreditorFormListeners() {
     const payloadRow = [ trackingUID, mainHead, subHead, currentUser.username, new Date().toLocaleString() ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Creditor_Heads", rowData: payloadRow } }); alert(res.message); if (res.success) { form.reset(); await loadCreditorTableRecords(); }
-    } catch (err) { alert("Error writing configuration rules."); }
+    } catch (err) { alert(t('alert.errorCommit')); }
   });
 }
 
 async function loadCreditorTableRecords() {
   const container = document.getElementById('table-cred-head-rows'); if (!container) return;
-  container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">Loading master structures & tracking cross-sheet sums...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">${t('heads.loadingStructures')}</td></tr>`;
   try {
     const resultHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Heads" } });
     const resultTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } });
@@ -1701,28 +1701,28 @@ async function loadCreditorTableRecords() {
         </tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">Failed to load structure grid.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('heads.loadFailed')}</td></tr>`; }
 }
 
 async function populateCreditorDropdowns() {
   const mainSelect = document.getElementById('cred-txn-main'); if (!mainSelect) return;
   const subSelect = document.getElementById('cred-txn-sub');
-  mainSelect.innerHTML = `<option value="">Loading system structures...</option>`;
+  mainSelect.innerHTML = `<option value="">${t('dropdown.loadingStructures')}</option>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Heads" } });
     if (result.success && result.records.length > 0) {
       cachedCreditors = result.records;
       const uniqueParents = [...new Set(cachedCreditors.map(r => getCol(r, ["Creditor Parent Head", "Parent Head", "Main Head"])))];
-      mainSelect.innerHTML = `<option value="">-- Choose Creditor --</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('');
+      mainSelect.innerHTML = `<option value="">${t('dropdown.chooseCreditor')}</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('');
       mainSelect.onchange = () => {
          const selectedParent = mainSelect.value;
-         if(!selectedParent) { subSelect.innerHTML = `<option value="">-- Choose Parent First --</option>`; return; }
+         if(!selectedParent) { subSelect.innerHTML = `<option value="">${t('dropdown.chooseParentFirst')}</option>`; return; }
          const filteredSubs = cachedCreditors.filter(r => getCol(r, ["Creditor Parent Head", "Parent Head", "Main Head"]) === selectedParent);
-         subSelect.innerHTML = `<option value="">-- Choose Sub Head --</option>` + filteredSubs.map(s => {
+         subSelect.innerHTML = `<option value="">${t('dropdown.chooseSubHead')}</option>` + filteredSubs.map(s => {
             let sName = getCol(s, ["Sub Head Name", "Sub Head"]); return `<option value="${sName}">${sName}</option>`;
          }).join('');
       };
-    } else { mainSelect.innerHTML = `<option value="">Setup Creditor Heads First</option>`; }
+    } else { mainSelect.innerHTML = `<option value="">${t('dropdown.setupCreditorFirst')}</option>`; }
   } catch (err) { mainSelect.innerHTML = `<option value="">Error compiling data</option>`; }
 }
 
@@ -1783,7 +1783,7 @@ function initCreditorTxnFormListeners() {
         await loadCreditorTxnTableRecords(true); 
         await updateLiveUserCashDrawerBalance(); 
       }
-    } catch (err) { alert("Error saving transaction line."); }
+    } catch (err) { alert(t('alert.errorLog')); }
   };
 }
 
@@ -1795,13 +1795,13 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-cred');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">Select "From Date" and "To Date" then click "Expand / Load Ledger" to view records.</td></tr>`;
+    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (recSumBox) recSumBox.textContent = "0.00"; if (retSumBox) retSumBox.textContent = "0.00";
     return;
   }
-  if (!fDateInput.value || !tDateInput.value) { alert("Please specify both From and To dates."); return; }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-orange-500 font-bold">Querying and filtering database...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-orange-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } });
     if (result.success) {
@@ -1812,7 +1812,7 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
       let totalRecAcc = 0; let totalRetAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">No records found in this range.</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
         if (recSumBox) recSumBox.textContent = "0.00"; if (retSumBox) retSumBox.textContent = "0.00"; 
         return; 
       }
@@ -1840,7 +1840,7 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
       if (recSumBox) recSumBox.textContent = totalRecAcc.toFixed(2);
       if (retSumBox) retSumBox.textContent = totalRetAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">Failed to pull tracker lines.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 /**
@@ -1856,13 +1856,13 @@ function initIncomeHeadFormListeners() {
     const payloadRow = [ trackingUID, mainHead, subHead, currentUser.username, new Date().toLocaleString() ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Income_Heads", rowData: payloadRow } }); alert(res.message); if (res.success) { form.reset(); await loadIncomeHeadTableRecords(); }
-    } catch (err) { alert("Error writing configuration rules."); }
+    } catch (err) { alert(t('alert.errorCommit')); }
   });
 }
 
 async function loadIncomeHeadTableRecords() {
   const container = document.getElementById('table-inc-head-rows'); if (!container) return;
-  container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">Loading master structures & tracking cross-sheet sums...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">${t('heads.loadingStructures')}</td></tr>`;
   try {
     const resultHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Heads" } });
     const resultTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Transactions" } });
@@ -1925,13 +1925,13 @@ async function loadIncomeHeadTableRecords() {
         </tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">Failed to load structure grid.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('heads.loadFailed')}</td></tr>`; }
 }
 
 async function populateIncomeHeadDropdowns() {
   const mainSelect = document.getElementById('inc-txn-main'); if (!mainSelect) return;
   const subSelect = document.getElementById('inc-txn-sub');
-  mainSelect.innerHTML = `<option value="">Loading system structures...</option>`;
+  mainSelect.innerHTML = `<option value="">${t('dropdown.loadingStructures')}</option>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Heads" } });
     if (result.success && result.records.length > 0) {
@@ -1940,13 +1940,13 @@ async function populateIncomeHeadDropdowns() {
       mainSelect.innerHTML = `<option value="">-- Choose Income Category --</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('');
       mainSelect.onchange = () => {
          const selectedParent = mainSelect.value;
-         if(!selectedParent) { subSelect.innerHTML = `<option value="">-- Choose Parent First --</option>`; return; }
+         if(!selectedParent) { subSelect.innerHTML = `<option value="">${t('dropdown.chooseParentFirst')}</option>`; return; }
          const filteredSubs = cachedIncomeHeads.filter(r => getCol(r, ["Income Parent Head", "Parent Head", "Main Head"]) === selectedParent);
-         subSelect.innerHTML = `<option value="">-- Choose Sub Head --</option>` + filteredSubs.map(s => {
+         subSelect.innerHTML = `<option value="">${t('dropdown.chooseSubHead')}</option>` + filteredSubs.map(s => {
             let sName = getCol(s, ["Sub Head Name", "Sub Head"]); return `<option value="${sName}">${sName}</option>`;
          }).join('');
       };
-    } else { mainSelect.innerHTML = `<option value="">Setup Income Heads First</option>`; }
+    } else { mainSelect.innerHTML = `<option value="">${t('dropdown.setupIncomeFirst')}</option>`; }
   } catch (err) { mainSelect.innerHTML = `<option value="">Error compiling data</option>`; }
 }
 
@@ -2007,7 +2007,7 @@ function initIncomeTxnFormListeners() {
         await loadIncomeTxnTableRecords(true); 
         await updateLiveUserCashDrawerBalance(); 
       }
-    } catch (err) { alert("Error saving transaction line."); }
+    } catch (err) { alert(t('alert.errorLog')); }
   };
 }
 
@@ -2019,13 +2019,13 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-inc');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">Select "From Date" and "To Date" then click "Expand / Load Ledger" to view records.</td></tr>`;
+    container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (recSumBox) recSumBox.textContent = "0.00"; if (dueSumBox) dueSumBox.textContent = "0.00";
     return;
   }
-  if (!fDateInput.value || !tDateInput.value) { alert("Please specify both From and To dates."); return; }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">Querying and filtering database...</td></tr>`;
+  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Transactions" } });
     if (result.success) {
@@ -2036,7 +2036,7 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
       let totalRecAcc = 0; let totalDueAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">No records found in this range.</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
         if (recSumBox) recSumBox.textContent = "0.00"; if (dueSumBox) dueSumBox.textContent = "0.00"; 
         return; 
       }
@@ -2064,7 +2064,7 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
       if (recSumBox) recSumBox.textContent = totalRecAcc.toFixed(2);
       if (dueSumBox) dueSumBox.textContent = totalDueAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">Failed to pull tracker lines.</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 /**
@@ -2133,7 +2133,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
     };
 
     addRecords(resHr, "HR", r => ({
-       details: t('allTxn.detailsNamed', { name: getCol(r, ["Employee Name"]) || t('allTxn.noRemarks'), category: getCol(r, ["Category"]) || t('allTxn.noRemarks') }),
+       details: t('allTxn.detailsNamed', { name: getCol(r, ["Employee Name"]) || t('allTxn.noRemarks'), category: getCategoryLabel(getCol(r, ["Category"]) || '', t) || t('allTxn.noRemarks') }),
        financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
@@ -2141,7 +2141,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
     }));
     
     addRecords(resSup, "Supplier", r => ({
-       details: t('allTxn.detailsNamed', { name: getCol(r, ["Supplier Name"]) || t('allTxn.noRemarks'), category: getCol(r, ["Category"]) || t('allTxn.noRemarks') }),
+       details: t('allTxn.detailsNamed', { name: getCol(r, ["Supplier Name"]) || t('allTxn.noRemarks'), category: getCategoryLabel(getCol(r, ["Category"]) || '', t) || t('allTxn.noRemarks') }),
        financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
@@ -2149,7 +2149,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
     }));
 
     addRecords(resCust, "Customer", r => ({
-       details: t('allTxn.detailsUid', { uid: getCol(r, ["System Unique ID", "Sys UID"]) || t('allTxn.noRemarks'), method: getCol(r, ["Payment Method", "Method"]) || t('allTxn.noRemarks') }),
+       details: t('allTxn.detailsUid', { uid: getCol(r, ["System Unique ID", "Sys UID"]) || t('allTxn.noRemarks'), method: getCategoryLabel(getCol(r, ["Payment Method", "Method"]) || '', t) || t('allTxn.noRemarks') }),
        financial: t('allTxn.finSoldRecv', { sold: Number(getCol(r, ["Sold Amount", "Sold Amt"])||0).toFixed(2), recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
@@ -2257,10 +2257,10 @@ function initReportsSystem() {
      let hasExp = Array.from(typeSelect.options).some(o => o.value === 'expense_details');
      if (!hasExp) {
         typeSelect.insertAdjacentHTML('beforeend', `
-          <option value="expense_details">Expense Details Report</option>
-          <option value="creditor_details">Creditor Details Report</option>
-          <option value="master_executive">Master Executive Dashboard</option>
-          <option value="income_details">Income Details Report</option>
+          <option value="expense_details" data-i18n-report="report.expenseDetails">Expense Details Report</option>
+          <option value="creditor_details" data-i18n-report="report.creditorDetails">Creditor Details Report</option>
+          <option value="master_executive" data-i18n-report="report.masterExecutive">Master Executive Dashboard</option>
+          <option value="income_details" data-i18n-report="report.incomeDetails">Income Details Report</option>
         `);
      }
      translateReportSelect(typeSelect);
@@ -2273,9 +2273,10 @@ function initReportsSystem() {
       secFilterContainer.classList.add('hidden');
       secSelect.innerHTML = '';
       
-      const fillFilter = async (sheetName, textCol, valCol, labelTxt) => {
+      const fillFilter = async (sheetName, textCol, valCol, labelKey) => {
+        const labelTxt = t(labelKey);
         secFilterLabel.textContent = labelTxt;
-        secSelect.innerHTML = `<option value="">Loading...</option>`;
+        secSelect.innerHTML = `<option value="">${t('report.loading')}</option>`;
         secFilterContainer.classList.remove('hidden');
         try {
           const data = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName } });
@@ -2289,7 +2290,7 @@ function initReportsSystem() {
             };
             const keys = Object.keys(data.records[0]);
 
-            secSelect.innerHTML = `<option value="">-- Select ${labelTxt} --</option>` + data.records.map(r => {
+            secSelect.innerHTML = `<option value="">${t('report.selectOption', { label: labelTxt })}</option>` + data.records.map(r => {
               
               // 1. Try to find exactly what we asked for
               let display = findMatch(r, textCol);
@@ -2311,44 +2312,44 @@ function initReportsSystem() {
                  display = value + " - " + display;
               }
               
-              return `<option value="${value || 'Unknown'}">${display || 'Unknown'}</option>`;
+              return `<option value="${value || 'Unknown'}">${display || t('report.unknown')}</option>`;
             }).join('');
-          } else { secSelect.innerHTML = `<option value="">No data found</option>`; }
-        } catch(err) { secSelect.innerHTML = `<option value="">Error loading</option>`; }
+          } else { secSelect.innerHTML = `<option value="">${t('report.noData')}</option>`; }
+        } catch(err) { secSelect.innerHTML = `<option value="">${t('report.errorLoading')}</option>`; }
       };
 
       // Routes the secondary dropdown to fetch the correct lists from your database
-      if (val === 'customer_details') await fillFilter('Customers', ["Customer Name", "Name"], ["System Unique ID", "Sys UID", "UNIQUEID"], "Select Customer");
-      else if (val === 'supplier_details') await fillFilter('Suppliers', ["Supplier Name"], ["Supplier Name"], "Select Supplier");
-      else if (val === 'hr_details') await fillFilter('HR', ["Employee Name"], ["Employee Name"], "Select Employee");
-      else if (val === 'user_transaction' || val === 'individual_user') await fillFilter('Users', ["Username"], ["Username"], "Select User");
+      if (val === 'customer_details') await fillFilter('Customers', ["Customer Name", "Name"], ["System Unique ID", "Sys UID", "UNIQUEID"], 'report.selectCustomer');
+      else if (val === 'supplier_details') await fillFilter('Suppliers', ["Supplier Name"], ["Supplier Name"], 'report.selectSupplier');
+      else if (val === 'hr_details') await fillFilter('HR', ["Employee Name"], ["Employee Name"], 'report.selectEmployee');
+      else if (val === 'user_transaction' || val === 'individual_user') await fillFilter('Users', ["Username"], ["Username"], 'report.selectUser');
       
       // EXTREMELY BROAD DICTIONARY FOR NEW REPORTS:
       else if (val === 'expense_details') {
-        secFilterLabel.textContent = 'Select Expense Head (Parent > Sub Head)';
-        secSelect.innerHTML = `<option value="">Loading...</option>`;
+        secFilterLabel.textContent = t('report.selectExpenseHead');
+        secSelect.innerHTML = `<option value="">${t('report.loading')}</option>`;
         secFilterContainer.classList.remove('hidden');
         try {
           const data = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: 'Expense_Heads' } });
           if (data.success && data.records && data.records.length > 0) {
-            secSelect.innerHTML = `<option value="">-- Select Expense Head --</option>` + data.records.map((r) => {
+            secSelect.innerHTML = `<option value="">${t('report.selectExpenseHeadShort')}</option>` + data.records.map((r) => {
               const mainHead = getCol(r, ["Expense Parent Head", "Parent Head", "Main Head", "Parent Category"]) || '';
               const subHead = getCol(r, ["Sub Head Name", "Sub Head", "SubCategory"]) || '';
-              const display = subHead ? `${mainHead} > ${subHead}` : (mainHead || 'Unknown');
+              const display = subHead ? `${mainHead} > ${subHead}` : (mainHead || t('report.unknown'));
               const value = `${mainHead}|||${subHead}`;
               return `<option value="${String(value).replace(/"/g, '&quot;')}">${display}</option>`;
             }).join('');
           } else {
-            secSelect.innerHTML = `<option value="">No expense heads found</option>`;
+            secSelect.innerHTML = `<option value="">${t('report.noExpenseHeads')}</option>`;
           }
         } catch (err) {
-          secSelect.innerHTML = `<option value="">Error loading</option>`;
+          secSelect.innerHTML = `<option value="">${t('report.errorLoading')}</option>`;
         }
       }
-      else if (val === 'creditor_details') await fillFilter('Creditor_Heads', ["Creditor Parent Head", "Creditor Name", "Creditor", "Name", "Head"], ["Creditor Parent Head", "Creditor Name", "Creditor", "Name", "Head"], "Select Creditor");
+      else if (val === 'creditor_details') await fillFilter('Creditor_Heads', ["Creditor Parent Head", "Creditor Name", "Creditor", "Name", "Head"], ["Creditor Parent Head", "Creditor Name", "Creditor", "Name", "Head"], 'report.selectCreditor');
       
       // --- THE MISSING INCOME ROUTE! ---
-      else if (val === 'income_details') await fillFilter('Income_Heads', ["Income Parent Head", "Parent Head", "Main Head", "Name"], ["System Unique ID", "Tracking ID", "ID", "Income Parent Head", "Parent Head"], "Select Income Account");
+      else if (val === 'income_details') await fillFilter('Income_Heads', ["Income Parent Head", "Parent Head", "Main Head", "Name"], ["System Unique ID", "Tracking ID", "ID", "Income Parent Head", "Parent Head"], 'report.selectIncomeAccount');
       
     });
   }
@@ -2356,11 +2357,11 @@ function initReportsSystem() {
   if (btnGen) {
     btnGen.addEventListener('click', async () => {
       const repType = typeSelect.value;
-      if (!repType) { alert("Please select a Master Report type."); return; }
-      if (!fDateInput.value || !tDateInput.value) { alert("Please select a valid date range."); return; }
+      if (!repType) { alert(t('report.alertSelectType')); return; }
+      if (!fDateInput.value || !tDateInput.value) { alert(t('report.alertSelectDates')); return; }
       
       if (!secFilterContainer.classList.contains('hidden') && !secSelect.value) {
-        alert("Please select a specific target from the dropdown.");
+        alert(t('report.alertSelectTarget'));
         return;
       }
 
@@ -2397,7 +2398,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <thead id="report-table-head" class="bg-slate-800 text-white sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
           </thead>
           <tbody id="report-table-body" class="divide-y text-gray-600 font-medium">
-             <tr><td class="p-6 text-center text-blue-500 font-bold animate-pulse">Running advanced ERP query...</td></tr>
+             <tr><td class="p-6 text-center text-blue-500 font-bold animate-pulse">${t('report.runningQuery')}</td></tr>
           </tbody>
         </table>
      </div>
@@ -2408,8 +2409,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
   headEl.classList.remove('hidden');
   cardsEl.classList.remove('hidden');
-  dateEl.textContent = `Date Range: ${fDate.toLocaleDateString()} to ${tDate.toLocaleDateString()}`;
-  tgtEl.textContent = secText && secVal ? `Target Entity: ${secText}` : '';
+  dateEl.textContent = t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() });
+  tgtEl.textContent = secText && secVal ? t('report.targetEntity', { name: secText }) : '';
   cardsEl.innerHTML = ''; 
 
   const drawCard = (title, val, colorClass) => {
@@ -2453,7 +2454,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // ====================================================================
       case 'daily_monthly':
       case 'daily_cashflow': {
-        titleEl.textContent = "Accounts Cash Flow Report";
+        titleEl.textContent = t('report.titleCashFlow');
         
         let lifeCashIn = 0, lifeCardIn = 0, lifeCashOut = 0;
         let rngCashIn = 0, rngCardIn = 0, rngCashOut = 0;
@@ -2555,29 +2556,29 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-4 md:p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Cash IN</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeCashIn')}</div>
                    <div class="text-xl md:text-3xl font-black text-emerald-600 font-mono mt-1 break-all">SAR ${lifeCashIn.toFixed(2)}</div>
                 </div>
                 <div class="text-left sm:text-center xl:border-l xl:border-gray-100 xl:pl-4">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Card IN</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeCardIn')}</div>
                    <div class="text-xl md:text-3xl font-black text-purple-600 font-mono mt-1 break-all">SAR ${lifeCardIn.toFixed(2)}</div>
                 </div>
                 <div class="text-left sm:text-center xl:border-l xl:border-gray-100 xl:pl-4">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Cash OUT</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeCashOut')}</div>
                    <div class="text-xl md:text-3xl font-black text-red-600 font-mono mt-1 break-all">SAR ${lifeCashOut.toFixed(2)}</div>
                 </div>
                 <div class="text-left sm:text-right xl:border-l xl:border-gray-100 xl:pl-4">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Net Flow</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeNetFlow')}</div>
                    <div class="text-xl md:text-3xl font-black ${lifeNet >= 0 ? 'text-blue-600' : 'text-red-600'} font-mono mt-1 break-all">SAR ${lifeNet.toFixed(2)}</div>
-                   <div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(Cash In + Card In - Cash Out)</div>
+                   <div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">${t('report.lifetimeNetHint')}</div>
                 </div>
              </div>
              ${hasDates ? `
              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 bg-blue-50 p-3 md:p-4 rounded-lg border border-blue-100">
-                <div class="text-left sm:text-center"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Cash IN</div><div class="text-base md:text-lg font-bold text-emerald-700 font-mono mt-1 break-all">SAR ${rngCashIn.toFixed(2)}</div></div>
-                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">Range Card IN</div><div class="text-base md:text-lg font-bold text-purple-700 font-mono mt-1 break-all">SAR ${rngCardIn.toFixed(2)}</div></div>
-                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-red-600 text-[10px] font-bold uppercase tracking-wider">Range Cash OUT</div><div class="text-base md:text-lg font-bold text-red-700 font-mono mt-1 break-all">SAR ${rngCashOut.toFixed(2)}</div></div>
-                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Net Flow</div><div class="text-base md:text-lg font-bold text-blue-700 font-mono mt-1 break-all">SAR ${rngNet.toFixed(2)}</div></div>
+                <div class="text-left sm:text-center"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCashIn')}</div><div class="text-base md:text-lg font-bold text-emerald-700 font-mono mt-1 break-all">SAR ${rngCashIn.toFixed(2)}</div></div>
+                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCardIn')}</div><div class="text-base md:text-lg font-bold text-purple-700 font-mono mt-1 break-all">SAR ${rngCardIn.toFixed(2)}</div></div>
+                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-red-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCashOut')}</div><div class="text-base md:text-lg font-bold text-red-700 font-mono mt-1 break-all">SAR ${rngCashOut.toFixed(2)}</div></div>
+                <div class="text-left sm:text-center xl:border-l xl:border-blue-200 xl:pl-4"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeNetFlow')}</div><div class="text-base md:text-lg font-bold text-blue-700 font-mono mt-1 break-all">SAR ${rngNet.toFixed(2)}</div></div>
              </div>
              ` : ''}
           </div>
@@ -2586,14 +2587,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         tableContainer.innerHTML = `
           <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-             <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">Cash & Card Flow Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+             <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">${t('report.cashFlowLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
              <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
-               <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Flow Type</th><th class="p-2.5 font-semibold">Source/Destination</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+               <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colFlowType')}</th><th class="p-2.5 font-semibold">${t('report.colSourceDest')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                   <tbody class="divide-y divide-gray-100">
                      ${flowRows.length > 0 ? flowRows.sort((a,b)=> b.d - a.d).map(r => {
                         let clr = r.type.includes("IN") ? (r.type.includes("Card") ? "text-purple-600" : "text-emerald-600") : "text-red-600";
-                        return `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${r.d.toLocaleDateString()}</td><td class="p-2.5 font-bold ${clr}">${r.type}</td><td class="p-2.5 text-gray-700">${r.src}</td><td class="p-2.5 font-mono font-bold whitespace-nowrap">SAR ${r.amt.toFixed(2)}</td><td class="p-2.5 truncate max-w-[140px] text-gray-600" title="${r.rem || '-'}">${r.rem || '-'}</td><td class="p-2.5">${r.user}</td></tr>`
-                     }).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-400">No cash flow activity.</td></tr>`}
+                        return `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${r.d.toLocaleDateString()}</td><td class="p-2.5 font-bold ${clr}">${getReportFlowTypeLabel(r.type, t)}</td><td class="p-2.5 text-gray-700">${getReportSourceLabel(r.src, t)}</td><td class="p-2.5 font-mono font-bold whitespace-nowrap">SAR ${r.amt.toFixed(2)}</td><td class="p-2.5 truncate max-w-[140px] text-gray-600" title="${r.rem || '-'}">${r.rem || '-'}</td><td class="p-2.5">${r.user}</td></tr>`
+                     }).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-400">${t('report.noCashFlow')}</td></tr>`}
                   </tbody>
                </table>
              </div>
@@ -2606,7 +2607,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 2. MASTER EXECUTIVE DASHBOARD (FINAL HR PREVIOUS DUE FIX)
       // ====================================================================
       case 'master_executive': {
-        titleEl.textContent = "Executive Aggregate Financial Report";
+        titleEl.textContent = t('report.titleExecutive');
         
         // This instantly removes spaces so "Previous Due" always matches!
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase(); 
@@ -2796,7 +2797,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                    </div>
                </div>
                <div class="mt-4 pt-3 border-t ${mode === 'lifetime' ? 'bg-gray-50' : 'bg-purple-50'} -mx-5 -mb-5 p-3 rounded-b-xl text-center">
-                   <div class="text-[10px] font-bold ${mode === 'lifetime' ? 'text-gray-500' : 'text-purple-700'} uppercase tracking-widest">${mode === 'lifetime' ? 'Lifetime Balance / Due' : 'Range Balance / Due'}</div>
+                   <div class="text-[10px] font-bold ${mode === 'lifetime' ? 'text-gray-500' : 'text-purple-700'} uppercase tracking-widest">${mode === 'lifetime' ? t('report.lifetimeBalanceDue') : t('report.rangeBalanceDue')}</div>
                    <div class="text-xl font-black ${(incL - paidL) > 0 ? 'text-red-500' : 'text-emerald-500'} font-mono mt-1">SAR ${(incL - paidL).toFixed(2)}</div>
                </div>
             </div>
@@ -2805,69 +2806,69 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         cardsEl.innerHTML = `
           <div class="col-span-full bg-slate-900 rounded-xl shadow-lg p-6 mb-6 flex flex-wrap justify-between items-center text-white border-b-4 border-slate-700">
              <div class="w-full md:w-1/3 text-center md:text-left mb-4 md:mb-0">
-                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Total Market Receivable</div>
+                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">${t('report.totalMarketReceivable')}</div>
                 <div class="text-3xl font-bold text-emerald-400 font-mono">SAR ${totalReceivable.toFixed(2)}</div>
              </div>
              <div class="w-full md:w-1/3 text-center mb-4 md:mb-0 border-y md:border-y-0 md:border-x border-slate-700 py-4 md:py-0">
-                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Total Company Payable</div>
+                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">${t('report.totalCompanyPayable')}</div>
                 <div class="text-3xl font-bold text-red-400 font-mono">SAR ${totalPayable.toFixed(2)}</div>
              </div>
              <div class="w-full md:w-1/3 text-center md:text-right">
-                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">Net Enterprise Position</div>
+                <div class="text-[10px] text-slate-400 uppercase font-black tracking-widest mb-1">${t('report.netEnterprisePosition')}</div>
                 <div class="text-4xl font-black ${netStatus >= 0 ? 'text-blue-400' : 'text-orange-400'} font-mono">SAR ${netStatus.toFixed(2)}</div>
-                <div class="text-[9px] ${netStatus >= 0 ? 'text-blue-500' : 'text-orange-500'} uppercase font-bold mt-1">${netStatus >= 0 ? '(Positive Liquidity)' : '(Negative Liquidity)'}</div>
+                <div class="text-[9px] ${netStatus >= 0 ? 'text-blue-500' : 'text-orange-500'} uppercase font-bold mt-1">${netStatus >= 0 ? t('report.positiveLiquidity') : t('report.negativeLiquidity')}</div>
              </div>
           </div>
           
           <div class="col-span-full mb-2">
-             <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest border-b pb-2 flex items-center gap-2"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg> Lifetime Aggregates (All Time)</h2>
+             <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest border-b pb-2 flex items-center gap-2"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg> ${t('report.lifetimeAggregates')}</h2>
           </div>
           <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-             ${buildBox("Customer Sales", d.sales.lInc, d.sales.lPaid, "Sold Amount", "Received Amount", "sales", "lifetime")}
-             ${buildBox("Other Income", d.income.lInc, d.income.lPaid, "Incurred Amount", "Received Amount", "income", "lifetime")}
-             ${buildBox("Supplier Purchases", d.purchase.lInc, d.purchase.lPaid, "Purchase Amount", "Paid Amount", "purchase", "lifetime")}
-             ${buildBox("Operational Expenses", d.expense.lInc, d.expense.lPaid, "Incurred Amount", "Paid Amount", "expense", "lifetime")}
-             ${buildBox("HR & Payroll", d.hr.lInc, d.hr.lPaid, "Salary Earned", "Salary Paid", "hr", "lifetime")}
-             ${buildBox("Creditor Liabilities", d.creditor.lInc, d.creditor.lPaid, "Received (Loaned)", "Returned (Paid)", "creditor", "lifetime")}
+             ${buildBox(t('report.boxCustomerSales'), d.sales.lInc, d.sales.lPaid, t('report.soldAmount'), t('report.receivedAmount'), "sales", "lifetime")}
+             ${buildBox(t('report.boxOtherIncome'), d.income.lInc, d.income.lPaid, t('report.incurredAmount'), t('report.receivedAmount'), "income", "lifetime")}
+             ${buildBox(t('report.boxSupplierPurchases'), d.purchase.lInc, d.purchase.lPaid, t('report.purchaseAmount'), t('report.paidAmountLabel'), "purchase", "lifetime")}
+             ${buildBox(t('report.boxOperationalExpenses'), d.expense.lInc, d.expense.lPaid, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "lifetime")}
+             ${buildBox(t('report.boxHrPayroll'), d.hr.lInc, d.hr.lPaid, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "lifetime")}
+             ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.lInc, d.creditor.lPaid, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "lifetime")}
           </div>
           
           ${hasDates ? `
           <div class="col-span-full bg-blue-50 border border-blue-200 rounded-xl shadow-sm p-4 mb-6 flex justify-around items-center">
-             <div class="text-center"><div class="text-[9px] text-blue-500 uppercase font-bold tracking-widest">Range Receivable Generated</div><div class="text-xl font-bold text-blue-700 font-mono mt-1">SAR ${rngReceivable.toFixed(2)}</div></div>
-             <div class="text-center border-l border-blue-200 pl-6"><div class="text-[9px] text-orange-500 uppercase font-bold tracking-widest">Range Payable Generated</div><div class="text-xl font-bold text-orange-700 font-mono mt-1">SAR ${rngPayable.toFixed(2)}</div></div>
-             <div class="text-center border-l border-blue-200 pl-6"><div class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">Range Net Shift</div><div class="text-xl font-bold ${rngNetStatus >= 0 ? 'text-emerald-600' : 'text-red-600'} font-mono mt-1">SAR ${rngNetStatus.toFixed(2)}</div></div>
+             <div class="text-center"><div class="text-[9px] text-blue-500 uppercase font-bold tracking-widest">${t('report.rangeReceivableGenerated')}</div><div class="text-xl font-bold text-blue-700 font-mono mt-1">SAR ${rngReceivable.toFixed(2)}</div></div>
+             <div class="text-center border-l border-blue-200 pl-6"><div class="text-[9px] text-orange-500 uppercase font-bold tracking-widest">${t('report.rangePayableGenerated')}</div><div class="text-xl font-bold text-orange-700 font-mono mt-1">SAR ${rngPayable.toFixed(2)}</div></div>
+             <div class="text-center border-l border-blue-200 pl-6"><div class="text-[9px] text-slate-500 uppercase font-bold tracking-widest">${t('report.rangeNetShift')}</div><div class="text-xl font-bold ${rngNetStatus >= 0 ? 'text-emerald-600' : 'text-red-600'} font-mono mt-1">SAR ${rngNetStatus.toFixed(2)}</div></div>
           </div>
           
           <div class="col-span-full mb-2">
-             <h2 class="text-xs font-black text-purple-600 uppercase tracking-widest border-b border-purple-200 pb-2 flex items-center gap-2"><svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> Selected Range Aggregates</h2>
+             <h2 class="text-xs font-black text-purple-600 uppercase tracking-widest border-b border-purple-200 pb-2 flex items-center gap-2"><svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> ${t('report.selectedRangeAggregates')}</h2>
           </div>
           <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
-             ${buildBox("Customer Sales", d.sales.rInc, d.sales.rPaid, "Sold Amount", "Received Amount", "sales", "range")}
-             ${buildBox("Other Income", d.income.rInc, d.income.rPaid, "Incurred Amount", "Received Amount", "income", "range")}
-             ${buildBox("Supplier Purchases", d.purchase.rInc, d.purchase.rPaid, "Purchase Amount", "Paid Amount", "purchase", "range")}
-             ${buildBox("Operational Expenses", d.expense.rInc, d.expense.rPaid, "Incurred Amount", "Paid Amount", "expense", "range")}
-             ${buildBox("HR & Payroll", d.hr.rInc, d.hr.rPaid, "Salary Earned", "Salary Paid", "hr", "range")}
-             ${buildBox("Creditor Liabilities", d.creditor.rInc, d.creditor.rPaid, "Received (Loaned)", "Returned (Paid)", "creditor", "range")}
+             ${buildBox(t('report.boxCustomerSales'), d.sales.rInc, d.sales.rPaid, t('report.soldAmount'), t('report.receivedAmount'), "sales", "range")}
+             ${buildBox(t('report.boxOtherIncome'), d.income.rInc, d.income.rPaid, t('report.incurredAmount'), t('report.receivedAmount'), "income", "range")}
+             ${buildBox(t('report.boxSupplierPurchases'), d.purchase.rInc, d.purchase.rPaid, t('report.purchaseAmount'), t('report.paidAmountLabel'), "purchase", "range")}
+             ${buildBox(t('report.boxOperationalExpenses'), d.expense.rInc, d.expense.rPaid, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "range")}
+             ${buildBox(t('report.boxHrPayroll'), d.hr.rInc, d.hr.rPaid, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "range")}
+             ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.rInc, d.creditor.rPaid, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "range")}
           </div>` : ''}
         `;
         cardsEl.className = "grid grid-cols-1 mb-2";
 
         tableContainer.innerHTML = `
-          <div class="text-center text-gray-400 text-xs font-bold mt-4 animate-pulse">Click any card above to view its detailed transaction ledger.</div>
+          <div class="text-center text-gray-400 text-xs font-bold mt-4 animate-pulse">${t('report.clickCardHint')}</div>
           <div id="agg-modal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
              <div class="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden border border-gray-200">
                 <div class="bg-slate-800 p-4 flex justify-between items-center text-white">
-                   <h2 id="agg-modal-title" class="text-lg font-black uppercase tracking-wider text-blue-400">Ledger Details</h2>
+                   <h2 id="agg-modal-title" class="text-lg font-black uppercase tracking-wider text-blue-400">${t('report.ledgerDetails')}</h2>
                    <button onclick="window.closeAggModal()" class="text-slate-400 hover:text-white transition font-bold text-2xl leading-none">&times;</button>
                 </div>
                 <div class="p-4 bg-gray-50 flex justify-around border-b border-gray-200 text-center">
-                   <div><div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="agg-l1">Incurred</div><div id="agg-v1" class="text-xl font-bold text-blue-600 font-mono">0.00</div></div>
-                   <div class="border-l pl-8"><div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="agg-l2">Paid</div><div id="agg-v2" class="text-xl font-bold text-emerald-600 font-mono">0.00</div></div>
+                   <div><div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="agg-l1">${t('report.colIncurred')}</div><div id="agg-v1" class="text-xl font-bold text-blue-600 font-mono">0.00</div></div>
+                   <div class="border-l pl-8"><div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="agg-l2">${t('report.colPaid')}</div><div id="agg-v2" class="text-xl font-bold text-emerald-600 font-mono">0.00</div></div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-4">
                    <table class="w-full text-left text-xs">
                       <thead class="bg-gray-100 text-gray-600 sticky top-0 border-b">
-                         <tr><th class="p-3 font-semibold">Date</th><th class="p-3 font-semibold" id="agg-h1">Incurred</th><th class="p-3 font-semibold" id="agg-h2">Paid</th><th class="p-3 font-semibold">Remarks</th><th class="p-3 font-semibold">User</th></tr>
+                         <tr><th class="p-3 font-semibold">${t('col.date')}</th><th class="p-3 font-semibold" id="agg-h1">${t('report.colIncurred')}</th><th class="p-3 font-semibold" id="agg-h2">${t('report.colPaid')}</th><th class="p-3 font-semibold">${t('col.remarks')}</th><th class="p-3 font-semibold">${t('report.colUser')}</th></tr>
                       </thead>
                       <tbody id="agg-modal-body" class="divide-y divide-gray-100"></tbody>
                    </table>
@@ -2880,12 +2881,12 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
             const m = document.getElementById('agg-modal'); const data = window.aggReportData[key];
             if (!m || !data) return;
 
-            document.getElementById('agg-modal-title').textContent = title + (mode === 'range' ? " (Range Filtered)" : " (Lifetime)");
-            let l1 = "Incurred", l2 = "Paid";
-            if(key === 'sales') { l1 = "Sold"; l2 = "Received"; }
-            if(key === 'purchase') { l1 = "Purchased"; }
-            if(key === 'hr') { l1 = "Earned"; }
-            if(key === 'creditor') { l1 = "Received"; l2 = "Returned"; }
+            document.getElementById('agg-modal-title').textContent = title + (mode === 'range' ? ' ' + t('report.rangeFiltered') : ' ' + t('report.lifetimeSuffix'));
+            let l1 = t('report.colIncurred'), l2 = t('report.colPaid');
+            if(key === 'sales') { l1 = t('report.aggSold'); l2 = t('report.aggReceived'); }
+            if(key === 'purchase') { l1 = t('report.aggPurchased'); }
+            if(key === 'hr') { l1 = t('report.aggEarned'); }
+            if(key === 'creditor') { l1 = t('report.aggReceived'); l2 = t('report.aggReturned'); }
             
             document.getElementById('agg-l1').textContent = l1; document.getElementById('agg-h1').textContent = l1;
             document.getElementById('agg-l2').textContent = l2; document.getElementById('agg-h2').textContent = l2;
@@ -2898,7 +2899,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
             let rowsToDisplay = mode === 'range' ? data.rows.filter(r => r.inRange) : data.rows;
             let sorted = rowsToDisplay.sort((a,b) => b.d - a.d);
             
-            if (sorted.length === 0) { tBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">No transactions found in this view.</td></tr>`; } 
+            if (sorted.length === 0) { tBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">${t('report.noTransactionsView')}</td></tr>`; } 
             else {
                 tBody.innerHTML = sorted.map(r => `
                     <tr class="hover:bg-gray-50">
@@ -2918,7 +2919,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       }
 
       case 'pnl': {
-        titleEl.textContent = "Profit & Loss Statement";
+        titleEl.textContent = t('report.titlePnl');
         let revSales = 0; let revIncome = 0;
         let expSup = 0; let expOp = 0; let expHR = 0;
 
@@ -2934,21 +2935,21 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         let netProfit = totalRev - totalExp;
 
         cardsEl.innerHTML = 
-          drawCard("Gross Revenue", totalRev, "text-emerald-600") +
-          drawCard("Gross Expenses", totalExp, "text-red-600") +
-          drawCard("Net Profit/Loss", netProfit, netProfit >= 0 ? "text-blue-600" : "text-red-600");
+          drawCard(t('report.grossRevenue'), totalRev, "text-emerald-600") +
+          drawCard(t('report.grossExpenses'), totalExp, "text-red-600") +
+          drawCard(t('report.netProfitLoss'), netProfit, netProfit >= 0 ? "text-blue-600" : "text-red-600");
         cardsEl.className = "grid grid-cols-1 md:grid-cols-3 gap-4 mb-6";
 
-        tHead.innerHTML = `<tr><th class="p-3">Category</th><th class="p-3">Classification</th><th class="p-3 text-right">Amount (SAR)</th></tr>`;
+        tHead.innerHTML = `<tr><th class="p-3">${t('col.category')}</th><th class="p-3">${t('report.colClassification')}</th><th class="p-3 text-right">${t('report.colAmountSar')}</th></tr>`;
         tBody.innerHTML = `
-          <tr class="bg-emerald-50"><td class="p-3 font-bold text-emerald-800" colspan="3">REVENUES</td></tr>
-          <tr class="border-b"><td class="p-3 pl-6">Customer Sales (Billed)</td><td>Operating Revenue</td><td class="text-right font-mono">${revSales.toFixed(2)}</td></tr>
-          <tr class="border-b"><td class="p-3 pl-6">Other Income (Billed)</td><td>Operating Revenue</td><td class="text-right font-mono">${revIncome.toFixed(2)}</td></tr>
-          <tr class="bg-red-50"><td class="p-3 font-bold text-red-800" colspan="3">EXPENSES</td></tr>
-          <tr class="border-b"><td class="p-3 pl-6">Cost of Goods Sold (Suppliers)</td><td>Direct Cost</td><td class="text-right font-mono">${expSup.toFixed(2)}</td></tr>
-          <tr class="border-b"><td class="p-3 pl-6">Operational Expenses</td><td>Overhead</td><td class="text-right font-mono">${expOp.toFixed(2)}</td></tr>
-          <tr class="border-b"><td class="p-3 pl-6">HR & Payroll (Earned)</td><td>Overhead</td><td class="text-right font-mono">${expHR.toFixed(2)}</td></tr>
-          <tr class="bg-slate-100 font-bold text-lg border-t-2 border-slate-300"><td class="p-4 uppercase" colspan="2">Net Profit / Loss</td><td class="text-right font-mono ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}">${netProfit.toFixed(2)}</td></tr>
+          <tr class="bg-emerald-50"><td class="p-3 font-bold text-emerald-800" colspan="3">${t('report.revenues')}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.customerSalesBilled')}</td><td>${t('report.operatingRevenue')}</td><td class="text-right font-mono">${revSales.toFixed(2)}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.otherIncomeBilled')}</td><td>${t('report.operatingRevenue')}</td><td class="text-right font-mono">${revIncome.toFixed(2)}</td></tr>
+          <tr class="bg-red-50"><td class="p-3 font-bold text-red-800" colspan="3">${t('report.expensesSection')}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.cogsSuppliers')}</td><td>${t('report.directCost')}</td><td class="text-right font-mono">${expSup.toFixed(2)}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.operationalExpenses')}</td><td>${t('report.overhead')}</td><td class="text-right font-mono">${expOp.toFixed(2)}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.hrPayrollEarned')}</td><td>${t('report.overhead')}</td><td class="text-right font-mono">${expHR.toFixed(2)}</td></tr>
+          <tr class="bg-slate-100 font-bold text-lg border-t-2 border-slate-300"><td class="p-4 uppercase" colspan="2">${t('report.netProfitSlashLoss')}</td><td class="text-right font-mono ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}">${netProfit.toFixed(2)}</td></tr>
         `;
         break;
       }
@@ -2956,7 +2957,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // REDESIGNED RECEIVABLE & PAYABLE REPORT (FIXED DYNAMIC MATH)
       // ====================================================================
       case 'receivable_payable': {
-        titleEl.textContent = "Receivable & Payable Detailed Report";
+        titleEl.textContent = t('report.titleReceivablePayable');
 
         let recvCustomers = []; let recvIncome = []; let paySuppliers = []; let payHR = []; let payCreditors = [];
         let tRecvCust = 0; let tRecvInc = 0; let tPaySup = 0; let tPayHR = 0; let tPayCrd = 0;
@@ -3093,7 +3094,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         let tPayTotal = tPaySup + tPayHR + tPayCrd;
         let netBalance = tRecv - tPayTotal;
-        let statusText = netBalance < 0 ? "IMBALANCE (Owe More Than Owed)" : "BALANCE (Healthy)";
+        let statusText = netBalance < 0 ? t('report.statusImbalance') : t('report.statusBalanceHealthy');
         let statusColor = netBalance < 0 ? "text-red-800 bg-red-200" : "text-emerald-800 bg-emerald-200";
 
         recvCustomers.sort((a,b) => b.amt - a.amt); recvIncome.sort((a,b) => b.amt - a.amt);
@@ -3104,25 +3105,25 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-6">
              <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
                 <div class="text-left w-1/3">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Total Receivable (Market)</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.totalReceivableMarket')}</div>
                   <div class="text-2xl font-black text-emerald-600 font-mono mt-1">SAR ${tRecv.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Total Payable (Liabilities)</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.totalPayableLiabilities')}</div>
                   <div class="text-2xl font-black text-red-600 font-mono mt-1">SAR ${tPayTotal.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Net Position (Recv - Pay)</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.netPosition')}</div>
                   <div class="text-2xl font-black font-mono mt-1 ${netBalance < 0 ? 'text-red-600' : 'text-blue-600'}">SAR ${netBalance.toFixed(2)}</div>
                   <div class="mt-2"><span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider shadow-sm ${statusColor}">${statusText}</span></div>
                 </div>
              </div>
              <div class="flex flex-wrap justify-around bg-gray-50 p-4 rounded-lg gap-4">
-                ${tRecvCust > 0 ? `<div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Customer Receivable</div><div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${tRecvCust.toFixed(2)}</div></div>` : ''}
-                ${tRecvInc > 0 ? `<div class="text-center ${tRecvCust > 0 ? 'border-l pl-8 border-gray-200' : ''}"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Income Receivable</div><div class="text-lg font-bold text-indigo-500 font-mono mt-1">SAR ${tRecvInc.toFixed(2)}</div></div>` : ''}
-                ${tPaySup > 0 ? `<div class="text-center border-l pl-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Supplier Payable</div><div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${tPaySup.toFixed(2)}</div></div>` : ''}
-                ${tPayHR > 0 ? `<div class="text-center border-l pl-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Salary Payable</div><div class="text-lg font-bold text-orange-500 font-mono mt-1">SAR ${tPayHR.toFixed(2)}</div></div>` : ''}
-                ${tPayCrd > 0 ? `<div class="text-center border-l pl-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Creditor Payable</div><div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${tPayCrd.toFixed(2)}</div></div>` : ''}
+                ${tRecvCust > 0 ? `<div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.customerReceivable')}</div><div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${tRecvCust.toFixed(2)}</div></div>` : ''}
+                ${tRecvInc > 0 ? `<div class="text-center ${tRecvCust > 0 ? 'border-l pl-8 border-gray-200' : ''}"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.incomeReceivable')}</div><div class="text-lg font-bold text-indigo-500 font-mono mt-1">SAR ${tRecvInc.toFixed(2)}</div></div>` : ''}
+                ${tPaySup > 0 ? `<div class="text-center border-l pl-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.supplierPayable')}</div><div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${tPaySup.toFixed(2)}</div></div>` : ''}
+                ${tPayHR > 0 ? `<div class="text-center border-l pl-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.salaryPayable')}</div><div class="text-lg font-bold text-orange-500 font-mono mt-1">SAR ${tPayHR.toFixed(2)}</div></div>` : ''}
+                ${tPayCrd > 0 ? `<div class="text-center border-l pl-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.creditorPayable')}</div><div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${tPayCrd.toFixed(2)}</div></div>` : ''}
              </div>
           </div>
         `;
@@ -3130,22 +3131,22 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         let listsHtml = '';
         if (recvCustomers.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Customer Receivables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Customer Name & UID</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${recvCustomers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-emerald-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.customerReceivablesList')}</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">${t('report.colSl')}</th><th class="p-2.5">${t('report.colCustomerNameUid')}</th><th class="p-2.5 text-right pr-6">${t('report.colAmountSar')}</th></tr></thead><tbody class="divide-y divide-gray-100">${recvCustomers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-emerald-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (recvIncome.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-indigo-50 text-indigo-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-indigo-100 text-center">Other Income Receivables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Income Head & UID</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${recvIncome.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-indigo-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-indigo-50 text-indigo-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-indigo-100 text-center">${t('report.incomeReceivablesList')}</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">${t('report.colSl')}</th><th class="p-2.5">${t('report.colIncomeHeadUid')}</th><th class="p-2.5 text-right pr-6">${t('report.colAmountSar')}</th></tr></thead><tbody class="divide-y divide-gray-100">${recvIncome.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name} <br><span class="text-[9px] text-gray-400 font-mono font-normal">${c.id}</span></td><td class="p-2.5 text-right pr-6 font-mono font-bold text-indigo-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (paySuppliers.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">Supplier Payables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Supplier Name</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${paySuppliers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-red-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">${t('report.supplierPayablesList')}</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">${t('report.colSl')}</th><th class="p-2.5">${t('col.supplierName')}</th><th class="p-2.5 text-right pr-6">${t('report.colAmountSar')}</th></tr></thead><tbody class="divide-y divide-gray-100">${paySuppliers.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-red-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (payHR.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-orange-50 text-orange-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-orange-100 text-center">Salary Payables List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Employee Name</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${payHR.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-orange-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-orange-50 text-orange-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-orange-100 text-center">${t('report.salaryPayablesList')}</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">${t('report.colSl')}</th><th class="p-2.5">${t('report.colEmployeeName')}</th><th class="p-2.5 text-right pr-6">${t('report.colAmountSar')}</th></tr></thead><tbody class="divide-y divide-gray-100">${payHR.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-orange-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
         if (payCreditors.length > 0) {
-           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-purple-50 text-purple-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-purple-100 text-center">Creditor Payables (Loans) List</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">Sl.</th><th class="p-2.5">Creditor Name / Head</th><th class="p-2.5 text-right pr-6">Amount (SAR)</th></tr></thead><tbody class="divide-y divide-gray-100">${payCreditors.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-purple-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
+           listsHtml += `<div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white mb-2"><div class="bg-purple-50 text-purple-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-purple-100 text-center">${t('report.creditorPayablesList')}</div><div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b sticky top-0"><tr><th class="p-2.5 w-12 text-center">${t('report.colSl')}</th><th class="p-2.5">${t('report.colCreditorNameHead')}</th><th class="p-2.5 text-right pr-6">${t('report.colAmountSar')}</th></tr></thead><tbody class="divide-y divide-gray-100">${payCreditors.map((c, i) => `<tr class="hover:bg-gray-50"><td class="p-2.5 text-center text-gray-400 font-mono">${i+1}</td><td class="p-2.5 font-bold">${c.name}</td><td class="p-2.5 text-right pr-6 font-mono font-bold text-purple-600">${c.amt.toFixed(2)}</td></tr>`).join('')}</tbody></table></div></div>`;
         }
 
-        if (listsHtml === '') listsHtml = `<div class="col-span-2 p-6 text-center text-gray-500 font-bold border border-gray-200 bg-gray-50 rounded-xl">No outstanding Receivables or Payables found across the enterprise.</div>`;
+        if (listsHtml === '') listsHtml = `<div class="col-span-2 p-6 text-center text-gray-500 font-bold border border-gray-200 bg-gray-50 rounded-xl">${t('report.noOutstanding')}</div>`;
 
         tableContainer.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">${listsHtml}</div>`;
         break;
@@ -3155,7 +3156,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 1. EXPENSE DETAILS REPORT (WITH UNIVERSAL ROW SCANNER)
       // ====================================================================
       case 'expense_details': {
-        titleEl.textContent = "Expense Statement Ledger";
+        titleEl.textContent = t('report.titleExpenseStatement');
         
         let cdIncurred = []; let cdPayments = [];
         let lifeInc = 0, lifePaid = 0;
@@ -3227,22 +3228,22 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left w-1/3">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Incurred</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalIncurred')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeInc.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Paid</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifePaid.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due / Payable</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDuePayable')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
              </div>
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Incurred</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngInc.toFixed(2)}</div></div>
-                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Paid</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeIncurred')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngInc.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaid')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
         `;
@@ -3251,25 +3252,25 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Incurred Expense Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.incurredExpenseLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Incurred Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colIncurredAmt')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdIncurred.length > 0 ? cdIncurred.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td><td class="p-2.5">${s.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No expenses incurred.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noExpensesIncurred')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Made Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.paymentsMadeLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Paid Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.paidAmt')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdPayments.length > 0 ? cdPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5">${p.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No payments made.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noPaymentsMade')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -3283,7 +3284,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 2. CREDITOR DETAILS REPORT (WITH UNIVERSAL ROW SCANNER)
       // ====================================================================
       case 'creditor_details': {
-        titleEl.textContent = "Creditor Statement Ledger";
+        titleEl.textContent = t('report.titleCreditorStatement');
         
         let cdReceived = []; let cdReturned = [];
         let lifeRecv = 0, lifeRet = 0;
@@ -3334,22 +3335,22 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left w-1/3">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Received (Loaned)</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceivedLoaned')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeRecv.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Returned (Paid)</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReturnedPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeRet.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due / Payable</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDuePayable')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
              </div>
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Received</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngRecv.toFixed(2)}</div></div>
-                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Returned</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngRet.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReceived')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngRecv.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReturned')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngRet.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
         `;
@@ -3358,25 +3359,25 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Funds Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.fundsReceivedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Received Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colReceivedAmt')}</th><th class="p-2.5 font-semibold">${t('col.method')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReceived.length > 0 ? cdReceived.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 font-bold text-gray-600">${s.meth}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5">${s.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No funds received.</td></tr>`}
+                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noFundsReceived')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Funds Returned Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.fundsReturnedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Returned Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colReturnedAmt')}</th><th class="p-2.5 font-semibold">${t('col.method')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReturned.length > 0 ? cdReturned.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 font-bold text-gray-600">${p.meth}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5">${p.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No funds returned.</td></tr>`}
+                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noFundsReturned')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -3390,7 +3391,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 3. INCOME DETAILS REPORT (WITH ID TRANSLATOR & INTERCEPTOR)
       // ====================================================================
       case 'income_details': {
-        titleEl.textContent = "Income Statement Ledger";
+        titleEl.textContent = t('report.titleIncomeStatement');
         
         let incReceivables = []; let incReceivedLogs = [];
         let lifeReceivable = 0, lifeReceived = 0;
@@ -3485,22 +3486,22 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left w-1/3">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Receivable</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceivable')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeReceivable.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Received</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceived')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeReceived.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due (Market Owes Us)</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDueMarketOwes')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-blue-600' : 'text-gray-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
              </div>
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Receivable</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngReceivable.toFixed(2)}</div></div>
-                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Received</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngReceived.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReceivable')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngReceivable.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReceived')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngReceived.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
         `;
@@ -3509,29 +3510,29 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Receivable Ledger (Due Increasing)</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.receivableLedger')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${incReceivables.length > 0 ? incReceivables.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50">
                               <td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td>
                               <td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">
                                  ${Number(s.amt).toFixed(2)}
-                                 ${s.type === 'Previous Due' ? `<br><span class="text-[9px] text-gray-400 font-normal leading-none bg-gray-100 px-1 rounded border border-gray-200">Previous Due</span>` : ''}
+                                 ${s.type === 'Previous Due' ? `<br><span class="text-[9px] text-gray-400 font-normal leading-none bg-gray-100 px-1 rounded border border-gray-200">${t('report.previousDue')}</span>` : ''}
                               </td>
                               <td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td>
                               <td class="p-2.5">${s.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No receivables logged.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noReceivables')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Received Ledger (Due Decreasing)</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.receivedLedger')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${incReceivedLogs.length > 0 ? incReceivedLogs.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50">
@@ -3540,7 +3541,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                               <td class="p-2.5 truncate max-w-[120px]" title="${p.rem}">${p.rem}</td>
                               <td class="p-2.5">${p.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No funds received.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noFundsReceived')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -3554,7 +3555,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 2. CREDITOR DETAILS REPORT (WITH UNIVERSAL ROW SCANNER)
       // ====================================================================
       case 'creditor_details': {
-        titleEl.textContent = "Creditor Statement Ledger";
+        titleEl.textContent = t('report.titleCreditorStatement');
         
         let cdReceived = []; let cdReturned = [];
         let lifeRecv = 0, lifeRet = 0;
@@ -3605,22 +3606,22 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left w-1/3">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Received (Loaned)</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceivedLoaned')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeRecv.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Returned (Paid)</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReturnedPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeRet.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due / Payable</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDuePayable')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
              </div>
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Received</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngRecv.toFixed(2)}</div></div>
-                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Returned</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngRet.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReceived')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngRecv.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReturned')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngRet.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
         `;
@@ -3629,25 +3630,25 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Funds Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.fundsReceivedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Received Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colReceivedAmt')}</th><th class="p-2.5 font-semibold">${t('col.method')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReceived.length > 0 ? cdReceived.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 font-bold text-gray-600">${s.meth}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5">${s.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No funds received.</td></tr>`}
+                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noFundsReceived')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Funds Returned Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.fundsReturnedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Returned Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colReturnedAmt')}</th><th class="p-2.5 font-semibold">${t('col.method')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReturned.length > 0 ? cdReturned.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 font-bold text-gray-600">${p.meth}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5">${p.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No funds returned.</td></tr>`}
+                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noFundsReturned')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -3661,7 +3662,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // REDESIGNED CUSTOMER STATEMENT VIEW (LIFETIME + RANGE LOGIC)
       // ====================================================================
       case 'customer_details': {
-        titleEl.textContent = "Customer Statement Ledger";
+        titleEl.textContent = t('report.titleCustomerStatement');
         
         let cdSales = []; let cdPayments = [];
         
@@ -3777,25 +3778,25 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left w-1/3">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Sold</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalSold')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeSold.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Paid</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifePaid.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due / Balance</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDueBalance')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
              </div>
              
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Sold</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngSold.toFixed(2)}</div></div>
-                <div class="text-center border-l border-r px-8 border-blue-200"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Paid</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
-                <div class="text-center border-r pr-8 border-blue-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Cash In</div><div class="text-sm font-bold text-emerald-500 font-mono mt-1">SAR ${rngCash.toFixed(2)}</div></div>
-                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Card In</div><div class="text-sm font-bold text-purple-500 font-mono mt-1">SAR ${rngCard.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeSold')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngSold.toFixed(2)}</div></div>
+                <div class="text-center border-l border-r px-8 border-blue-200"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaid')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
+                <div class="text-center border-r pr-8 border-blue-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCashIn')}</div><div class="text-sm font-bold text-emerald-500 font-mono mt-1">SAR ${rngCash.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCardIn')}</div><div class="text-sm font-bold text-purple-500 font-mono mt-1">SAR ${rngCard.toFixed(2)}</div></div>
              </div>
              ` : ''}
           </div>
@@ -3805,11 +3806,11 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Sales & Billing Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.salesBillingLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Sold Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
+                        <tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.soldAmt')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdSales.length > 0 ? cdSales.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
@@ -3819,28 +3820,28 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                              <td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td>
                              <td class="p-2.5">${s.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No sales generated.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noSalesGenerated')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.paymentsReceivedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Paid Amt</th><th class="p-2.5 font-semibold">Type</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
+                        <tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.paidAmt')}</th><th class="p-2.5 font-semibold">${t('report.colType')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdPayments.length > 0 ? cdPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50">
                              <td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td>
                              <td class="p-2.5 font-mono font-bold ${p.amt < 0 ? 'text-red-500' : 'text-emerald-600'} whitespace-nowrap">${Number(p.amt).toFixed(2)}</td>
-                             <td class="p-2.5 font-bold ${p.meth.toUpperCase() === 'CASH' ? 'text-emerald-600' : 'text-blue-600'}">${p.meth}</td>
+                             <td class="p-2.5 font-bold ${p.meth.toUpperCase() === 'CASH' ? 'text-emerald-600' : 'text-blue-600'}">${p.meth.toUpperCase() === 'CASH' ? t('option.cash') : p.meth.toUpperCase() === 'CARD' ? t('option.card') : p.meth}</td>
                              <td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td>
                              <td class="p-2.5">${p.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No payments received.</td></tr>`}
+                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noPaymentsReceived')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -3854,7 +3855,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 1. EXPENSE DETAILS REPORT (LIFETIME + RANGE ARCHITECTURE)
       // ====================================================================
       case 'expense_details': {
-        titleEl.textContent = "Expense Statement Ledger";
+        titleEl.textContent = t('report.titleExpenseStatement');
         
         let cdIncurred = []; let cdPayments = [];
         let lifeInc = 0, lifePaid = 0;
@@ -3909,22 +3910,22 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left w-1/3">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Incurred</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalIncurred')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeInc.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Paid</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifePaid.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due / Payable</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDuePayable')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
              </div>
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Incurred</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngInc.toFixed(2)}</div></div>
-                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Paid</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeIncurred')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngInc.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaid')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
         `;
@@ -3933,25 +3934,25 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Incurred Expense Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.incurredExpenseLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Incurred Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colIncurredAmt')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdIncurred.length > 0 ? cdIncurred.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td><td class="p-2.5">${s.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No expenses incurred.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noExpensesIncurred')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Made Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.paymentsMadeLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Paid Amt</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.paidAmt')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdPayments.length > 0 ? cdPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5">${p.usr}</td></tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No payments made.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noPaymentsMade')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -3965,7 +3966,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 2. CREDITOR DETAILS REPORT (WITH PREVIOUS DUE INTERCEPTOR)
       // ====================================================================
       case 'creditor_details': {
-        titleEl.textContent = "Creditor Statement Ledger";
+        titleEl.textContent = t('report.titleCreditorStatement');
         
         let cdReceived = []; let cdReturned = [];
         let lifeRecv = 0, lifeRet = 0;
@@ -4027,22 +4028,22 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
                 <div class="text-left w-1/3">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Received (Loaned)</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceivedLoaned')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeRecv.toFixed(2)}</div>
                 </div>
                 <div class="text-center w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Returned (Paid)</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReturnedPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeRet.toFixed(2)}</div>
                 </div>
                 <div class="text-right w-1/3 border-l border-gray-100">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due / Payable</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDuePayable')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
              </div>
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Received</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngRecv.toFixed(2)}</div></div>
-                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Returned</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngRet.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReceived')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngRecv.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReturned')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngRet.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
         `;
@@ -4051,30 +4052,30 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Funds Received Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.fundsReceivedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Received Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colReceivedAmt')}</th><th class="p-2.5 font-semibold">${t('col.method')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReceived.length > 0 ? cdReceived.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50">
                               <td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td>
                               <td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">
                                  ${Number(s.amt).toFixed(2)}
-                                 ${s.type === 'Previous Due' ? `<br><span class="text-[9px] text-gray-400 font-normal leading-none bg-gray-100 px-1 rounded border border-gray-200">Previous Due</span>` : ''}
+                                 ${s.type === 'Previous Due' ? `<br><span class="text-[9px] text-gray-400 font-normal leading-none bg-gray-100 px-1 rounded border border-gray-200">${t('report.previousDue')}</span>` : ''}
                               </td>
                               <td class="p-2.5 font-bold text-gray-600">${s.meth}</td>
                               <td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td>
                               <td class="p-2.5">${s.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No funds received.</td></tr>`}
+                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noFundsReceived')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Funds Returned Ledger ${hasDates ? '(Selected Range)' : '(All Time)'}</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.fundsReturnedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Returned Amt</th><th class="p-2.5 font-semibold">Method</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colReturnedAmt')}</th><th class="p-2.5 font-semibold">${t('col.method')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdReturned.length > 0 ? cdReturned.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50">
@@ -4084,7 +4085,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                               <td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td>
                               <td class="p-2.5">${p.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No funds returned.</td></tr>`}
+                        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noFundsReturned')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -4098,7 +4099,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // REDESIGNED SUPPLIER STATEMENT VIEW (WITH PREVIOUS DUE INTERCEPTOR)
       // ----------------------------------------------------
       case 'supplier_details': {
-        titleEl.textContent = "Supplier Statement Ledger";
+        titleEl.textContent = t('report.titleSupplierStatement');
         
         let allSupTxns = rSupT.success ? rSupT.records.filter(r => getCol(r, ["Supplier Name"]) === secVal) : [];
         
@@ -4164,26 +4165,26 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              
              <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
                 <div class="text-left">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Purchase / Due</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalPurchaseDue')}</div>
                   <div class="text-2xl font-black text-red-600 font-mono mt-1">SAR ${globalPur.toFixed(2)}</div>
                 </div>
                 <div class="text-center">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Payments Made</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimePaymentsMade')}</div>
                   <div class="text-2xl font-black text-emerald-600 font-mono mt-1">SAR ${globalPay.toFixed(2)}</div>
                 </div>
                 <div class="text-right">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Current Due / Balance</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentDueBalance')}</div>
                   <div class="text-2xl font-black text-orange-600 font-mono mt-1">SAR ${globalDue.toFixed(2)}</div>
                 </div>
              </div>
 
              <div class="flex justify-around bg-gray-50 p-4 rounded-lg">
                 <div class="text-center">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Purchases (${fDate.toLocaleDateString()} to ${tDate.toLocaleDateString()})</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePurchasesTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
                    <div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${sdRangePur.toFixed(2)}</div>
                 </div>
                 <div class="text-center">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Payments (${fDate.toLocaleDateString()} to ${tDate.toLocaleDateString()})</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaymentsTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
                    <div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${sdRangePay.toFixed(2)}</div>
                 </div>
              </div>
@@ -4196,34 +4197,34 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">Purchases Ledger (Due Increasing)</div>
+                <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">${t('report.purchasesLedgerDueInc')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">Purchase Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
+                        <tr><th class="p-2.5 font-semibold">${t('report.purchaseDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${sdPurchases.length > 0 ? sdPurchases.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50">
                              <td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td>
                              <td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">
-                                ${Number(s.amt).toFixed(2)}<br><span class="text-[9px] text-gray-400 font-normal leading-none">${s.type}</span>
+                                ${Number(s.amt).toFixed(2)}<br><span class="text-[9px] text-gray-400 font-normal leading-none">${s.type === 'Previous Due' ? t('report.previousDue') : t('report.purchaseType')}</span>
                              </td>
                              <td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td>
                              <td class="p-2.5">${s.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No purchases generated in this range.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noPurchasesInRange')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
 
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Payments Ledger (Due Decreasing)</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.paymentsLedgerDueDec')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">Payment Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
+                        <tr><th class="p-2.5 font-semibold">${t('report.paymentDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${sdPayments.length > 0 ? sdPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -4233,7 +4234,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                              <td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td>
                              <td class="p-2.5">${p.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No payments made in this range.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noPaymentsInRange')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -4247,7 +4248,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // REDESIGNED USER SELLS PERFORMANCE REPORT (BUG FIXED)
       // ====================================================================
       case 'user_transaction': {
-        titleEl.textContent = "User Sells Performance Report";
+        titleEl.textContent = t('report.titleUserPerformance');
 
         let pLifeSold = 0, pLifeRecv = 0, pLifeCash = 0, pLifeCard = 0;
         let monthlyData = {};
@@ -4357,10 +4358,10 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-4 md:p-6 rounded-xl shadow-sm mb-2 gap-4 md:gap-6">
              <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 md:gap-4 border-gray-100">
-                <div class="text-left"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Sold Amount</div><div class="text-lg md:text-2xl font-black text-blue-600 font-mono mt-1 break-all">SAR ${pLifeSold.toFixed(2)}</div></div>
-                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Received</div><div class="text-lg md:text-2xl font-black text-emerald-600 font-mono mt-1 break-all">SAR ${pLifeRecv.toFixed(2)}</div><div class="text-[10px] font-bold text-gray-500 mt-2">Cash: <span class="text-emerald-500 text-sm ml-1">${pLifeCash.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">Card: <span class="text-purple-500 text-sm ml-1">${pLifeCard.toFixed(2)}</span></div></div>
-                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Due/Balance</div><div class="text-lg md:text-2xl font-black text-red-600 font-mono mt-1 break-all">SAR ${pLifeDue.toFixed(2)}</div></div>
-                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100 bg-gray-50 rounded-xl p-3 shadow-inner"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Current Live Cash Drawer</div><div class="text-xl md:text-3xl font-black ${drawerColor} font-mono mt-2 break-all">SAR ${pLiveDrawer.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(${isSecValAdmin ? 'Customer Cash In - Transfers Out' : 'Customer Cash In - All Spends Out'})</div></div>
+                <div class="text-left"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeSoldAmount')}</div><div class="text-lg md:text-2xl font-black text-blue-600 font-mono mt-1 break-all">SAR ${pLifeSold.toFixed(2)}</div></div>
+                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceived')}</div><div class="text-lg md:text-2xl font-black text-emerald-600 font-mono mt-1 break-all">SAR ${pLifeRecv.toFixed(2)}</div><div class="text-[10px] font-bold text-gray-500 mt-2">${t('report.cashLabel')} <span class="text-emerald-500 text-sm ml-1">${pLifeCash.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">${t('report.cardLabel')} <span class="text-purple-500 text-sm ml-1">${pLifeCard.toFixed(2)}</span></div></div>
+                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDueSlashBalance')}</div><div class="text-lg md:text-2xl font-black text-red-600 font-mono mt-1 break-all">SAR ${pLifeDue.toFixed(2)}</div></div>
+                <div class="text-left xl:border-l xl:pl-4 xl:border-gray-100 bg-gray-50 rounded-xl p-3 shadow-inner"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentLiveCashDrawer')}</div><div class="text-xl md:text-3xl font-black ${drawerColor} font-mono mt-2 break-all">SAR ${pLiveDrawer.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(${isSecValAdmin ? t('report.drawerHintAdmin') : t('report.drawerHintUser')})</div></div>
              </div>
           </div>
         `;
@@ -4368,14 +4369,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         tableContainer.innerHTML = `
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">Month-wise Sales & Collection Performance</div>
+                <div class="bg-slate-800 text-white font-bold p-2.5 md:p-3 uppercase tracking-wide text-[10px] md:text-xs border-b border-slate-900 text-center">${t('report.monthWisePerformance')}</div>
                 <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
-                  <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-3 font-semibold">Month & Year</th><th class="p-3 font-semibold text-right">Sold Amount</th><th class="p-3 font-semibold text-right">Received Amount</th><th class="p-3 font-semibold text-right">Due / Balance Generated</th></tr></thead>
+                  <table class="erp-report-table w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-3 font-semibold">${t('report.colMonthYear')}</th><th class="p-3 font-semibold text-right">${t('report.soldAmount')}</th><th class="p-3 font-semibold text-right">${t('report.receivedAmount')}</th><th class="p-3 font-semibold text-right">${t('report.colDueBalanceGen')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
                         ${Object.keys(monthlyData).length > 0 ? Object.keys(monthlyData).sort().reverse().map(m => {
                            let d = monthlyData[m]; let monthDue = d.sold - d.recv;
                            return `<tr class="hover:bg-gray-50"><td class="p-3 font-bold text-gray-800 uppercase tracking-wider">${d.label}</td><td class="p-3 text-right font-mono font-bold text-blue-600">SAR ${d.sold.toFixed(2)}</td><td class="p-3 text-right font-mono font-bold text-emerald-600">SAR ${d.recv.toFixed(2)}</td><td class="p-3 text-right font-mono font-bold ${monthDue > 0 ? 'text-red-600' : 'text-emerald-600'}">SAR ${monthDue.toFixed(2)}</td></tr>`;
-                        }).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No sales performance data found for this user.</td></tr>`}
+                        }).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noSalesPerformanceData')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -4388,7 +4389,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 2. INDIVIDUAL USER AUDIT VIEW
       // ====================================================================
       case 'individual_user': {
-        titleEl.textContent = "Individual User Financial Audit";
+        titleEl.textContent = t('report.titleIndividualUser');
         
         let uLifeSold = 0, uLifeCardIn = 0, uLifeCashIn = 0, uLifeCashOut = 0, uLifeTransfer = 0;
         let uRangeSold = 0, uRangeCardIn = 0, uRangeCashIn = 0, uRangeCashOut = 0, uRangeTransfer = 0;
@@ -4495,17 +4496,17 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-6">
              <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
-                <div class="text-left w-1/4"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Sold</div><div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${uLifeSold.toFixed(2)}</div></div>
-                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Collections</div><div class="text-[10px] font-bold text-gray-500 mt-2">Cash In: <span class="text-emerald-500 text-sm ml-1">${uLifeCashIn.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">Card In: <span class="text-purple-500 text-sm ml-1">${uLifeCardIn.toFixed(2)}</span></div></div>
-                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Transferred (To Admin)</div><div class="text-2xl font-black text-teal-600 font-mono mt-1">SAR ${uLifeTransfer.toFixed(2)}</div></div>
-                <div class="text-right w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Current User Cash Balance</div><div class="text-3xl font-black ${uBColor} font-mono mt-1">SAR ${uLiveCashBalance.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(Auto-Adjusts when Cash Received/Spent)</div></div>
+                <div class="text-left w-1/4"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeSold')}</div><div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${uLifeSold.toFixed(2)}</div></div>
+                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeCollections')}</div><div class="text-[10px] font-bold text-gray-500 mt-2">${t('report.cashInLabel')} <span class="text-emerald-500 text-sm ml-1">${uLifeCashIn.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">${t('report.cardInLabel')} <span class="text-purple-500 text-sm ml-1">${uLifeCardIn.toFixed(2)}</span></div></div>
+                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.transferredToAdmin')}</div><div class="text-2xl font-black text-teal-600 font-mono mt-1">SAR ${uLifeTransfer.toFixed(2)}</div></div>
+                <div class="text-right w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentUserCashBalance')}</div><div class="text-3xl font-black ${uBColor} font-mono mt-1">SAR ${uLiveCashBalance.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">${t('report.autoAdjustHint')}</div></div>
              </div>
              <div class="flex justify-around bg-gray-50 p-4 rounded-lg">
-                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Sold</div><div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${uRangeSold.toFixed(2)}</div></div>
-                <div class="text-center border-l border-r px-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Cash In</div><div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${uRangeCashIn.toFixed(2)}</div></div>
-                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Card In</div><div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${uRangeCardIn.toFixed(2)}</div></div>
-                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Out (Spent)</div><div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${uRangeCashOut.toFixed(2)}</div></div>
-                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Transferred to Admin</div><div class="text-lg font-bold text-teal-500 font-mono mt-1">SAR ${uRangeTransfer.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeSold')}</div><div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${uRangeSold.toFixed(2)}</div></div>
+                <div class="text-center border-l border-r px-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCashIn')}</div><div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${uRangeCashIn.toFixed(2)}</div></div>
+                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCardIn')}</div><div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${uRangeCardIn.toFixed(2)}</div></div>
+                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeOutSpent')}</div><div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${uRangeCashOut.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeTransferredAdmin')}</div><div class="text-lg font-bold text-teal-500 font-mono mt-1">SAR ${uRangeTransfer.toFixed(2)}</div></div>
              </div>
           </div>
         `;
@@ -4514,17 +4515,17 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">User Collections (Cash & Card In)</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category/UID</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.userCollectionsLedger')}</div>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colCategoryUid')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
-                        ${leftTable.length > 0 ? leftTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5 font-mono text-[10px] text-gray-500">${s.cat}</td><td class="p-2.5">${s.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No collections in this range.</td></tr>`}
+                        ${leftTable.length > 0 ? leftTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5 font-mono text-[10px] text-gray-500">${s.cat}</td><td class="p-2.5">${s.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noCollectionsInRange')}</td></tr>`}
                      </tbody>
                   </table></div></div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">User Expenditures & Transfers (Cash Out)</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">${t('report.userExpendituresLedger')}</div>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colCategory')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
-                        ${rightTable.length > 0 ? rightTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5 font-bold text-[10px] ${p.cat === 'Internal Transfer' ? 'text-teal-600' : 'text-gray-700'}">${p.cat}</td><td class="p-2.5">${p.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No spends or transfers in this range.</td></tr>`}
+                        ${rightTable.length > 0 ? rightTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5 font-bold text-[10px] ${p.cat === 'Internal Transfer' ? 'text-teal-600' : 'text-gray-700'}">${p.cat}</td><td class="p-2.5">${p.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noSpendsTransfers')}</td></tr>`}
                      </tbody>
                   </table></div></div>
           </div>
@@ -4536,7 +4537,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // REDESIGNED HR STATEMENT VIEW (WITH PREVIOUS DUE INTERCEPTOR)
       // ----------------------------------------------------
       case 'hr_details': {
-        titleEl.textContent = "HR & Payroll Statement Ledger";
+        titleEl.textContent = t('report.titleHrPayroll');
         
         let allHrTxns = rHrT.success ? rHrT.records.filter(r => getCol(r, ["Employee Name"]) === secVal) : [];
         
@@ -4583,26 +4584,26 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
              
              <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
                 <div class="text-left">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Total Earned / Due</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalEarnedDue')}</div>
                   <div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${globalEarn.toFixed(2)}</div>
                 </div>
                 <div class="text-center">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Salary Paid</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeSalaryPaid')}</div>
                   <div class="text-2xl font-black text-emerald-600 font-mono mt-1">SAR ${globalPaid.toFixed(2)}</div>
                 </div>
                 <div class="text-right">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Current Due / Balance</div>
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentDueBalance')}</div>
                   <div class="text-2xl font-black ${(globalDueHr > 0) ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${globalDueHr.toFixed(2)}</div>
                 </div>
              </div>
 
              <div class="flex justify-around bg-gray-50 p-4 rounded-lg">
                 <div class="text-center">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Earned (${fDate.toLocaleDateString()} to ${tDate.toLocaleDateString()})</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeEarnedTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
                    <div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${hrRangeEarn.toFixed(2)}</div>
                 </div>
                 <div class="text-center">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Paid (${fDate.toLocaleDateString()} to ${tDate.toLocaleDateString()})</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaidTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
                    <div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${hrRangePaid.toFixed(2)}</div>
                 </div>
              </div>
@@ -4615,34 +4616,34 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">Salary Earned Ledger (Due Increasing)</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.salaryEarnedLedger')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">Earned Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
+                        <tr><th class="p-2.5 font-semibold">${t('report.earnedDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${hrEarns.length > 0 ? hrEarns.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
                            <tr class="hover:bg-gray-50">
                              <td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td>
                              <td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">
-                                ${Number(s.amt).toFixed(2)}<br><span class="text-[9px] text-gray-400 font-normal leading-none">${s.type}</span>
+                                ${Number(s.amt).toFixed(2)}<br><span class="text-[9px] text-gray-400 font-normal leading-none">${getCategoryLabel(s.type, t)}</span>
                              </td>
                              <td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td>
                              <td class="p-2.5">${s.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No earnings logged in this range.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noEarningsInRange')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
              </div>
 
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">Salary Paid Ledger (Due Decreasing)</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.salaryPaidLedger')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">Payment Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">User</th></tr>
+                        <tr><th class="p-2.5 font-semibold">${t('report.paymentDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${hrPayments.length > 0 ? hrPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
@@ -4652,7 +4653,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                              <td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td>
                              <td class="p-2.5">${p.usr}</td>
                            </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">No payments made in this range.</td></tr>`}
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noPaymentsInRange')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -4666,7 +4667,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       // 2. INDIVIDUAL USER AUDIT VIEW
       // ====================================================================
       case 'individual_user': {
-        titleEl.textContent = "Individual User Financial Audit";
+        titleEl.textContent = t('report.titleIndividualUser');
         
         let uLifeSold = 0, uLifeCardIn = 0, uLifeCashIn = 0, uLifeCashOut = 0, uLifeTransfer = 0;
         let uRangeSold = 0, uRangeCardIn = 0, uRangeCashIn = 0, uRangeCashOut = 0, uRangeTransfer = 0;
@@ -4773,17 +4774,17 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-6">
              <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
-                <div class="text-left w-1/4"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Sold</div><div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${uLifeSold.toFixed(2)}</div></div>
-                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Lifetime Collections</div><div class="text-[10px] font-bold text-gray-500 mt-2">Cash In: <span class="text-emerald-500 text-sm ml-1">${uLifeCashIn.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">Card In: <span class="text-purple-500 text-sm ml-1">${uLifeCardIn.toFixed(2)}</span></div></div>
-                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Transferred (To Admin)</div><div class="text-2xl font-black text-teal-600 font-mono mt-1">SAR ${uLifeTransfer.toFixed(2)}</div></div>
-                <div class="text-right w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Current User Cash Balance</div><div class="text-3xl font-black ${uBColor} font-mono mt-1">SAR ${uLiveCashBalance.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">(Auto-Adjusts when Cash Received/Spent)</div></div>
+                <div class="text-left w-1/4"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeSold')}</div><div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${uLifeSold.toFixed(2)}</div></div>
+                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeCollections')}</div><div class="text-[10px] font-bold text-gray-500 mt-2">${t('report.cashInLabel')} <span class="text-emerald-500 text-sm ml-1">${uLifeCashIn.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">${t('report.cardInLabel')} <span class="text-purple-500 text-sm ml-1">${uLifeCardIn.toFixed(2)}</span></div></div>
+                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.transferredToAdmin')}</div><div class="text-2xl font-black text-teal-600 font-mono mt-1">SAR ${uLifeTransfer.toFixed(2)}</div></div>
+                <div class="text-right w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentUserCashBalance')}</div><div class="text-3xl font-black ${uBColor} font-mono mt-1">SAR ${uLiveCashBalance.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">${t('report.autoAdjustHint')}</div></div>
              </div>
              <div class="flex justify-around bg-gray-50 p-4 rounded-lg">
-                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Sold</div><div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${uRangeSold.toFixed(2)}</div></div>
-                <div class="text-center border-l border-r px-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Cash In</div><div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${uRangeCashIn.toFixed(2)}</div></div>
-                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Card In</div><div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${uRangeCardIn.toFixed(2)}</div></div>
-                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Out (Spent)</div><div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${uRangeCashOut.toFixed(2)}</div></div>
-                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Range Transferred to Admin</div><div class="text-lg font-bold text-teal-500 font-mono mt-1">SAR ${uRangeTransfer.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeSold')}</div><div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${uRangeSold.toFixed(2)}</div></div>
+                <div class="text-center border-l border-r px-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCashIn')}</div><div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${uRangeCashIn.toFixed(2)}</div></div>
+                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCardIn')}</div><div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${uRangeCardIn.toFixed(2)}</div></div>
+                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeOutSpent')}</div><div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${uRangeCashOut.toFixed(2)}</div></div>
+                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeTransferredAdmin')}</div><div class="text-lg font-bold text-teal-500 font-mono mt-1">SAR ${uRangeTransfer.toFixed(2)}</div></div>
              </div>
           </div>
         `;
@@ -4792,17 +4793,17 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
         tableContainer.innerHTML = `
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">User Collections (Cash & Card In)</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category/UID</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.userCollectionsLedger')}</div>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colCategoryUid')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
-                        ${leftTable.length > 0 ? leftTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5 font-mono text-[10px] text-gray-500">${s.cat}</td><td class="p-2.5">${s.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No collections in this range.</td></tr>`}
+                        ${leftTable.length > 0 ? leftTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5 font-mono text-[10px] text-gray-500">${s.cat}</td><td class="p-2.5">${s.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noCollectionsInRange')}</td></tr>`}
                      </tbody>
                   </table></div></div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">User Expenditures & Transfers (Cash Out)</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">Date</th><th class="p-2.5 font-semibold">Amount</th><th class="p-2.5 font-semibold">Remarks</th><th class="p-2.5 font-semibold">Category</th><th class="p-2.5 font-semibold">User</th></tr></thead>
+                <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">${t('report.userExpendituresLedger')}</div>
+                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colCategory')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
                      <tbody class="divide-y divide-gray-100">
-                        ${rightTable.length > 0 ? rightTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5 font-bold text-[10px] ${p.cat === 'Internal Transfer' ? 'text-teal-600' : 'text-gray-700'}">${p.cat}</td><td class="p-2.5">${p.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">No spends or transfers in this range.</td></tr>`}
+                        ${rightTable.length > 0 ? rightTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5 font-bold text-[10px] ${p.cat === 'Internal Transfer' ? 'text-teal-600' : 'text-gray-700'}">${p.cat}</td><td class="p-2.5">${p.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noSpendsTransfers')}</td></tr>`}
                      </tbody>
                   </table></div></div>
           </div>
@@ -4812,8 +4813,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
       // ----------------------------------------------------
       case 'expense_report': {
-        titleEl.textContent = "Expense Report";
-        tgtEl.textContent = "All Expense Heads & Sub Heads";
+        titleEl.textContent = t('report.titleExpenseReport');
+        tgtEl.textContent = t('report.allExpenseHeadsTarget');
 
         const txns = rExp.success && Array.isArray(rExp.records) ? rExp.records : [];
         const heads = rExpHeads.success && Array.isArray(rExpHeads.records) ? rExpHeads.records : [];
@@ -4823,26 +4824,26 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
-             <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Lifetime Summary (All Time)</div>
+             <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">${t('report.lifetimeSummary')}</div>
              <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
                 <div class="text-left w-full sm:w-1/3 mb-3 sm:mb-0">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Total Incurred / Deposit</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.totalIncurredDeposit')}</div>
                    <div class="text-2xl md:text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeTotals.inc.toFixed(2)}</div>
                 </div>
                 <div class="text-left sm:text-center w-full sm:w-1/3 mb-3 sm:mb-0 sm:border-l sm:border-gray-100 sm:pl-4">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Total Paid</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalPaid')}</div>
                    <div class="text-2xl md:text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeTotals.paid.toFixed(2)}</div>
                 </div>
                 <div class="text-left sm:text-right w-full sm:w-1/3 sm:border-l sm:border-gray-100 sm:pl-4">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">Due / Balance</div>
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.colBalance')}</div>
                    <div class="text-2xl md:text-3xl font-black ${lifeTotals.due > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeTotals.due.toFixed(2)}</div>
                 </div>
              </div>
-             <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 pt-1">Selected Date Range Summary</div>
+             <div class="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 pt-1">${t('report.selectedDateRangeSummary')}</div>
              <div class="flex flex-wrap justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
-                <div class="text-center px-2"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Range Incurred</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngTotals.inc.toFixed(2)}</div></div>
-                <div class="text-center px-2 border-l border-blue-200"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">Range Paid</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngTotals.paid.toFixed(2)}</div></div>
-                <div class="text-center px-2 border-l border-blue-200"><div class="text-red-600 text-[10px] font-bold uppercase tracking-wider">Range Due</div><div class="text-lg font-bold ${rngTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'} font-mono mt-1">SAR ${rngTotals.due.toFixed(2)}</div></div>
+                <div class="text-center px-2"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeIncurred')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngTotals.inc.toFixed(2)}</div></div>
+                <div class="text-center px-2 border-l border-blue-200"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaid')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngTotals.paid.toFixed(2)}</div></div>
+                <div class="text-center px-2 border-l border-blue-200"><div class="text-red-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeDue')}</div><div class="text-lg font-bold ${rngTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'} font-mono mt-1">SAR ${rngTotals.due.toFixed(2)}</div></div>
              </div>
           </div>
         `;
@@ -4866,17 +4867,17 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
         tableContainer.innerHTML = `
           <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-            <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs text-center">Expense Head & Sub Head Summary (Selected Date Range)</div>
+            <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs text-center">${t('report.expenseHeadSummary')}</div>
             <div class="erp-report-scroll overflow-x-auto">
               <table class="erp-report-table w-full text-left border-collapse text-xs">
                 <thead class="bg-gray-100 text-gray-600 uppercase border-b whitespace-nowrap">
                   <tr>
-                    <th class="p-2.5 w-12 text-center">Sl.</th>
-                    <th class="p-2.5">Parent Head</th>
-                    <th class="p-2.5">Sub Head</th>
-                    <th class="p-2.5 text-right">Total Incurred</th>
-                    <th class="p-2.5 text-right">Total Paid</th>
-                    <th class="p-2.5 text-right">Due / Balance</th>
+                    <th class="p-2.5 w-12 text-center">${t('report.colSl')}</th>
+                    <th class="p-2.5">${t('report.colParentHead')}</th>
+                    <th class="p-2.5">${t('report.colSubHead')}</th>
+                    <th class="p-2.5 text-right">${t('report.colTotalIncurred')}</th>
+                    <th class="p-2.5 text-right">${t('report.colTotalPaid')}</th>
+                    <th class="p-2.5 text-right">${t('report.colBalance')}</th>
                   </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 text-gray-700">
@@ -4889,12 +4890,12 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                       <td class="p-2.5 text-right font-mono font-bold text-emerald-600">${row.paid.toFixed(2)}</td>
                       <td class="p-2.5 text-right font-mono font-bold ${row.due > 0 ? 'text-red-600' : 'text-emerald-600'}">${row.due.toFixed(2)}</td>
                     </tr>
-                  `).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-400 font-bold">${heads.length > 0 ? 'No expense activity found for the selected date range.' : 'No expense heads configured. Add heads in Expense Heads module first.'}</td></tr>`}
+                  `).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-400 font-bold">${heads.length > 0 ? t('report.noExpenseActivity') : t('report.noExpenseHeadsConfigured')}</td></tr>`}
                 </tbody>
                 ${listRows.length > 0 ? `
                 <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-bold">
                   <tr>
-                    <td class="p-2.5 text-right uppercase text-[10px] text-gray-500" colspan="3">Grand Total (Date Range)</td>
+                    <td class="p-2.5 text-right uppercase text-[10px] text-gray-500" colspan="3">${t('report.grandTotalRange')}</td>
                     <td class="p-2.5 text-right font-mono text-blue-700">${rngTotals.inc.toFixed(2)}</td>
                     <td class="p-2.5 text-right font-mono text-emerald-700">${rngTotals.paid.toFixed(2)}</td>
                     <td class="p-2.5 text-right font-mono ${rngTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'}">${rngTotals.due.toFixed(2)}</td>
@@ -4908,12 +4909,12 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
       }
 
       default:
-        tBody.innerHTML = `<tr><td class="p-6 text-center text-red-500 font-bold">This specific report module is under construction or not fully defined.</td></tr>`;
+        tBody.innerHTML = `<tr><td class="p-6 text-center text-red-500 font-bold">${t('report.underConstruction')}</td></tr>`;
     }
 
   } catch (err) {
     console.error(err);
-    tBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-red-500 font-bold">Error generating report.</td></tr>`;
+    tBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-red-500 font-bold">${t('alert.errorGenerate')}</td></tr>`;
   }
 }
 
@@ -5080,10 +5081,12 @@ function updateDashboardInsightsSummary(globalBalance, drawerCount) {
   if (!summary) return;
   const parts = [];
   if (globalBalance !== null && globalBalance !== undefined) {
-    parts.push(`Balance SAR ${Number(globalBalance).toFixed(2)}`);
+    parts.push(t('dash.balanceSummary', { amount: Number(globalBalance).toFixed(2) }));
   }
-  if (drawerCount > 0) parts.push(`${drawerCount} drawer${drawerCount === 1 ? '' : 's'}`);
-  summary.textContent = parts.length ? parts.join(' · ') : 'Tap to view balance & cash drawers';
+  if (drawerCount > 0) {
+    parts.push(drawerCount === 1 ? t('dash.drawerCount', { count: drawerCount }) : t('dash.drawerCountPlural', { count: drawerCount }));
+  }
+  summary.textContent = parts.length ? parts.join(' · ') : t('dash.tapToView');
 }
 
 /**
@@ -5093,7 +5096,7 @@ function updateDashboardInsightsSummary(globalBalance, drawerCount) {
  */
 async function loadDashboardData() {
   const container = document.getElementById('dash-user-drawers');
-  if (container) container.innerHTML = `<div class="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">Calculating enterprise balances...</div>`;
+  if (container) container.innerHTML = `<div class="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">${t('dash.calculatingBalances')}</div>`;
   
   try {
     const fetchS = async (sheetName) => {
@@ -5259,7 +5262,7 @@ async function loadDashboardData() {
     if (sessionUser && (sessionUser.role === "Super Admin" || sessionUser.role === "Admin")) {
         let globalInflows = saleRecv + incRecv + crdRecv; let globalOutflows = purPaid + expPaid + crdRet + hrPaid; globalBalance = globalInflows - globalOutflows;
         if (adminContainer) {
-            adminContainer.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-3 md:p-5 shadow-md text-white"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 md:gap-4"><div class="min-w-0"><div class="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1.5"><svg class="w-3 h-3 md:w-4 md:h-4 text-teal-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><span class="truncate">Global Balance</span></div><div class="text-xl sm:text-2xl md:text-3xl font-black font-mono text-teal-400 truncate">SAR ${globalBalance.toFixed(2)}</div></div><div class="grid grid-cols-2 gap-2 sm:flex sm:gap-3 shrink-0"><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Inflows</div><div class="text-emerald-400 font-mono font-bold text-xs md:text-base">SAR ${globalInflows.toFixed(2)}</div></div><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Outflows</div><div class="text-red-400 font-mono font-bold text-xs md:text-base">SAR ${globalOutflows.toFixed(2)}</div></div></div></div></div>`;
+            adminContainer.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-3 md:p-5 shadow-md text-white"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 md:gap-4"><div class="min-w-0"><div class="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1.5"><svg class="w-3 h-3 md:w-4 md:h-4 text-teal-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><span class="truncate">${t('dash.globalBalance')}</span></div><div class="text-xl sm:text-2xl md:text-3xl font-black font-mono text-teal-400 truncate">SAR ${globalBalance.toFixed(2)}</div></div><div class="grid grid-cols-2 gap-2 sm:flex sm:gap-3 shrink-0"><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">${t('dash.inflows')}</div><div class="text-emerald-400 font-mono font-bold text-xs md:text-base">SAR ${globalInflows.toFixed(2)}</div></div><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">${t('dash.outflows')}</div><div class="text-red-400 font-mono font-bold text-xs md:text-base">SAR ${globalOutflows.toFixed(2)}</div></div></div></div></div>`;
         }
     } else { if (adminContainer) adminContainer.innerHTML = ''; }
 
@@ -5273,7 +5276,7 @@ async function loadDashboardData() {
           drawerHTML += `<div class="snap-start shrink-0 w-[108px] sm:w-[120px] md:w-auto md:shrink bg-white border border-gray-200 rounded-lg p-2 md:p-3 shadow-sm text-center"><div class="text-[9px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5 truncate" title="${usr}">${usr}</div><div class="font-mono font-bold text-sm md:text-lg ${clr} whitespace-nowrap">SAR ${bal.toFixed(2)}</div></div>`;
        }
     });
-    if(drawerHTML === "" && container) drawerHTML = `<div class="snap-start w-full md:col-span-full p-2.5 md:p-3 text-center text-gray-400 text-xs font-semibold border border-gray-100 rounded-lg bg-white">All cash drawers balanced at 0.00</div>`;
+    if(drawerHTML === "" && container) drawerHTML = `<div class="snap-start w-full md:col-span-full p-2.5 md:p-3 text-center text-gray-400 text-xs font-semibold border border-gray-100 rounded-lg bg-white">${t('dash.allDrawersBalanced')}</div>`;
     if(container) container.innerHTML = drawerHTML;
     updateDashboardInsightsSummary(globalBalance, drawerCount);
 
@@ -5291,14 +5294,14 @@ async function loadUserDirectories() {
          return `<tr class="hover:bg-gray-50 border-b">
            <td class="p-3 font-bold text-gray-900">${rec["Username"]||''}</td>
            <td class="p-3"><span class="px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase ${roleColor}">${role}</span></td>
-           <td class="p-3 text-[10px] text-gray-500 leading-tight max-w-xs truncate break-words whitespace-normal font-mono">${rec["Permissions"]||'No explicit permissions (Default)'}</td>
+           <td class="p-3 text-[10px] text-gray-500 leading-tight max-w-xs truncate break-words whitespace-normal font-mono">${rec["Permissions"]||t('users.noPermissions')}</td>
          </tr>`;
       }).join('');
     } else {
-      container.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-400">No active users found.</td></tr>`;
+      container.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-400">${t('users.noOperators')}</td></tr>`;
     }
   } catch(err) {
-    container.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-red-500 font-bold">Failed to load active directory.</td></tr>`;
+    container.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-red-500 font-bold">${t('users.loadFailedDirectory')}</td></tr>`;
   }
 }
 
