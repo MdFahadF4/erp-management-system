@@ -740,10 +740,11 @@ export const templates = {
                 <th class="p-3" data-i18n="allTxn.colRemarks">Remarks / Narrative</th>
                 <th class="p-3" data-i18n="allTxn.colLoggedBy">Logged By</th>
                 <th class="p-3" data-i18n="allTxn.colStamp">Stamp</th>
+                <th class="p-3" data-i18n="col.actions">Actions</th>
               </tr>
             </thead>
             <tbody id="table-all-txn-rows" class="divide-y text-gray-600 font-medium">
-              <tr><td colspan="7" class="p-6 text-center text-gray-400" data-i18n="allTxn.loadingToday">Loading today's transactions...</td></tr>
+              <tr><td colspan="8" class="p-6 text-center text-gray-400" data-i18n="allTxn.loadingToday">Loading today's transactions...</td></tr>
             </tbody>
           </table>
         </div>

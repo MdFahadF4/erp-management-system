@@ -7,6 +7,7 @@ import { t, applyTranslations } from './i18n.js';
 const txnCache = new Map();
 let reloadHandlers = {};
 let onDrawerRefresh = null;
+let onGlobalRefresh = null;
 
 function getCol(rec, possibleNames) {
   for (const name of possibleNames) {
@@ -225,6 +226,7 @@ function closeEditModal() {
 
 async function afterMutate(sheetName) {
   if (typeof reloadHandlers[sheetName] === 'function') await reloadHandlers[sheetName]();
+  if (typeof onGlobalRefresh === 'function') await onGlobalRefresh();
   if (typeof onDrawerRefresh === 'function') await onDrawerRefresh();
 }
 
@@ -268,6 +270,7 @@ async function handleDelete(sheetName, recordId) {
 export function initTxnAdminSystem(options = {}) {
   reloadHandlers = options.reloadHandlers || {};
   onDrawerRefresh = options.onDrawerRefresh || null;
+  onGlobalRefresh = options.onGlobalRefresh || null;
 
   if (document.body.dataset.txnAdminBound === 'true') return;
   document.body.dataset.txnAdminBound = 'true';

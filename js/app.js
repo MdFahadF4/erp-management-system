@@ -128,6 +128,11 @@ Date.prototype.toLocaleDateString = function() {
         Creditor_Transactions: () => loadCreditorTxnTableRecords(true),
         Income_Transactions: () => loadIncomeTxnTableRecords(true)
       },
+      onGlobalRefresh: async () => {
+        if (document.getElementById('table-all-txn-rows')) {
+          await loadAllTxnTableRecords(true);
+        }
+      },
       onDrawerRefresh: updateLiveUserCashDrawerBalance
     });
   } else {
@@ -2098,7 +2103,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
   const container = document.getElementById('table-all-txn-rows'); 
   if (!container) return;
 
-  container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-blue-500 font-bold animate-pulse">${t('allTxn.aggregating')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-blue-500 font-bold animate-pulse">${t('allTxn.aggregating')}</td></tr>`;
 
   const fDateInput = document.getElementById('filter-from-all');
   const tDateInput = document.getElementById('filter-to-all');
@@ -2117,7 +2122,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
      if (tDateInput) tDateInput.value = dateStr;
   } else {
      if (!fDateInput.value || !tDateInput.value) { 
-        container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500">${t('allTxn.selectDates')}</td></tr>`;
+        container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500">${t('allTxn.selectDates')}</td></tr>`;
         return; 
      }
      fDate = new Date(fDateInput.value); fDate.setHours(0,0,0,0);
@@ -2141,22 +2146,27 @@ async function loadAllTxnTableRecords(isFilter = false) {
 
     let allRecords = [];
 
-    const addRecords = (res, moduleName, mapFn) => {
+    const addRecords = (res, moduleName, sheetName, mapFn) => {
        if(res.success && res.records) {
+          const sheetFiltered = [];
           res.records.forEach(r => {
              if(!r["Date"]) return;
              const rDate = new Date(r["Date"]);
              if (rDate >= fDate && rDate <= tDate) {
+                sheetFiltered.push(r);
                 const mapped = mapFn(r);
                 mapped.rawDate = rDate;
                 mapped.module = moduleName;
+                mapped.sheetName = sheetName;
+                mapped.rawRec = r;
                 allRecords.push(mapped);
              }
           });
+          cacheTxnRecords(sheetName, sheetFiltered);
        }
     };
 
-    addRecords(resHr, "HR", r => ({
+    addRecords(resHr, "HR", "HR_Transactions", r => ({
        details: t('allTxn.detailsNamed', { name: getCol(r, ["Employee Name"]) || t('allTxn.noRemarks'), category: getCategoryLabel(getCol(r, ["Category"]) || '', t) || t('allTxn.noRemarks') }),
        financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks"]) || t('allTxn.noRemarks'),
@@ -2164,7 +2174,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
     
-    addRecords(resSup, "Supplier", r => ({
+    addRecords(resSup, "Supplier", "Supplier_Transactions", r => ({
        details: t('allTxn.detailsNamed', { name: getCol(r, ["Supplier Name"]) || t('allTxn.noRemarks'), category: getCategoryLabel(getCol(r, ["Category"]) || '', t) || t('allTxn.noRemarks') }),
        financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
@@ -2172,7 +2182,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
 
-    addRecords(resCust, "Customer", r => ({
+    addRecords(resCust, "Customer", "Customer_Transactions", r => ({
        details: t('allTxn.detailsUid', { uid: getCol(r, ["System Unique ID", "Sys UID"]) || t('allTxn.noRemarks'), method: getCategoryLabel(getCol(r, ["Payment Method", "Method"]) || '', t) || t('allTxn.noRemarks') }),
        financial: t('allTxn.finSoldRecv', { sold: Number(getCol(r, ["Sold Amount", "Sold Amt"])||0).toFixed(2), recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
@@ -2180,7 +2190,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
 
-    addRecords(resInt, "Internal", r => ({
+    addRecords(resInt, "Internal", "Internal_Transfers", r => ({
        details: t('allTxn.cashHandover'),
        financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Transfer Amount", "Amount"])||0).toFixed(2) }),
        remarks: getCol(r, ["Description", "Description / Purpose", "Remarks"]) || t('allTxn.noRemarks'),
@@ -2188,7 +2198,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
 
-    addRecords(resExp, "Expense", r => ({
+    addRecords(resExp, "Expense", "Expense_Transactions", r => ({
        details: `${getCol(r, ["Expense Parent Head", "Parent Category", "Main Head"]) || t('allTxn.noRemarks')} > ${getCol(r, ["Sub Head", "SubCategory"]) || t('allTxn.noRemarks')}`,
        financial: t('allTxn.finDepPaid', { dep: Number(getCol(r, ["Deposit", "Amount"])||0).toFixed(2), paid: Number(getCol(r, ["Paid Amt", "Paid Amount", "Amount"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
@@ -2196,7 +2206,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
 
-    addRecords(resCred, "Creditor", r => ({
+    addRecords(resCred, "Creditor", "Creditor_Transactions", r => ({
        details: `${getCol(r, ["Creditor Parent Head", "Main Head", "Parent Head"]) || t('allTxn.noRemarks')} > ${getCol(r, ["Sub Head"]) || t('allTxn.noRemarks')}`,
        financial: t('allTxn.finRecvRet', { recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2), ret: Number(getCol(r, ["Return Amount", "Return Amt"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
@@ -2204,7 +2214,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
 
-    addRecords(resInc, "Income", r => ({
+    addRecords(resInc, "Income", "Income_Transactions", r => ({
        details: `${getCol(r, ["Income Parent Head", "Main Head", "Parent Head"]) || t('allTxn.noRemarks')} > ${getCol(r, ["Sub Head"]) || t('allTxn.noRemarks')}`,
        financial: t('allTxn.finBilledRecv', { billed: Number(getCol(r, ["Receivable Amount", "Receivable"])||0).toFixed(2), recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2) }),
        remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
@@ -2219,7 +2229,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
     allRecords.sort((a, b) => b.rawDate - a.rawDate);
 
     if(allRecords.length === 0) {
-       container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 font-bold">${t('allTxn.noResults')}</td></tr>`;
+       container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500 font-bold">${t('allTxn.noResults')}</td></tr>`;
        return;
     }
 
@@ -2242,13 +2252,14 @@ async function loadAllTxnTableRecords(isFilter = false) {
            <td class="max-w-xs truncate" title="${rec.remarks || ''}">${rec.remarks || t('allTxn.noRemarks')}</td>
            <td>${rec.user || ''}</td>
            <td class="text-gray-400 font-mono text-[10px]">${rec.stamp || ''}</td>
+           ${renderTxnActions(rec.rawRec, rec.sheetName)}
          </tr>
        `;
     }).join('');
 
   } catch (err) {
      console.error(err);
-     container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-red-500 font-bold">${t('allTxn.loadFailed')}</td></tr>`;
+     container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-red-500 font-bold">${t('allTxn.loadFailed')}</td></tr>`;
   }
 }
 
