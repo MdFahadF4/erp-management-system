@@ -4842,18 +4842,18 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
             txns,
             mainHead.trim().toUpperCase(),
             subHead.trim().toUpperCase(),
-            null,
-            null
+            fDate,
+            tDate
           );
           return { mainHead, subHead, ...totals };
-        }).sort((a, b) => {
+        }).filter((row) => row.inc > 0 || row.paid > 0).sort((a, b) => {
           const cmp = String(a.mainHead).localeCompare(String(b.mainHead));
           return cmp !== 0 ? cmp : String(a.subHead).localeCompare(String(b.subHead));
         });
 
         tableContainer.innerHTML = `
           <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-            <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs text-center">Expense Head & Sub Head Summary (Lifetime)</div>
+            <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs text-center">Expense Head & Sub Head Summary (Selected Date Range)</div>
             <div class="erp-report-scroll overflow-x-auto">
               <table class="erp-report-table w-full text-left border-collapse text-xs">
                 <thead class="bg-gray-100 text-gray-600 uppercase border-b whitespace-nowrap">
@@ -4876,15 +4876,15 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                       <td class="p-2.5 text-right font-mono font-bold text-emerald-600">${row.paid.toFixed(2)}</td>
                       <td class="p-2.5 text-right font-mono font-bold ${row.due > 0 ? 'text-red-600' : 'text-emerald-600'}">${row.due.toFixed(2)}</td>
                     </tr>
-                  `).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-400 font-bold">No expense heads configured. Add heads in Expense Heads module first.</td></tr>`}
+                  `).join('') : `<tr><td colspan="6" class="p-6 text-center text-gray-400 font-bold">${heads.length > 0 ? 'No expense activity found for the selected date range.' : 'No expense heads configured. Add heads in Expense Heads module first.'}</td></tr>`}
                 </tbody>
                 ${listRows.length > 0 ? `
                 <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-bold">
                   <tr>
-                    <td class="p-2.5 text-right uppercase text-[10px] text-gray-500" colspan="3">Grand Total (Lifetime)</td>
-                    <td class="p-2.5 text-right font-mono text-blue-700">${lifeTotals.inc.toFixed(2)}</td>
-                    <td class="p-2.5 text-right font-mono text-emerald-700">${lifeTotals.paid.toFixed(2)}</td>
-                    <td class="p-2.5 text-right font-mono ${lifeTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'}">${lifeTotals.due.toFixed(2)}</td>
+                    <td class="p-2.5 text-right uppercase text-[10px] text-gray-500" colspan="3">Grand Total (Date Range)</td>
+                    <td class="p-2.5 text-right font-mono text-blue-700">${rngTotals.inc.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono text-emerald-700">${rngTotals.paid.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono ${rngTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'}">${rngTotals.due.toFixed(2)}</td>
                   </tr>
                 </tfoot>` : ''}
               </table>
