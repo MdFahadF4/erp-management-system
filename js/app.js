@@ -223,6 +223,11 @@ function setMobilePageMode(target) {
 
   if (!isCompactLayout()) {
     dashPanel?.classList.toggle('hidden', resolved !== 'dashboard');
+    if (resolved === 'dashboard') {
+      initDashboardInsightsToggle(true);
+    } else {
+      document.getElementById('admin-global-balance-container')?.replaceChildren();
+    }
     syncMobileHeaderHeight();
     return;
   }
@@ -5072,39 +5077,31 @@ function initDashboardInsightsToggle(forceReapply = false) {
   const body = document.getElementById('dashboard-insights-body');
   const chevron = document.getElementById('insights-toggle-chevron');
   if (!panel || !toggle || !body) return;
-  if (!document.body.classList.contains('erp-mobile-dashboard') && panel.classList.contains('hidden')) return;
+  if (panel.classList.contains('hidden')) return;
+
+  const syncToggleUi = () => {
+    const isExpanded = !body.classList.contains('hidden');
+    toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+    if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
+    syncChromeBarHeight();
+  };
 
   const applyLayout = () => {
-    if (isCompactLayout()) {
-      if (forceReapply) {
-        body.classList.add('hidden');
-        body.classList.remove('user-expanded');
-      } else if (!body.classList.contains('user-expanded')) {
-        body.classList.add('hidden');
-      }
-      const isExpanded = !body.classList.contains('hidden');
-      toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-      if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
-      forceChromeBarVisible('dashboard');
-      syncChromeBarHeight();
-    } else {
-      body.classList.remove('hidden', 'user-expanded');
-      toggle.setAttribute('aria-expanded', 'true');
-      if (chevron) chevron.classList.remove('rotate-180');
+    if (forceReapply) {
+      body.classList.add('hidden');
+      body.classList.remove('user-expanded');
+    } else if (!body.classList.contains('user-expanded')) {
+      body.classList.add('hidden');
     }
+    syncToggleUi();
   };
 
   if (toggle.dataset.bound !== 'true') {
     toggle.dataset.bound = 'true';
     toggle.addEventListener('click', () => {
-      if (!isCompactLayout()) return;
       body.classList.toggle('hidden');
       body.classList.toggle('user-expanded', !body.classList.contains('hidden'));
-      const isExpanded = !body.classList.contains('hidden');
-      toggle.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
-      if (chevron) chevron.classList.toggle('rotate-180', isExpanded);
-      syncChromeBarHeight();
-      forceChromeBarVisible('dashboard');
+      syncToggleUi();
     });
   }
 
