@@ -2,6 +2,7 @@ import { processLogin, processLogout, fetchSessionUser, apiRequest } from './aut
 import { templates } from './views.js';
 import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './i18n.js';
 import { initTxnAdminSystem, renderTxnActions, cacheTxnRecords } from './txn-admin.js';
+import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, renderUserDirectoryRow } from './user-admin.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -37,6 +38,7 @@ if (togglePasswordBtn && loginPasswordInput) {
 }
 
 async function initApp() {
+  initForgotPasswordSystem();
   initLanguageSwitcher(async () => {
     applyTranslations(document);
     if (activeModuleTarget && templates[activeModuleTarget]) {
@@ -136,6 +138,8 @@ Date.prototype.toLocaleDateString = function() {
       },
       onDrawerRefresh: updateLiveUserCashDrawerBalance
     });
+
+    initUserAdminSystem({ onReload: loadUserDirectories });
   } else {
     if (loginScreen) loginScreen.classList.remove('hidden');
   }
@@ -5051,16 +5055,26 @@ function initUserManagementFormListener() {
   const userForm = document.getElementById('form-create-user'); if (!userForm) return;
   userForm.addEventListener('submit', async (e) => {
     e.preventDefault(); const currentUser = fetchSessionUser();
+    const mobile = document.getElementById('new-mobile')?.value.trim() || '';
+    const email = document.getElementById('new-email')?.value.trim() || '';
+    if (!mobile && !email) { alert(t('users.contactRequired')); return; }
     const checkedBoxes = document.querySelectorAll('input[name="perm"]:checked');
     const permittedMenus = Array.from(checkedBoxes).map(cb => cb.value).join(',');
-    const newUserPayload = { username: document.getElementById('new-username').value.trim(), password: document.getElementById('new-password').value, role: document.getElementById('new-role').value, permissions: permittedMenus };
+    const newUserPayload = {
+      username: document.getElementById('new-username').value.trim(),
+      password: document.getElementById('new-password').value,
+      role: document.getElementById('new-role').value,
+      permissions: permittedMenus,
+      mobile,
+      email
+    };
     try {
-      const result = await apiRequest({ action: "CREATE_USER", payload: { newUser: newUserPayload, actorUsername: currentUser.username, actorRole: currentUser.role } }); alert(result.message); 
+      const result = await apiRequest({ action: "CREATE_USER", payload: { newUser: newUserPayload, actorUsername: currentUser.username, actorRole: currentUser.role } }); alert(result.message);
       if (result.success) {
          userForm.reset();
-         await loadUserDirectories(); // Refresh the list automatically
+         await loadUserDirectories();
       }
-    } catch (err) { alert("Error registering user access rules."); }
+    } catch (err) { alert(t('users.registerFailed')); }
   });
 }
 
@@ -5361,20 +5375,13 @@ async function loadUserDirectories() {
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Users" } });
     if (result.success && result.records.length > 0) {
-      container.innerHTML = result.records.map(rec => {
-         let role = String(rec["Role"]||'User').trim();
-         let roleColor = role === "Super Admin" ? "bg-red-100 text-red-800" : (role === "Admin" ? "bg-purple-100 text-purple-800" : "bg-blue-100 text-blue-800");
-         return `<tr class="hover:bg-gray-50 border-b">
-           <td class="p-3 font-bold text-gray-900">${rec["Username"]||''}</td>
-           <td class="p-3"><span class="px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase ${roleColor}">${role}</span></td>
-           <td class="p-3 text-[10px] text-gray-500 leading-tight max-w-xs truncate break-words whitespace-normal font-mono">${rec["Permissions"]||t('users.noPermissions')}</td>
-         </tr>`;
-      }).join('');
+      cacheUserRecords(result.records);
+      container.innerHTML = result.records.map(rec => renderUserDirectoryRow(rec)).join('');
     } else {
-      container.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-gray-400">${t('users.noOperators')}</td></tr>`;
+      container.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-gray-400">${t('users.noOperators')}</td></tr>`;
     }
   } catch(err) {
-    container.innerHTML = `<tr><td colspan="3" class="p-6 text-center text-red-500 font-bold">${t('users.loadFailedDirectory')}</td></tr>`;
+    container.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-red-500 font-bold">${t('users.loadFailedDirectory')}</td></tr>`;
   }
 }
 

@@ -827,7 +827,9 @@ export const templates = {
           <h3 class="text-lg font-semibold text-gray-700 mb-4" data-i18n="form.users.provision">Provision Account</h3>
           <form id="form-create-user" class="space-y-4">
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.username">Username</label><input type="text" id="new-username" required class="w-full border rounded p-2 outline-none"></div>
-            <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.password">Password</label><input type="password" id="new-password" required class="w-full border rounded p-2 outline-none"></div>
+            <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.password">Password</label><input type="password" id="new-password" required minlength="6" class="w-full border rounded p-2 outline-none"></div>
+            <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.mobileContact">Mobile Contact</label><input type="text" id="new-mobile" class="w-full border rounded p-2 outline-none" placeholder="Required for password recovery" data-i18n-placeholder="users.mobileRecoveryHint"></div>
+            <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.emailAddress">Email Address</label><input type="email" id="new-email" class="w-full border rounded p-2 outline-none" placeholder="Required for password recovery" data-i18n-placeholder="users.emailRecoveryHint"></div>
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.accountRole">Account Assignment Role</label><select id="new-role" class="w-full border rounded p-2 bg-white outline-none"><option value="User" data-i18n="option.standardUser">Standard operational User</option><option value="Admin" data-i18n="option.admin">System Admin</option></select></div>
             <div>
               <label class="block text-xs font-bold uppercase text-gray-500 mb-2" data-i18n="users.menuScopes">Menu Execution Scopes</label>
@@ -860,14 +862,38 @@ export const templates = {
           <div class="overflow-y-auto border rounded-lg flex-1">
              <table class="w-full text-left border-collapse text-xs">
                <thead class="bg-slate-800 text-white uppercase whitespace-nowrap sticky top-0 z-10 shadow">
-                 <tr><th class="p-3" data-i18n="field.username">Username</th><th class="p-3" data-i18n="col.role">Role</th><th class="p-3" data-i18n="col.permissionsScope">Permissions Scope</th></tr>
+                 <tr><th class="p-3" data-i18n="field.username">Username</th><th class="p-3" data-i18n="col.role">Role</th><th class="p-3" data-i18n="col.status">Status</th><th class="p-3" data-i18n="users.contact">Contact</th><th class="p-3" data-i18n="col.permissionsScope">Permissions Scope</th><th class="p-3" data-i18n="col.actions">Actions</th></tr>
                </thead>
                <tbody id="table-users-list" class="divide-y text-gray-600 font-medium">
-                 <tr><td colspan="3" class="p-6 text-center text-gray-400 animate-pulse" data-i18n="users.loadingOperators">Loading system operators...</td></tr>
+                 <tr><td colspan="6" class="p-6 text-center text-gray-400 animate-pulse" data-i18n="users.loadingOperators">Loading system operators...</td></tr>
                </tbody>
              </table>
           </div>
         </div>
+      </div>
+    </div>
+
+    <div id="modal-user-edit" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4 hidden">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6 border border-gray-100">
+        <div class="flex justify-between items-center border-b pb-3 mb-4">
+          <h3 class="text-lg font-bold text-gray-800" data-i18n="users.editTitle">Edit User Access</h3>
+          <button type="button" id="close-user-modal" class="text-2xl font-bold text-gray-400 hover:text-gray-700">&times;</button>
+        </div>
+        <form id="form-edit-user" class="space-y-3 text-xs">
+          <input type="hidden" id="edit-user-username">
+          <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.mobileContact">Mobile Contact</label><input type="text" id="edit-user-mobile" class="w-full border rounded p-2 text-sm outline-none"></div>
+          <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.emailAddress">Email Address</label><input type="email" id="edit-user-email" class="w-full border rounded p-2 text-sm outline-none"></div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.accountRole">Account Assignment Role</label><select id="edit-user-role" class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="User" data-i18n="option.standardUser">Standard operational User</option><option value="Admin" data-i18n="option.admin">System Admin</option></select></div>
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="col.status">Status</label><select id="edit-user-status" class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Active" data-i18n="users.statusActive">Active</option><option value="Paused" data-i18n="users.statusPaused">Paused</option><option value="Removed" data-i18n="users.statusRemoved">Removed</option></select></div>
+          </div>
+          <div><label class="block font-bold text-gray-600 mb-1" data-i18n="users.newPasswordOptional">New Password (optional)</label><input type="password" id="edit-user-password" minlength="6" class="w-full border rounded p-2 text-sm outline-none" placeholder="Leave blank to keep current" data-i18n-placeholder="users.leaveBlankPassword"></div>
+          <div><label class="block font-bold text-gray-600 mb-2" data-i18n="users.menuScopes">Menu Execution Scopes</label><div id="edit-user-perms" class="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded border max-h-40 overflow-y-auto"></div></div>
+          <div class="flex justify-end gap-2 pt-3 border-t">
+            <button type="button" id="btn-cancel-user-edit" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-sm" data-i18n="common.cancel">Cancel</button>
+            <button type="submit" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded text-sm" data-i18n="common.save">Save</button>
+          </div>
+        </form>
       </div>
     </div>
   `

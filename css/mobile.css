@@ -84,6 +84,7 @@
     display: block !important;
   }
 
+  .erp-dashboard-chrome-toggle,
   .erp-mobile-chrome-toggle,
   #erp-module-toolbar-toggle {
     display: flex !important;
@@ -488,13 +489,25 @@
     position: static;
   }
 
+  #dashboard-insights-toggle.erp-dashboard-chrome-toggle,
+  .erp-dashboard-chrome-toggle {
+    display: flex !important;
+    width: 100%;
+  }
+
+  #dashboard-insights-toggle {
+    display: flex !important;
+    min-height: 2.75rem;
+    cursor: pointer;
+  }
+
   .erp-mobile-chrome-toggle {
     display: none !important;
   }
 
-  #dashboard-insights-body {
-    position: static !important;
-    max-height: none !important;
+  #dashboard-insights-body:not(.hidden) {
+    max-height: min(42vh, 420px);
+    overflow-y: auto;
   }
 
   body.erp-mobile-dashboard #main-content,
