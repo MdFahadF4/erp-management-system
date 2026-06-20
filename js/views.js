@@ -773,6 +773,7 @@ export const templates = {
               <option value="receivable_payable" data-i18n-report="report.receivablePayable">Receivable and Payable Report</option>
               <option value="expense_report" data-i18n-report="report.expenseReport">Expense Report</option>
               <option value="customer_details" class="font-bold text-blue-600" data-i18n-report="report.customerDetails">Customer Details Report (Statement)</option>
+              <option value="customer_due_balance" class="font-bold text-red-600" data-i18n-report="report.customerDueBalance">Customer Due/Balance Report</option>
               <option value="supplier_details" data-i18n-report="report.supplierDetails">Supplier Details Report</option>
               <option value="hr_details" data-i18n-report="report.hrDetails">HR Details Report</option>
               <option value="user_transaction" data-i18n-report="report.userPerformance">User Sells Performance Report</option>
@@ -788,6 +789,13 @@ export const templates = {
 
           <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.fromDate">From Date</label><input type="date" id="report-from" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
           <div class="w-full md:flex-1 md:min-w-[120px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.toDate">To Date</label><input type="date" id="report-to" class="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm"></div>
+          <div id="report-date-filter-wrap" class="w-full md:flex-1 md:min-w-[170px] hidden">
+            <label class="block text-gray-600 font-bold mb-1" data-i18n="report.dateFilter">Date Filter</label>
+            <label class="flex items-center gap-2 border rounded p-2.5 bg-white cursor-pointer min-h-[44px]">
+              <input type="checkbox" id="report-use-date-filter" class="rounded">
+              <span class="text-gray-600 font-bold text-[11px] leading-tight" data-i18n="report.applyDateRangeFilter">Apply date range filter</span>
+            </label>
+          </div>
           <div class="w-full md:w-auto"><button id="btn-generate-report" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]" data-i18n="common.executeQuery">Execute Query</button></div>
         </div>
       </div>

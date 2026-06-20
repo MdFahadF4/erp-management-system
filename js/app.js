@@ -2278,6 +2278,8 @@ function initReportsSystem() {
   
   const fDateInput = document.getElementById('report-from');
   const tDateInput = document.getElementById('report-to');
+  const dateFilterWrap = document.getElementById('report-date-filter-wrap');
+  const useDateFilterInput = document.getElementById('report-use-date-filter');
   const pageRoot = document.querySelector('.erp-module-page');
   const mobileSnapshot = activeMobileSnapshot || pageRoot?._mobileSnapshot;
   
@@ -2307,6 +2309,14 @@ function initReportsSystem() {
       const val = e.target.value;
       secFilterContainer.classList.add('hidden');
       secSelect.innerHTML = '';
+      if (dateFilterWrap) {
+        if (val === 'customer_due_balance') {
+          dateFilterWrap.classList.remove('hidden');
+          if (useDateFilterInput) useDateFilterInput.checked = false;
+        } else {
+          dateFilterWrap.classList.add('hidden');
+        }
+      }
       
       const fillFilter = async (sheetName, textCol, valCol, labelKey) => {
         const labelTxt = t(labelKey);
@@ -2357,7 +2367,7 @@ function initReportsSystem() {
       if (val === 'customer_details') await fillFilter('Customers', ["Customer Name", "Name"], ["System Unique ID", "Sys UID", "UNIQUEID"], 'report.selectCustomer');
       else if (val === 'supplier_details') await fillFilter('Suppliers', ["Supplier Name"], ["Supplier Name"], 'report.selectSupplier');
       else if (val === 'hr_details') await fillFilter('HR', ["Employee Name"], ["Employee Name"], 'report.selectEmployee');
-      else if (val === 'user_transaction' || val === 'individual_user') await fillFilter('Users', ["Username"], ["Username"], 'report.selectUser');
+      else if (val === 'user_transaction' || val === 'individual_user' || val === 'customer_due_balance') await fillFilter('Users', ["Username"], ["Username"], 'report.selectUser');
       
       // EXTREMELY BROAD DICTIONARY FOR NEW REPORTS:
       else if (val === 'expense_details') {
@@ -2393,16 +2403,20 @@ function initReportsSystem() {
     btnGen.addEventListener('click', async () => {
       const repType = typeSelect.value;
       if (!repType) { alert(t('report.alertSelectType')); return; }
-      if (!fDateInput.value || !tDateInput.value) { alert(t('report.alertSelectDates')); return; }
+      const applyDateRange = repType === 'customer_due_balance'
+        ? (useDateFilterInput?.checked === true)
+        : true;
+      if (applyDateRange && (!fDateInput.value || !tDateInput.value)) { alert(t('report.alertSelectDates')); return; }
       
       if (!secFilterContainer.classList.contains('hidden') && !secSelect.value) {
         alert(t('report.alertSelectTarget'));
         return;
       }
 
-      await executeReportGeneration(repType, fDateInput.value, tDateInput.value, secSelect.value, secSelect.options[secSelect.selectedIndex]?.text);
+      await executeReportGeneration(repType, fDateInput.value, tDateInput.value, secSelect.value, secSelect.options[secSelect.selectedIndex]?.text, applyDateRange);
       const reportLabel = typeSelect.options[typeSelect.selectedIndex]?.text?.trim() || 'Report';
-      mobileSnapshot?.collapse(`${reportLabel} · ${fDateInput.value} to ${tDateInput.value}`);
+      const rangeLabel = applyDateRange ? `${fDateInput.value} to ${tDateInput.value}` : t('report.allOutstandingForUser');
+      mobileSnapshot?.collapse(`${reportLabel} · ${rangeLabel}`);
       setMobilePageMode('reports');
       forceChromeBarVisible('module');
       const resultsAnchor = document.getElementById('report-results-anchor');
@@ -2415,9 +2429,12 @@ function initReportsSystem() {
   }
 }
 
-async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
-  const fDate = new Date(fromStr); fDate.setHours(0,0,0,0);
-  const tDate = new Date(toStr); tDate.setHours(23,59,59,999);
+async function executeReportGeneration(type, fromStr, toStr, secVal, secText, applyDateRange = true) {
+  const fDate = fromStr ? new Date(fromStr) : new Date(0);
+  if (fromStr) fDate.setHours(0,0,0,0);
+  const tDate = toStr ? new Date(toStr) : new Date();
+  if (toStr) tDate.setHours(23,59,59,999);
+  const useDateFilter = applyDateRange && fromStr && toStr;
   
   const headEl = document.getElementById('report-print-header');
   const titleEl = document.getElementById('report-title-display');
@@ -2444,7 +2461,9 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
 
   headEl.classList.remove('hidden');
   cardsEl.classList.remove('hidden');
-  dateEl.textContent = t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() });
+  dateEl.textContent = useDateFilter
+    ? t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })
+    : (type === 'customer_due_balance' ? t('report.allOutstandingForUser') : t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() }));
   tgtEl.textContent = secText && secVal ? t('report.targetEntity', { name: secText }) : '';
   cardsEl.innerHTML = ''; 
 
@@ -4934,6 +4953,153 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText) {
                     <td class="p-2.5 text-right font-mono text-blue-700">${rngTotals.inc.toFixed(2)}</td>
                     <td class="p-2.5 text-right font-mono text-emerald-700">${rngTotals.paid.toFixed(2)}</td>
                     <td class="p-2.5 text-right font-mono ${rngTotals.due > 0 ? 'text-red-700' : 'text-emerald-700'}">${rngTotals.due.toFixed(2)}</td>
+                  </tr>
+                </tfoot>` : ''}
+              </table>
+            </div>
+          </div>
+        `;
+        break;
+      }
+
+      // ====================================================================
+      // CUSTOMER DUE / BALANCE REPORT (BY USER, OUTSTANDING INVOICES ONLY)
+      // ====================================================================
+      case 'customer_due_balance': {
+        titleEl.textContent = t('report.titleCustomerDueBalance');
+        tgtEl.textContent = secText && secVal ? t('report.targetUserSales', { name: secText }) : '';
+
+        const clnUser = (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const isUserMatch = (rec) => clnUser(getCol(rec, ["Username", "Logged By", "Created By"])) === clnUser(secVal);
+
+        const rows = [];
+        if (rCust.success && Array.isArray(rCust.records)) {
+          rCust.records.filter(isUserMatch).forEach((rec) => {
+            const uid = getCol(rec, ["System Unique ID", "Sys UID", "UNIQUEID"]) || '-';
+            const name = getCol(rec, ["Customer Name", "Name"]) || '-';
+            const memo = getCol(rec, ["Invoice", "Memo", "Invoice / Memo Number"]) || '-';
+            const user = getCol(rec, ["Username", "Logged By", "Created By"]) || secText || '-';
+            const dateStr = getCol(rec, ["Creation Stamp", "Timestamp", "Date"]);
+            const d = dateStr ? new Date(dateStr) : new Date();
+
+            if (useDateFilter && (d < fDate || d > tDate)) return;
+
+            const sell = parseFloat(getCol(rec, ["Total Sell", "Sell Amount", "Gross Sell"])) || 0;
+            const cash = parseFloat(getCol(rec, ["Cash Amt", "Cash Amount", "Cash"])) || 0;
+            const card = parseFloat(getCol(rec, ["Card Amt", "Card Amount", "Card"])) || 0;
+            const discount = parseFloat(getCol(rec, ["Discount", "Discount Allowed"])) || 0;
+            let received = cash + card;
+            if (received === 0) {
+              received = parseFloat(getCol(rec, ["Received Amount", "Total Received", "Received"])) || 0;
+            }
+            let due = sell - received - discount;
+            if (due <= 0.009) {
+              due = parseFloat(getCol(rec, ["Due Balance", "Due", "Outstanding Balance Due"])) || 0;
+            }
+            if (due <= 0.009) return;
+
+            rows.push({
+              d,
+              uid,
+              name,
+              memo,
+              user,
+              sell,
+              received,
+              cash,
+              card,
+              due,
+              idLabel: `${uid} | ${name} | Inv: ${memo} | ${d.toLocaleDateString()} | ${user}`
+            });
+          });
+        }
+
+        rows.sort((a, b) => b.d - a.d);
+
+        const sum = rows.reduce((acc, r) => {
+          acc.count += 1;
+          acc.billed += r.sell;
+          acc.received += r.received;
+          acc.cash += r.cash;
+          acc.card += r.card;
+          acc.due += r.due;
+          return acc;
+        }, { count: 0, billed: 0, received: 0, cash: 0, card: 0, due: 0 });
+
+        cardsEl.innerHTML = `
+          <div class="col-span-1 md:col-span-3 grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 bg-white border border-gray-200 p-4 md:p-5 rounded-xl shadow-sm mb-2">
+            <div class="text-center md:text-left">
+              <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.summaryInvoicesDue')}</div>
+              <div class="text-2xl font-black text-slate-800 font-mono mt-1">${sum.count}</div>
+            </div>
+            <div class="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-3">
+              <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.summaryTotalBilled')}</div>
+              <div class="text-xl font-black text-blue-600 font-mono mt-1 break-all">SAR ${sum.billed.toFixed(2)}</div>
+            </div>
+            <div class="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-3">
+              <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.summaryTotalReceived')}</div>
+              <div class="text-xl font-black text-emerald-600 font-mono mt-1 break-all">SAR ${sum.received.toFixed(2)}</div>
+            </div>
+            <div class="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-3">
+              <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.summaryCashReceived')}</div>
+              <div class="text-xl font-black text-emerald-700 font-mono mt-1 break-all">SAR ${sum.cash.toFixed(2)}</div>
+            </div>
+            <div class="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-3">
+              <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.summaryCardReceived')}</div>
+              <div class="text-xl font-black text-purple-600 font-mono mt-1 break-all">SAR ${sum.card.toFixed(2)}</div>
+            </div>
+            <div class="text-center md:text-left border-t md:border-t-0 md:border-l border-gray-100 pt-3 md:pt-0 md:pl-3">
+              <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.summaryTotalDue')}</div>
+              <div class="text-xl font-black text-red-600 font-mono mt-1 break-all">SAR ${sum.due.toFixed(2)}</div>
+            </div>
+          </div>
+        `;
+        cardsEl.className = 'grid grid-cols-1 mb-6';
+
+        tableContainer.innerHTML = `
+          <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+            <div class="bg-red-50 text-red-900 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">
+              ${t('report.customerDueLedger')} ${useDateFilter ? t('report.selectedRange') : t('report.allTime')}
+            </div>
+            <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
+              <table class="erp-report-table w-full text-left border-collapse text-xs">
+                <thead class="bg-slate-800 text-white uppercase whitespace-nowrap">
+                  <tr>
+                    <th class="p-2.5 w-12 text-center">${t('report.colSl')}</th>
+                    <th class="p-2.5 min-w-[220px]">${t('report.colCustomerIdName')}</th>
+                    <th class="p-2.5 text-right">${t('report.colBilledAmount')}</th>
+                    <th class="p-2.5 text-right">${t('report.colReceivedAmount')}</th>
+                    <th class="p-2.5 text-right">${t('report.colCashReceived')}</th>
+                    <th class="p-2.5 text-right">${t('report.colCardReceived')}</th>
+                    <th class="p-2.5 text-right">${t('report.colIndividualDue')}</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 text-gray-700">
+                  ${rows.length > 0 ? rows.map((row, i) => `
+                    <tr class="hover:bg-gray-50">
+                      <td class="p-2.5 text-center text-gray-400 font-mono">${i + 1}</td>
+                      <td class="p-2.5 font-medium leading-snug">
+                        <div class="font-mono text-[10px] text-gray-500 break-all">${row.uid}</div>
+                        <div class="font-bold text-gray-900">${row.name}</div>
+                        <div class="text-[10px] text-gray-600">${t('col.memo')}: ${row.memo} · ${row.d.toLocaleDateString()} · ${row.user}</div>
+                      </td>
+                      <td class="p-2.5 text-right font-mono font-bold text-blue-600">${row.sell.toFixed(2)}</td>
+                      <td class="p-2.5 text-right font-mono font-bold text-emerald-600">${row.received.toFixed(2)}</td>
+                      <td class="p-2.5 text-right font-mono text-emerald-700">${row.cash.toFixed(2)}</td>
+                      <td class="p-2.5 text-right font-mono text-purple-600">${row.card.toFixed(2)}</td>
+                      <td class="p-2.5 text-right font-mono font-bold text-red-600">${row.due.toFixed(2)}</td>
+                    </tr>
+                  `).join('') : `<tr><td colspan="7" class="p-8 text-center text-gray-400 font-bold">${t('report.noCustomerDueForUser')}</td></tr>`}
+                </tbody>
+                ${rows.length > 0 ? `
+                <tfoot class="bg-gray-50 border-t-2 border-gray-200 font-bold">
+                  <tr>
+                    <td class="p-2.5 text-right uppercase text-[10px] text-gray-500" colspan="2">${t('report.grandTotal')}</td>
+                    <td class="p-2.5 text-right font-mono text-blue-700">${sum.billed.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono text-emerald-700">${sum.received.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono text-emerald-800">${sum.cash.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono text-purple-700">${sum.card.toFixed(2)}</td>
+                    <td class="p-2.5 text-right font-mono text-red-700">${sum.due.toFixed(2)}</td>
                   </tr>
                 </tfoot>` : ''}
               </table>
