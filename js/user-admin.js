@@ -3,6 +3,7 @@
  */
 import { apiRequest, fetchSessionUser } from './auth.js';
 import { t, applyTranslations } from './i18n.js';
+import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
 
 const USER_PERM_VALUES = [
   'Dashboard', 'HR', 'HR_Transactions', 'Suppliers', 'Supplier_Transactions',
@@ -134,6 +135,9 @@ function openEditUserModal(rec) {
 
 function closeEditUserModal() {
   document.getElementById('modal-user-edit')?.classList.add('hidden');
+  resetPasswordToggles([
+    ['toggle-edit-user-password', 'edit-user-password']
+  ]);
 }
 
 async function updateUser(payload) {
@@ -212,14 +216,25 @@ export function initForgotPasswordSystem() {
   if (!link || !modal || !form || form.dataset.bound === 'true') return;
   form.dataset.bound = 'true';
 
+  setupPasswordToggle('toggle-forgot-new', 'forgot-new-password');
+  setupPasswordToggle('toggle-forgot-confirm', 'forgot-confirm-password');
+
+  const closeForgotModal = () => {
+    modal.classList.add('hidden');
+    resetPasswordToggles([
+      ['toggle-forgot-new', 'forgot-new-password'],
+      ['toggle-forgot-confirm', 'forgot-confirm-password']
+    ]);
+  };
+
   link.addEventListener('click', (e) => {
     e.preventDefault();
     modal.classList.remove('hidden');
     applyTranslations(modal);
   });
 
-  document.getElementById('close-forgot-modal')?.addEventListener('click', () => modal.classList.add('hidden'));
-  document.getElementById('btn-cancel-forgot')?.addEventListener('click', () => modal.classList.add('hidden'));
+  document.getElementById('close-forgot-modal')?.addEventListener('click', closeForgotModal);
+  document.getElementById('btn-cancel-forgot')?.addEventListener('click', closeForgotModal);
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -239,7 +254,7 @@ export function initForgotPasswordSystem() {
       });
       alert(res.message || (res.success ? t('users.resetSuccess') : t('users.resetFailed')));
       if (res.success) {
-        modal.classList.add('hidden');
+        closeForgotModal();
         form.reset();
       }
     } catch (err) {

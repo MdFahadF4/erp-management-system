@@ -3,6 +3,7 @@ import { templates } from './views.js';
 import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './i18n.js';
 import { initTxnAdminSystem, renderTxnActions, cacheTxnRecords } from './txn-admin.js';
 import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, renderUserDirectoryRow } from './user-admin.js';
+import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -14,8 +15,6 @@ const mainContent = document.getElementById('main-content');
 const menuButtons = document.querySelectorAll('.menu-btn');
 const btnLogout = document.getElementById('btn-logout');
 const navUsers = document.getElementById('nav-users');
-const togglePasswordBtn = document.getElementById('toggle-password');
-const loginPasswordInput = document.getElementById('login-password');
 
 let cachedHrRecords = [];
 let cachedSupplierRecords = [];
@@ -25,17 +24,7 @@ let cachedExpenseHeads = [];
 let cachedCreditors = [];
 let cachedIncomeHeads = [];
 
-if (togglePasswordBtn && loginPasswordInput) {
-  togglePasswordBtn.addEventListener('click', () => {
-    if (loginPasswordInput.type === 'password') {
-      loginPasswordInput.type = 'text';
-      togglePasswordBtn.textContent = t('common.hide');
-    } else {
-      loginPasswordInput.type = 'password';
-      togglePasswordBtn.textContent = t('common.show');
-    }
-  });
-}
+setupPasswordToggle('toggle-password', 'login-password');
 
 async function initApp() {
   initForgotPasswordSystem();
@@ -542,6 +531,8 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     initReportsSystem();
   } else if (target === 'users') {
     initUserManagementFormListener();
+    setupPasswordToggle('toggle-new-password', 'new-password');
+    setupPasswordToggle('toggle-edit-user-password', 'edit-user-password');
     await loadUserDirectories();
   }
 
@@ -4970,22 +4961,6 @@ const openPwdBtn = document.getElementById('btn-open-password-modal');
 const closePwdBtn = document.getElementById('close-password-modal');
 const formPwd = document.getElementById('form-change-password');
 
-const setupPasswordToggle = (btnId, inputId) => {
-  const btn = document.getElementById(btnId);
-  const input = document.getElementById(inputId);
-  if (btn && input) {
-    btn.addEventListener('click', () => {
-      if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = 'Hide';
-      } else {
-        input.type = 'password';
-        btn.textContent = 'Show';
-      }
-    });
-  }
-};
-
 setupPasswordToggle('toggle-cp-old', 'cp-old');
 setupPasswordToggle('toggle-cp-new', 'cp-new');
 setupPasswordToggle('toggle-cp-confirm', 'cp-confirm');
@@ -5002,12 +4977,11 @@ if (closePwdBtn) {
     if (pwdModal) pwdModal.classList.add('hidden'); 
     if (formPwd) {
       formPwd.reset();
-      document.getElementById('cp-old').type = 'password';
-      document.getElementById('cp-new').type = 'password';
-      document.getElementById('cp-confirm').type = 'password';
-      document.getElementById('toggle-cp-old').textContent = 'Show';
-      document.getElementById('toggle-cp-new').textContent = 'Show';
-      document.getElementById('toggle-cp-confirm').textContent = 'Show';
+      resetPasswordToggles([
+        ['toggle-cp-old', 'cp-old'],
+        ['toggle-cp-new', 'cp-new'],
+        ['toggle-cp-confirm', 'cp-confirm']
+      ]);
     }
   });
 }
@@ -5035,12 +5009,11 @@ if (formPwd) {
       if (result.success) {
         pwdModal.classList.add('hidden');
         formPwd.reset();
-        document.getElementById('cp-old').type = 'password';
-        document.getElementById('cp-new').type = 'password';
-        document.getElementById('cp-confirm').type = 'password';
-        document.getElementById('toggle-cp-old').textContent = 'Show';
-        document.getElementById('toggle-cp-new').textContent = 'Show';
-        document.getElementById('toggle-cp-confirm').textContent = 'Show';
+        resetPasswordToggles([
+          ['toggle-cp-old', 'cp-old'],
+          ['toggle-cp-new', 'cp-new'],
+          ['toggle-cp-confirm', 'cp-confirm']
+        ]);
       }
     } catch (err) {
       alert("Pipeline Error: Failed to connect to security database.");
@@ -5072,6 +5045,7 @@ function initUserManagementFormListener() {
       const result = await apiRequest({ action: "CREATE_USER", payload: { newUser: newUserPayload, actorUsername: currentUser.username, actorRole: currentUser.role } }); alert(result.message);
       if (result.success) {
          userForm.reset();
+         resetPasswordToggles([['toggle-new-password', 'new-password']]);
          await loadUserDirectories();
       }
     } catch (err) { alert(t('users.registerFailed')); }

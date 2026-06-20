@@ -827,7 +827,12 @@ export const templates = {
           <h3 class="text-lg font-semibold text-gray-700 mb-4" data-i18n="form.users.provision">Provision Account</h3>
           <form id="form-create-user" class="space-y-4">
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.username">Username</label><input type="text" id="new-username" required class="w-full border rounded p-2 outline-none"></div>
-            <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.password">Password</label><input type="password" id="new-password" required minlength="6" class="w-full border rounded p-2 outline-none"></div>
+            <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.password">Password</label>
+              <div class="relative">
+                <input type="password" id="new-password" required minlength="6" class="w-full border rounded p-2 pr-12 outline-none">
+                <button type="button" id="toggle-new-password" class="absolute right-3 top-2.5 text-[10px] font-bold uppercase text-gray-400 hover:text-blue-600 transition tracking-wider focus:outline-none" data-i18n="common.show">Show</button>
+              </div>
+            </div>
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.mobileContact">Mobile Contact</label><input type="text" id="new-mobile" class="w-full border rounded p-2 outline-none" placeholder="Required for password recovery" data-i18n-placeholder="users.mobileRecoveryHint"></div>
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.emailAddress">Email Address</label><input type="email" id="new-email" class="w-full border rounded p-2 outline-none" placeholder="Required for password recovery" data-i18n-placeholder="users.emailRecoveryHint"></div>
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.accountRole">Account Assignment Role</label><select id="new-role" class="w-full border rounded p-2 bg-white outline-none"><option value="User" data-i18n="option.standardUser">Standard operational User</option><option value="Admin" data-i18n="option.admin">System Admin</option></select></div>
@@ -887,7 +892,12 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.accountRole">Account Assignment Role</label><select id="edit-user-role" class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="User" data-i18n="option.standardUser">Standard operational User</option><option value="Admin" data-i18n="option.admin">System Admin</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="col.status">Status</label><select id="edit-user-status" class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Active" data-i18n="users.statusActive">Active</option><option value="Paused" data-i18n="users.statusPaused">Paused</option><option value="Removed" data-i18n="users.statusRemoved">Removed</option></select></div>
           </div>
-          <div><label class="block font-bold text-gray-600 mb-1" data-i18n="users.newPasswordOptional">New Password (optional)</label><input type="password" id="edit-user-password" minlength="6" class="w-full border rounded p-2 text-sm outline-none" placeholder="Leave blank to keep current" data-i18n-placeholder="users.leaveBlankPassword"></div>
+          <div><label class="block font-bold text-gray-600 mb-1" data-i18n="users.newPasswordOptional">New Password (optional)</label>
+            <div class="relative">
+              <input type="password" id="edit-user-password" minlength="6" class="w-full border rounded p-2 pr-12 text-sm outline-none" placeholder="Leave blank to keep current" data-i18n-placeholder="users.leaveBlankPassword">
+              <button type="button" id="toggle-edit-user-password" class="absolute right-3 top-2.5 text-[10px] font-bold uppercase text-gray-400 hover:text-blue-600 transition tracking-wider focus:outline-none" data-i18n="common.show">Show</button>
+            </div>
+          </div>
           <div><label class="block font-bold text-gray-600 mb-2" data-i18n="users.menuScopes">Menu Execution Scopes</label><div id="edit-user-perms" class="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded border max-h-40 overflow-y-auto"></div></div>
           <div class="flex justify-end gap-2 pt-3 border-t">
             <button type="button" id="btn-cancel-user-edit" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-sm" data-i18n="common.cancel">Cancel</button>
