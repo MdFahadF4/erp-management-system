@@ -68,6 +68,18 @@ export const templates = {
 
       </div>
 
+      <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2 mt-4" data-i18n="dash.capitalEquity">Owner Capital & Equity (Lifetime)</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 mb-2">
+         <div class="bg-white border border-violet-200 rounded-xl p-5 shadow-sm">
+            <h4 class="font-bold text-violet-800 mb-3 border-b pb-2" data-i18n="dash.ownerCapital">Owner's Capital</h4>
+            <div class="space-y-3">
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalCapitalIn">Total Capital In</div><div class="font-mono font-bold text-gray-700 text-base">SAR <span id="dash-cap-in">0.00</span></div></div>
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalCapitalOut">Total Capital Out</div><div class="font-mono font-bold text-emerald-600 text-base">SAR <span id="dash-cap-out">0.00</span></div></div>
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.netCapitalBalance">Net Capital Balance</div><div class="font-mono font-bold text-violet-600 text-base">SAR <span id="dash-cap-net">0.00</span></div></div>
+            </div>
+         </div>
+      </div>
+
       <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2 mt-4" data-i18n="dash.expenditures">Expenditures & Liabilities (Lifetime)</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
          
@@ -771,6 +783,84 @@ export const templates = {
       </div>
     </div>
   `,
+  capital_heads: `
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.capitalHeads.title">Capital Head Setup (Equity)</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
+      </div>
+      <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
+          <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider" data-i18n="form.cap.createHead">Create Capital Head</h3>
+          <form id="form-cap-head-entry" class="space-y-4 text-xs">
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.capitalParentHead">Capital Parent Head</label><input type="text" id="cap-head-main" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-violet-500" placeholder="e.g., Owner Equity, Partner A" data-i18n-placeholder="placeholder.ownerEquity"></div>
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.subHeadName">Sub Head Name</label><input type="text" id="cap-head-sub" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-violet-500" placeholder="e.g., Opening Balance, Retained" data-i18n-placeholder="placeholder.retainedCapital"></div>
+            <button type="submit" class="erp-submit-btn w-full bg-violet-600 hover:bg-violet-700 text-white font-bold p-2.5 rounded text-sm transition uppercase tracking-wider" data-i18n="form.cap.register">Register Capital Head</button>
+          </form>
+        </div>
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
+          <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider" data-i18n="form.cap.configuredStructures">Configured Capital Structures</h3>
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
+                <tr>
+                  <th class="p-2.5" data-i18n="col.trackingId">Tracking ID</th><th class="p-2.5" data-i18n="field.capitalParentHead">Capital Parent Head</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5 font-bold text-gray-700" data-i18n="col.totalCapitalIn">Total Capital In</th><th class="p-2.5 font-bold text-emerald-600" data-i18n="col.totalCapitalOut">Total Capital Out</th><th class="p-2.5 font-bold text-violet-600" data-i18n="col.netCapitalBalance">Net Balance</th><th class="p-2.5" data-i18n="col.createdBy">Created By</th><th class="p-2.5" data-i18n="col.creationStamp">Creation Stamp</th>
+                </tr>
+              </thead>
+              <tbody id="table-cap-head-rows" class="divide-y text-gray-600 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
+  capital_transactions: `
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.capitalTransactions.title">Capital Ledger (Investment & Withdrawals)</h2>
+        <button id="toggle-ledger-btn" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.ledgerView">Ledger View</button>
+      </div>
+      <div class="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
+          <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider" data-i18n="form.cap.logAction">Log Capital Action</h3>
+          <form id="form-cap-txn-entry" class="space-y-4 text-xs">
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="cap-txn-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-violet-500"></div>
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.capitalParentHead">Capital Parent Head</label><select id="cap-txn-main" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-violet-500"><option value="" data-i18n="dropdown.loadParentHead">-- Load Parent Head --</option></select></div>
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.subHeadMapping">Sub Head Mapping</label><select id="cap-txn-sub" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-violet-500"><option value="" data-i18n="dropdown.chooseParentFirst">-- Choose Parent First --</option></select></div>
+            <div class="p-3 bg-gray-50 border rounded-lg space-y-3">
+              <div><label class="block font-bold text-gray-700 mb-1" data-i18n="field.capitalInAmount">Capital In Amount (Investment)</label><input type="number" step="0.01" id="cap-txn-in" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-gray-500"></div>
+              <div><label class="block font-bold text-emerald-700 mb-1" data-i18n="field.capitalOutAmount">Capital Out Amount (Withdrawal)</label><input type="number" step="0.01" id="cap-txn-out" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-emerald-500"></div>
+              <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-violet-600 mb-1" data-i18n="field.transactionDueBalance">Transaction Net / Balance</label><input type="number" id="cap-txn-due" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-violet-600 outline-none shadow-inner"></div>
+            </div>
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.remarksNarrative">Remarks / Narrative</label><textarea id="cap-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-violet-500" placeholder="Investment source, withdrawal purpose..." data-i18n-placeholder="placeholder.capitalRemarks"></textarea></div>
+            <button type="submit" class="erp-submit-btn w-full bg-violet-600 hover:bg-violet-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase" data-i18n="form.cap.postLine">Post Capital Line</button>
+          </form>
+        </div>
+        <div id="ledger-container" class="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 xl:col-span-3 flex flex-col overflow-visible md:overflow-hidden hidden transition-all duration-300 w-full">
+          <div class="bg-gradient-to-r from-violet-600 to-purple-600 p-6 rounded-2xl shadow-xl border text-white flex justify-between items-center mb-6">
+            <div class="flex gap-8">
+              <div><h4 class="text-xs font-bold uppercase tracking-widest opacity-80" data-i18n="form.cap.filteredIn">Filtered Capital In Total</h4><div class="text-3xl font-black font-mono tracking-tight mt-1">SAR <span id="cap-total-in">0.00</span></div></div>
+              <div><h4 class="text-xs font-bold uppercase tracking-widest opacity-80" data-i18n="form.cap.filteredOut">Filtered Capital Out Total</h4><div class="text-3xl font-black font-mono tracking-tight mt-1 text-emerald-100">SAR <span id="cap-total-out">0.00</span></div></div>
+            </div>
+          </div>
+          <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider" data-i18n="form.historicalLedgerShort">Historical Ledger Log</h3>
+          <div class="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
+            <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.fromDate">From Date</label><input type="date" id="filter-from-cap" class="w-full border rounded p-2 outline-none focus:border-violet-500"></div>
+            <div class="flex-1 min-w-[120px]"><label class="block text-gray-600 font-bold mb-1" data-i18n="common.toDate">To Date</label><input type="date" id="filter-to-cap" class="w-full border rounded p-2 outline-none focus:border-violet-500"></div>
+            <div><button id="btn-filter-cap" class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm" data-i18n="common.expandLoadLedger">Expand / Load Ledger</button></div>
+          </div>
+          <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.capitalInAmt">Capital In</th><th class="p-2.5" data-i18n="col.capitalOutAmt">Capital Out</th><th class="p-2.5" data-i18n="col.txnDue">Txn Net</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+              </thead>
+              <tbody id="table-cap-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
   all_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
@@ -791,6 +881,7 @@ export const templates = {
               <option value="Expense" data-i18n="allTxn.catExpense">Expense Transactions</option>
               <option value="Creditor" data-i18n="allTxn.catCreditor">Creditor Transactions</option>
               <option value="Income" data-i18n="allTxn.catIncome">Income Transactions</option>
+              <option value="Capital" data-i18n="allTxn.catCapital">Capital Transactions</option>
               <option value="Internal" data-i18n="allTxn.catInternal">Internal Transfers</option>
             </select>
           </div>

@@ -15,6 +15,11 @@
  *
  * HR_Transactions — row order after ID: Date | Employee Name | Amount | Category | Remarks | Username | Timestamp
  * Updating Code.gs alone does not backfill the HR sheet; run SYNC_HR_MASTER (or open HR Management in the app) after deploy.
+ *
+ * CAPITAL_HEADS — create sheet with row 1 headers:
+ *   ID | Tracking ID | Capital Parent Head | Sub Head Name | Authorized By | Creation Stamp
+ * CAPITAL_TRANSACTIONS — create sheet with row 1 headers:
+ *   ID | Date | Capital Parent Head | Sub Head | Capital In Amount | Capital Out Amount | Remarks | Logged By | Stamp
  */
 const SPREADSHEET_ID = '1psluXui-l3VtYL-P-Z7bRtWop4KA9JO5UahnAgmaHwM';
 

@@ -4,7 +4,7 @@ export const MODULE_LOAD_ORDER = [
   'dashboard', 'delivery_dashboard', 'hr', 'hr_transactions', 'customers', 'customer_transactions',
   'internal_transfer', 'suppliers', 'supplier_transactions', 'expense_heads',
   'expense_transactions', 'creditors', 'creditor_transactions', 'income_heads',
-  'income_transactions', 'all_transactions', 'reports', 'users'
+  'income_transactions', 'capital_heads', 'capital_transactions', 'all_transactions', 'reports', 'users'
 ];
 
 export const SHEET_TO_MODULE = {
@@ -14,7 +14,8 @@ export const SHEET_TO_MODULE = {
   Internal_Transfers: 'internal_transfer',
   Expense_Transactions: 'expense_transactions',
   Creditor_Transactions: 'creditor_transactions',
-  Income_Transactions: 'income_transactions'
+  Income_Transactions: 'income_transactions',
+  Capital_Transactions: 'capital_transactions'
 };
 
 function getUserField(rec, names) {

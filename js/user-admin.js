@@ -22,6 +22,8 @@ export const USER_PERM_MODULES = [
   { perm: 'Creditor_Transactions', labelKey: 'users.permCreditorTxns' },
   { perm: 'Income_Heads', labelKey: 'users.permIncomeHeads' },
   { perm: 'Income_Transactions', labelKey: 'users.permIncomeTxns' },
+  { perm: 'Capital_Heads', labelKey: 'users.permCapitalHeads' },
+  { perm: 'Capital_Transactions', labelKey: 'users.permCapitalTxns' },
   { perm: 'All_Transactions', labelKey: 'users.permAllTransactions' },
   { perm: 'Reports', labelKey: 'users.permReports' }
 ];

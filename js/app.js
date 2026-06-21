@@ -25,6 +25,7 @@ let cachedCustomerTxnRecords = [];
 let cachedExpenseHeads = [];
 let cachedCreditors = [];
 let cachedIncomeHeads = [];
+let cachedCapitalHeads = [];
 
 setupPasswordToggle('toggle-password', 'login-password');
 
@@ -94,7 +95,11 @@ Date.prototype.toLocaleDateString = function() {
         Internal_Transfers: () => loadInternalTransferTableRecords(true),
         Expense_Transactions: () => loadExpenseTxnTableRecords(true),
         Creditor_Transactions: () => loadCreditorTxnTableRecords(true),
-        Income_Transactions: () => loadIncomeTxnTableRecords(true)
+        Income_Transactions: () => loadIncomeTxnTableRecords(true),
+        Capital_Transactions: async () => {
+          await loadCapitalTxnTableRecords(true);
+          await loadCapitalHeadTableRecords();
+        }
       },
       onGlobalRefresh: async () => {
         if (document.getElementById('table-all-txn-rows')) {
@@ -620,6 +625,14 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
       loadIncomeTxnTableRecords(true);
       onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
     });
+  } else if (target === 'capital_heads') {
+    initCapitalHeadFormListeners(); await loadCapitalHeadTableRecords();
+  } else if (target === 'capital_transactions') {
+    await populateCapitalHeadDropdowns(); initCapitalTxnFormListeners(); await loadCapitalTxnTableRecords();
+    document.getElementById('btn-filter-cap')?.addEventListener('click', () => {
+      loadCapitalTxnTableRecords(true);
+      onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
+    });
   } else if (target === 'all_transactions') {
     await loadAllTxnTableRecords();
     document.getElementById('btn-filter-all')?.addEventListener('click', async () => {
@@ -838,14 +851,15 @@ async function updateLiveUserCashDrawerBalance() {
   const balanceDisplay = document.getElementById('header-user-balance'); if (!balanceDisplay) return;
   
   try {
-    const [resCust, resCustTxn, resExp, resHr, resSup, resInt, resCred] = await Promise.all([
+    const [resCust, resCustTxn, resExp, resHr, resSup, resInt, resCred, resCap] = await Promise.all([
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customers" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customer_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Supplier_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Internal_Transfers" } }),
-      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } })
+      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } }),
+      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Capital_Transactions" } })
     ]);
 
     const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -884,6 +898,11 @@ async function updateLiveUserCashDrawerBalance() {
     if (isAdmin) {
         // ADMIN RULE: Physical drawer only drops when they Internal Transfer cash out of it.
         if (resInt.success) resInt.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["transferamount", "amount"])); });
+        if (resCap.success) resCap.records.forEach(r => {
+            if (!isU(r)) return;
+            uCashIn += Math.abs(gF(r, ["capitalinamount", "capitalinamt", "capitalin"]));
+            uCashOut += Math.abs(gF(r, ["capitaloutamount", "capitaloutamt", "capitalout"]));
+        });
     } else {
         // USER RULE: Drawer drops for EVERYTHING they pay for.
         if (resInt.success) resInt.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["transferamount", "amount"])); });
@@ -899,6 +918,13 @@ async function updateLiveUserCashDrawerBalance() {
                     if(isNaN(paid)) paid = Math.abs(gF(r, ["totaldepositincurredamt", "totalexpense", "expenseamount", "billamount", "total", "deposit"]));
                     uCashOut += paid;
                 }
+            });
+        }
+        if (resCap.success) {
+            resCap.records.forEach(r => {
+                if (!isU(r)) return;
+                uCashIn += Math.abs(gF(r, ["capitalinamount", "capitalinamt", "capitalin"]));
+                uCashOut += Math.abs(gF(r, ["capitaloutamount", "capitaloutamt", "capitalout"]));
             });
         }
     }
@@ -2335,6 +2361,232 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
 }
 
 /**
+ * MODULE: CAPITAL HEADS & TRANSACTIONS (OWNER EQUITY)
+ */
+function initCapitalHeadFormListeners() {
+  const form = document.getElementById('form-cap-head-entry'); if (!form) return;
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!guardModuleEdit('capital_heads')) return;
+    const currentUser = fetchSessionUser();
+    const mainHead = document.getElementById('cap-head-main').value.trim();
+    const subHead = document.getElementById('cap-head-sub').value.trim();
+    const trackingUID = `CAP-${mainHead.substring(0,3).toUpperCase()}-${subHead.substring(0,3).toUpperCase()}`;
+    const payloadRow = [ trackingUID, mainHead, subHead, currentUser.username, new Date().toLocaleString() ];
+    try {
+      const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Capital_Heads", rowData: payloadRow } }); alert(res.message); if (res.success) { form.reset(); await loadCapitalHeadTableRecords(); }
+    } catch (err) { alert(t('alert.errorCommit')); }
+  });
+}
+
+async function loadCapitalHeadTableRecords() {
+  const container = document.getElementById('table-cap-head-rows'); if (!container) return;
+  container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">${t('heads.loadingStructures')}</td></tr>`;
+  try {
+    const resultHeads = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Capital_Heads" } });
+    const resultTxns = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Capital_Transactions" } });
+
+    if (resultHeads.success) {
+      cachedCapitalHeads = resultHeads.records; const txns = resultTxns.success ? resultTxns.records : [];
+      if (cachedCapitalHeads.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-gray-400">${t('heads.noCapitalHeads')}</td></tr>`; return; }
+
+      let headTotals = {};
+      let prevDueTotals = {};
+
+      txns.forEach(tRec => {
+          let mHead = String(getCol(tRec, ["Capital Parent Head", "Parent Head", "Main Head"])).trim().toUpperCase();
+          let sHead = String(getCol(tRec, ["Sub Head", "SubCategory"])).trim().toUpperCase();
+          let rem = String(getCol(tRec, ["Remarks", "Remarks / Reference", "Description"])).trim().toUpperCase();
+
+          let rawIn = parseFloat(getCol(tRec, ["Capital In Amount", "Capital In Amt", "Capital In"])) || 0;
+          let rawOut = parseFloat(getCol(tRec, ["Capital Out Amount", "Capital Out Amt", "Capital Out"])) || 0;
+
+          let isPrevDue = sHead.includes("PREVIOUS DUE") || rem.includes("PREVIOUS DUE") || rem.includes("OPENING BALANCE");
+
+          if (isPrevDue) {
+              if (!prevDueTotals[mHead]) prevDueTotals[mHead] = 0;
+              prevDueTotals[mHead] += Math.max(rawIn, rawOut);
+          } else {
+              let key = mHead + "|||" + sHead;
+              if (!headTotals[key]) headTotals[key] = { capIn: 0, capOut: 0 };
+              headTotals[key].capIn += rawIn;
+              headTotals[key].capOut += rawOut;
+          }
+      });
+
+      container.innerHTML = cachedCapitalHeads.map(rec => {
+        const trackingId = getCol(rec, ["Tracking ID", "System Unique ID", "ID"]) || '';
+        const mainHead = getCol(rec, ["Capital Parent Head", "Parent Head", "Main Head"]) || '';
+        const subHead = getCol(rec, ["Sub Head Name", "Sub Head", "SubCategory"]) || '';
+
+        let mHeadUpper = String(mainHead).trim().toUpperCase();
+        let sHeadUpper = String(subHead).trim().toUpperCase();
+        let key = mHeadUpper + "|||" + sHeadUpper;
+
+        let rowIn = headTotals[key] ? headTotals[key].capIn : 0;
+        let rowOut = headTotals[key] ? headTotals[key].capOut : 0;
+
+        if (prevDueTotals[mHeadUpper]) {
+            rowIn += prevDueTotals[mHeadUpper];
+            prevDueTotals[mHeadUpper] = 0;
+        }
+
+        const rowNet = rowIn - rowOut;
+
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
+          <td class="p-2.5 font-mono text-gray-400 text-[11px]">${trackingId}</td><td class="font-bold text-gray-800">${mainHead}</td><td class="text-violet-600 font-medium">${subHead}</td>
+          <td class="font-mono font-bold text-gray-700">SAR ${rowIn.toFixed(2)}</td>
+          <td class="font-mono font-bold text-emerald-600">SAR ${rowOut.toFixed(2)}</td>
+          <td class="font-mono font-bold text-violet-600">SAR ${rowNet.toFixed(2)}</td>
+          <td>${getCol(rec, ["Created By", "Authorized By", "Username"]) || ''}</td><td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Creation Stamp", "Timestamp"]) || ''}</td>
+        </tr>`;
+      }).join('');
+    }
+  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('heads.loadFailed')}</td></tr>`; }
+}
+
+async function populateCapitalHeadDropdowns() {
+  const mainSelect = document.getElementById('cap-txn-main'); if (!mainSelect) return;
+  const subSelect = document.getElementById('cap-txn-sub');
+  mainSelect.innerHTML = `<option value="">${t('dropdown.loadingStructures')}</option>`;
+  try {
+    const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Capital_Heads" } });
+    if (result.success && result.records.length > 0) {
+      cachedCapitalHeads = result.records;
+      const uniqueParents = [...new Set(cachedCapitalHeads.map(r => getCol(r, ["Capital Parent Head", "Parent Head", "Main Head"])))];
+      mainSelect.innerHTML = `<option value="">${t('dropdown.chooseCapital')}</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('');
+      mainSelect.onchange = () => {
+         const selectedParent = mainSelect.value;
+         if(!selectedParent) { subSelect.innerHTML = `<option value="">${t('dropdown.chooseParentFirst')}</option>`; return; }
+         const filteredSubs = cachedCapitalHeads.filter(r => getCol(r, ["Capital Parent Head", "Parent Head", "Main Head"]) === selectedParent);
+         subSelect.innerHTML = `<option value="">${t('dropdown.chooseSubHead')}</option>` + filteredSubs.map(s => {
+            let sName = getCol(s, ["Sub Head Name", "Sub Head"]); return `<option value="${sName}">${sName}</option>`;
+         }).join('');
+      };
+    } else { mainSelect.innerHTML = `<option value="">${t('dropdown.setupCapitalFirst')}</option>`; }
+  } catch (err) { mainSelect.innerHTML = `<option value="">Error compiling data</option>`; }
+}
+
+function initCapitalTxnFormListeners() {
+  const form = document.getElementById('form-cap-txn-entry'); if (!form) return;
+
+  const fIn = document.getElementById('cap-txn-in');
+  const fOut = document.getElementById('cap-txn-out');
+  const fDue = document.getElementById('cap-txn-due');
+
+  const runCapCalculations = () => {
+    if (fDue && fIn && fOut) {
+      fDue.value = ((parseFloat(fIn.value) || 0) - (parseFloat(fOut.value) || 0)).toFixed(2);
+    }
+  };
+
+  if (fIn) fIn.addEventListener('input', runCapCalculations);
+  if (fOut) fOut.addEventListener('input', runCapCalculations);
+
+  const subInput = document.getElementById('cap-txn-sub');
+  if (subInput && subInput.tagName === 'SELECT') {
+      let hasPrevDue = Array.from(subInput.options).some(o => o.value === 'Previous Due');
+      if (!hasPrevDue) {
+          subInput.insertAdjacentHTML('beforeend', `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">${t('dropdown.previousDuePin')}</option>`);
+      }
+  }
+
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!guardModuleEdit('capital_transactions')) return;
+    const currentUser = fetchSessionUser(); runCapCalculations();
+
+    let remarksText = document.getElementById('cap-txn-remarks').value.trim();
+    let subValue = document.getElementById('cap-txn-sub').value;
+
+    if (subValue === 'Previous Due' && !remarksText.toLowerCase().includes('previous due')) {
+        remarksText = remarksText ? "Previous Due - " + remarksText : "Previous Due";
+    }
+
+    const rowPayload = [
+      document.getElementById('cap-txn-date').value,
+      document.getElementById('cap-txn-main').value,
+      subValue,
+      parseFloat(fIn.value) || 0,
+      parseFloat(fOut.value) || 0,
+      remarksText,
+      currentUser.username,
+      new Date().toLocaleString()
+    ];
+
+    try {
+      const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Capital_Transactions", rowData: rowPayload } }); alert(result.message);
+      if (result.success) {
+        form.reset();
+        document.getElementById('cap-txn-date').value = new Date().toISOString().split('T')[0];
+        runCapCalculations();
+        await loadCapitalTxnTableRecords(true);
+        await loadCapitalHeadTableRecords();
+        await updateLiveUserCashDrawerBalance();
+      }
+    } catch (err) { alert(t('alert.errorLog')); }
+  };
+}
+
+async function loadCapitalTxnTableRecords(isFilter = false) {
+  const container = document.getElementById('table-cap-txn-rows'); if (!container) return;
+  const inSumBox = document.getElementById('cap-total-in');
+  const outSumBox = document.getElementById('cap-total-out');
+  const fDateInput = document.getElementById('filter-from-cap');
+  const tDateInput = document.getElementById('filter-to-cap');
+
+  if (!isFilter) {
+    container.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    if (inSumBox) inSumBox.textContent = "0.00"; if (outSumBox) outSumBox.textContent = "0.00";
+    return;
+  }
+  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
+
+  container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-violet-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  try {
+    const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Capital_Transactions" } });
+    if (result.success) {
+      const fDate = new Date(fDateInput.value); fDate.setHours(0,0,0,0);
+      const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
+      let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
+
+      let totalInAcc = 0; let totalOutAcc = 0;
+
+      if (filtered.length === 0) {
+        container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`;
+        if (inSumBox) inSumBox.textContent = "0.00"; if (outSumBox) outSumBox.textContent = "0.00";
+        return;
+      }
+
+      cacheTxnRecords("Capital_Transactions", filtered);
+      container.innerHTML = filtered.reverse().map(rec => {
+        const inAmt = parseFloat(getCol(rec, ["Capital In Amount", "Capital In Amt", "Capital In"])) || 0;
+        const outAmt = parseFloat(getCol(rec, ["Capital Out Amount", "Capital Out Amt", "Capital Out"])) || 0;
+        const txnNet = inAmt - outAmt;
+
+        totalInAcc += inAmt; totalOutAcc += outAmt;
+
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
+          <td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td>
+          <td class="font-bold text-gray-900">${getCol(rec, ["Capital Parent Head", "Parent Head", "Main Head"]) || ''}</td>
+          <td class="text-violet-600">${getCol(rec, ["Sub Head", "SubCategory"]) || ''}</td>
+          <td class="font-mono text-gray-700">${inAmt.toFixed(2)}</td>
+          <td class="font-mono font-bold text-emerald-600">${outAmt.toFixed(2)}</td>
+          <td class="font-mono font-bold text-violet-600">${txnNet.toFixed(2)}</td>
+          <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
+          <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
+          <td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Timestamp"]) || ''}</td>
+          ${renderTxnActions(rec, "Capital_Transactions")}
+        </tr>`;
+      }).join('');
+
+      if (inSumBox) inSumBox.textContent = totalInAcc.toFixed(2);
+      if (outSumBox) outSumBox.textContent = totalOutAcc.toFixed(2);
+    }
+  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+}
+
+/**
  * MASTER AUDIT AGGREGATOR (ALL TRANSACTIONS)
  */
 async function loadAllTxnTableRecords(isFilter = false) {
@@ -2381,6 +2633,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
     const resExp = await fetchSheet("Expense_Transactions");
     const resCred = await fetchSheet("Creditor_Transactions");
     const resInc = await fetchSheet("Income_Transactions");
+    const resCap = await fetchSheet("Capital_Transactions");
 
     let allRecords = [];
 
@@ -2464,6 +2717,14 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
 
+    addRecords(resCap, "Capital", "Capital_Transactions", r => ({
+       details: `${getCol(r, ["Capital Parent Head", "Main Head", "Parent Head"]) || t('allTxn.noRemarks')} > ${getCol(r, ["Sub Head"]) || t('allTxn.noRemarks')}`,
+       financial: t('allTxn.finCapInOut', { capIn: Number(getCol(r, ["Capital In Amount", "Capital In Amt", "Capital In"])||0).toFixed(2), capOut: Number(getCol(r, ["Capital Out Amount", "Capital Out Amt", "Capital Out"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
+       user: getCol(r, ["Username", "Logged By"]),
+       stamp: getCol(r, ["Timestamp"])
+    }));
+
     if (moduleFilter && moduleFilter.value) {
        allRecords = allRecords.filter(r => r.module === moduleFilter.value);
     }
@@ -2483,6 +2744,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
        if(rec.module==="Expense") modColor="bg-red-100 text-red-800";
        if(rec.module==="Creditor") modColor="bg-orange-100 text-orange-800";
        if(rec.module==="Income") modColor="bg-indigo-100 text-indigo-800";
+       if(rec.module==="Capital") modColor="bg-violet-100 text-violet-800";
        if(rec.module==="Internal") modColor="bg-teal-100 text-teal-800";
 
        return `
@@ -2540,6 +2802,7 @@ function initReportsSystem() {
           <option value="creditor_details" data-i18n-report="report.creditorDetails">Creditor Details Report</option>
           <option value="master_executive" data-i18n-report="report.masterExecutive">Master Executive Dashboard</option>
           <option value="income_details" data-i18n-report="report.incomeDetails">Income Details Report</option>
+          <option value="capital_details" data-i18n-report="report.capitalDetails">Capital Details Report</option>
         `);
      }
      translateReportSelect(typeSelect);
@@ -2637,7 +2900,8 @@ function initReportsSystem() {
       
       // --- THE MISSING INCOME ROUTE! ---
       else if (val === 'income_details') await fillFilter('Income_Heads', ["Income Parent Head", "Parent Head", "Main Head", "Name"], ["System Unique ID", "Tracking ID", "ID", "Income Parent Head", "Parent Head"], 'report.selectIncomeAccount');
-      
+      else if (val === 'capital_details') await fillFilter('Capital_Heads', ["Capital Parent Head", "Capital Name", "Name", "Head"], ["Capital Parent Head", "Capital Name", "Name", "Head"], 'report.selectCapitalAccount');
+
     });
   }
 
@@ -2723,13 +2987,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
       } catch(e) { return {success: false, records: []}; }
     };
 
-    const [rCust, rCustT, rSup, rSupT, rHr, rHrT, rExp, rExpHeads, rInc, rIncT, rCrd, rCrdT, rInt, rUsr] = await Promise.all([
+    const [rCust, rCustT, rSup, rSupT, rHr, rHrT, rExp, rExpHeads, rInc, rIncT, rCrd, rCrdT, rCap, rCapT, rInt, rUsr] = await Promise.all([
       fetchSheet("Customers"), fetchSheet("Customer_Transactions"),
       fetchSheet("Suppliers"), fetchSheet("Supplier_Transactions"),
       fetchSheet("HR"), fetchSheet("HR_Transactions"),
       fetchSheet("Expense_Transactions"), fetchSheet("Expense_Heads"),
       fetchSheet("Income_Heads"), fetchSheet("Income_Transactions"),
       fetchSheet("Creditor_Heads"), fetchSheet("Creditor_Transactions"),
+      fetchSheet("Capital_Heads"), fetchSheet("Capital_Transactions"),
       fetchSheet("Internal_Transfers"), fetchSheet("Users")
     ]);
 
@@ -2918,7 +3183,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
            purchase: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
            expense: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
            hr: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
-           creditor: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] }
+           creditor: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
+           capital: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] }
         };
 
         const addD = (cat, dStr, inc, paid, rem, usr) => {
@@ -3069,6 +3335,21 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             }
         });
 
+        // --- CAPITAL EQUITY LOGIC ---
+        if (typeof rCapT !== 'undefined' && rCapT && rCapT.success) rCapT.records.forEach(r => {
+            let rawIn = Math.abs(gF(r, ["capitalinamount", "capitalinamt", "capitalin"]));
+            let rawOut = Math.abs(gF(r, ["capitaloutamount", "capitaloutamt", "capitalout"]));
+            let cat = String(gV(r, ["category", "subhead", "method", "type"]) || getRemarks(r)).trim().toUpperCase();
+            let usr = getCol(r, ["Logged By", "Username", "User"]) || gV(r, ["username", "loggedby"]) || '-';
+
+            if (cat.includes("PREVIOUS DUE") || cat.includes("OPENING BALANCE")) {
+                let prevAmt = Math.max(rawIn, rawOut);
+                addD('capital', gV(r, ["date", "timestamp"]), prevAmt, 0, "📌 Previous Due", usr);
+            } else {
+                addD('capital', gV(r, ["date", "timestamp"]), rawIn, rawOut, getRemarks(r), usr);
+            }
+        });
+
         let d = window.aggReportData;
         let totalReceivable = (d.sales.lInc - d.sales.lPaid) + (d.income.lInc - d.income.lPaid);
         let totalPayable = (d.purchase.lInc - d.purchase.lPaid) + (d.expense.lInc - d.expense.lPaid) + (d.hr.lInc - d.hr.lPaid) + (d.creditor.lInc - d.creditor.lPaid);
@@ -3126,6 +3407,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              ${buildBox(t('report.boxOperationalExpenses'), d.expense.lInc, d.expense.lPaid, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "lifetime")}
              ${buildBox(t('report.boxHrPayroll'), d.hr.lInc, d.hr.lPaid, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "lifetime")}
              ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.lInc, d.creditor.lPaid, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "lifetime")}
+             ${buildBox(t('report.boxOwnerCapital'), d.capital.lInc, d.capital.lPaid, t('report.capitalInLabel'), t('report.capitalOutLabel'), "capital", "lifetime")}
           </div>
           
           ${hasDates ? `
@@ -3145,6 +3427,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              ${buildBox(t('report.boxOperationalExpenses'), d.expense.rInc, d.expense.rPaid, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "range")}
              ${buildBox(t('report.boxHrPayroll'), d.hr.rInc, d.hr.rPaid, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "range")}
              ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.rInc, d.creditor.rPaid, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "range")}
+             ${buildBox(t('report.boxOwnerCapital'), d.capital.rInc, d.capital.rPaid, t('report.capitalInLabel'), t('report.capitalOutLabel'), "capital", "range")}
           </div>` : ''}
         `;
         cardsEl.className = "grid grid-cols-1 mb-2";
@@ -3183,6 +3466,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             if(key === 'purchase') { l1 = t('report.aggPurchased'); }
             if(key === 'hr') { l1 = t('report.aggEarned'); }
             if(key === 'creditor') { l1 = t('report.aggReceived'); l2 = t('report.aggReturned'); }
+            if(key === 'capital') { l1 = t('report.capitalInLabel'); l2 = t('report.capitalOutLabel'); }
             
             document.getElementById('agg-l1').textContent = l1; document.getElementById('agg-h1').textContent = l1;
             document.getElementById('agg-l2').textContent = l2; document.getElementById('agg-h2').textContent = l2;
@@ -3674,6 +3958,115 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                         ${cdReturned.length > 0 ? cdReturned.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
                            <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 font-bold text-gray-600">${p.meth}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5">${p.usr}</td></tr>
                         `).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noFundsReturned')}</td></tr>`}
+                     </tbody>
+                  </table>
+                </div>
+             </div>
+          </div>
+        `;
+        break;
+      }
+
+      // ====================================================================
+      // 2b. CAPITAL DETAILS REPORT
+      // ====================================================================
+      case 'capital_details': {
+        titleEl.textContent = t('report.titleCapitalStatement');
+
+        let cdCapIn = []; let cdCapOut = [];
+        let lifeIn = 0, lifeOut = 0;
+        let rngIn = 0, rngOut = 0;
+
+        const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+        const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
+
+        const isCap = (obj) => {
+            let target = cln(secVal);
+            for(let key in obj) { if (cln(obj[key]) === target) return true; }
+            return false;
+        };
+
+        const inCols = ["capitalinamount", "capitalinamt", "capitalin"];
+        const outCols = ["capitaloutamount", "capitaloutamt", "capitalout"];
+
+        let hasDates = (typeof fDate !== 'undefined' && fDate && typeof tDate !== 'undefined' && tDate && !isNaN(new Date(fDate).getTime()));
+
+        if (rCapT.success) {
+            rCapT.records.filter(isCap).forEach(r => {
+                let capIn = Math.abs(parseFloat(gV(r, inCols))); if(isNaN(capIn)) capIn = 0;
+                let capOut = Math.abs(parseFloat(gV(r, outCols))); if(isNaN(capOut)) capOut = 0;
+                let check = cln(gV(r, ["remarks", "subhead"])) + cln(gV(r, ["subhead"]));
+                if (check.includes("previousdue") || check.includes("openingbalance")) {
+                    capIn = Math.max(capIn, capOut);
+                    capOut = 0;
+                }
+
+                lifeIn += capIn;
+                lifeOut += capOut;
+
+                let dStr = gV(r, ["date", "timestamp"]);
+                let d = dStr ? new Date(dStr) : new Date();
+                let inRange = !hasDates || (d >= fDate && d <= tDate);
+
+                if (inRange) {
+                    if (hasDates) { rngIn += capIn; rngOut += capOut; }
+                    let remarks = getRemarks(r);
+                    let usr = gV(r, ["username", "loggedby"]) || '-';
+                    if (capIn > 0) cdCapIn.push({ d, amt: capIn, rem: remarks, usr });
+                    if (capOut > 0) cdCapOut.push({ d, amt: capOut, rem: remarks, usr });
+                }
+            });
+        }
+
+        let lifeNet = lifeIn - lifeOut;
+
+        cardsEl.innerHTML = `
+          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
+             <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
+                <div class="text-left w-1/3">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalCapitalIn')}</div>
+                   <div class="text-3xl font-black text-violet-600 font-mono mt-1">SAR ${lifeIn.toFixed(2)}</div>
+                </div>
+                <div class="text-center w-1/3 border-l border-gray-100">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalCapitalOut')}</div>
+                   <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeOut.toFixed(2)}</div>
+                </div>
+                <div class="text-right w-1/3 border-l border-gray-100">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeNetCapital')}</div>
+                   <div class="text-3xl font-black ${lifeNet >= 0 ? 'text-violet-600' : 'text-red-600'} font-mono mt-1">SAR ${lifeNet.toFixed(2)}</div>
+                </div>
+             </div>
+             ${hasDates ? `
+             <div class="flex justify-around bg-violet-50 p-4 rounded-lg border border-violet-100">
+                <div class="text-center"><div class="text-violet-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCapitalIn')}</div><div class="text-lg font-bold text-violet-700 font-mono mt-1">SAR ${rngIn.toFixed(2)}</div></div>
+                <div class="text-center border-l border-violet-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCapitalOut')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngOut.toFixed(2)}</div></div>
+             </div>` : ''}
+          </div>
+        `;
+        cardsEl.className = "grid grid-cols-1 mb-6";
+
+        tableContainer.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <div class="bg-violet-50 text-violet-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-violet-100 text-center">${t('report.capitalInLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
+                <div class="erp-report-ledger-wrap overflow-x-auto">
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colCapitalInAmt')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
+                     <tbody class="divide-y divide-gray-100">
+                        ${cdCapIn.length > 0 ? cdCapIn.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
+                           <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-violet-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5">${s.usr}</td></tr>
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noCapitalIn')}</td></tr>`}
+                     </tbody>
+                  </table>
+                </div>
+             </div>
+             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.capitalOutLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
+                <div class="erp-report-ledger-wrap overflow-x-auto">
+                  <table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('report.colCapitalOutAmt')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
+                     <tbody class="divide-y divide-gray-100">
+                        ${cdCapOut.length > 0 ? cdCapOut.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
+                           <tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5">${p.usr}</td></tr>
+                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noCapitalOut')}</td></tr>`}
                      </tbody>
                   </table>
                 </div>
@@ -5532,10 +5925,10 @@ async function loadDashboardData() {
       try { return await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName } }); } catch(e) { return {success:false, records:[]}; }
     };
 
-    const [rCust, rCustT, rSup, rSupT, rExp, rHr, rHrT, rInc, rIncT, rCrd, rCrdT, rInt, rUsers] = await Promise.all([
+    const [rCust, rCustT, rSup, rSupT, rExp, rHr, rHrT, rInc, rIncT, rCrd, rCrdT, rCapT, rInt, rUsers] = await Promise.all([
       fetchS("Customers"), fetchS("Customer_Transactions"), fetchS("Suppliers"), fetchS("Supplier_Transactions"),
       fetchS("Expense_Transactions"), fetchS("HR"), fetchS("HR_Transactions"), fetchS("Income_Heads"), fetchS("Income_Transactions"),
-      fetchS("Creditor_Heads"), fetchS("Creditor_Transactions"), fetchS("Internal_Transfers"), fetchS("Users")
+      fetchS("Creditor_Heads"), fetchS("Creditor_Transactions"), fetchS("Capital_Transactions"), fetchS("Internal_Transfers"), fetchS("Users")
     ]);
 
     const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -5555,6 +5948,7 @@ async function loadDashboardData() {
     let purPur=0, purPaid=0, purDue=0;
     let expInc=0, expPaid=0, expDue=0;
     let crdRecv=0, crdRet=0, crdDue=0;
+    let capIn=0, capOut=0, capNet=0;
     let hrEarned=0, hrPaid=0, hrDue=0; 
     let tRecv=0, tPay=0;
     
@@ -5657,6 +6051,24 @@ async function loadDashboardData() {
        }
     });
 
+    // CAPITAL LOGIC
+    if(rCapT.success) rCapT.records.forEach(r => {
+       let check = cln(gV(r, ["remarks", "category", "subhead"]));
+       let capInAmt = Math.abs(gF(r, ["capitalinamount", "capitalinamt", "capitalin"]));
+       let capOutAmt = Math.abs(gF(r, ["capitaloutamount", "capitaloutamt", "capitalout"]));
+       if (check.includes("previousdue") || check.includes("openingbalance")) {
+           let prevAmt = Math.max(capInAmt, capOutAmt);
+           capIn += prevAmt; capNet += prevAmt;
+       } else {
+           capIn += capInAmt; capOut += capOutAmt; capNet += (capInAmt - capOutAmt);
+           let logger = gV(r, ["username", "loggedby"]);
+           if (logger && !isAdm(logger)) {
+               addCash(logger, capInAmt);
+               addCash(logger, -capOutAmt);
+           }
+       }
+    });
+
     // HR LOGIC (STRICT DYNAMIC MATH - NO DOUBLE COUNTING)
     if(rHrT.success) rHrT.records.forEach(r => { 
         let amt = Math.abs(gF(r, ["amount"])); let check = cln(gV(r, ["category", "remarks"])); let logger = gV(r, ["username", "loggedby"]);
@@ -5684,12 +6096,13 @@ async function loadDashboardData() {
     setVal('dash-exp-inc', expInc); setVal('dash-exp-paid', expPaid); setVal('dash-exp-due', expDue);
     setVal('dash-hr-earned', hrEarned); setVal('dash-hr-paid', hrPaid); setVal('dash-hr-due', hrDue);
     setVal('dash-crd-recv', crdRecv); setVal('dash-crd-ret', crdRet); setVal('dash-crd-due', crdDue);
+    setVal('dash-cap-in', capIn); setVal('dash-cap-out', capOut); setVal('dash-cap-net', capNet);
 
     const sessionUser = fetchSessionUser();
     const adminContainer = document.getElementById('admin-global-balance-container');
     let globalBalance = null;
     if (sessionUser && (sessionUser.role === "Super Admin" || sessionUser.role === "Admin")) {
-        let globalInflows = saleRecv + incRecv + crdRecv; let globalOutflows = purPaid + expPaid + crdRet + hrPaid; globalBalance = globalInflows - globalOutflows;
+        let globalInflows = saleRecv + incRecv + crdRecv + capIn; let globalOutflows = purPaid + expPaid + crdRet + hrPaid + capOut; globalBalance = globalInflows - globalOutflows;
         if (adminContainer) {
             adminContainer.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-3 md:p-5 shadow-md text-white"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 md:gap-4"><div class="min-w-0"><div class="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1.5"><svg class="w-3 h-3 md:w-4 md:h-4 text-teal-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><span class="truncate">${t('dash.globalBalance')}</span></div><div class="text-xl sm:text-2xl md:text-3xl font-black font-mono text-teal-400 truncate">SAR ${globalBalance.toFixed(2)}</div></div><div class="grid grid-cols-2 gap-2 sm:flex sm:gap-3 shrink-0"><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">${t('dash.inflows')}</div><div class="text-emerald-400 font-mono font-bold text-xs md:text-base">SAR ${globalInflows.toFixed(2)}</div></div><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">${t('dash.outflows')}</div><div class="text-red-400 font-mono font-bold text-xs md:text-base">SAR ${globalOutflows.toFixed(2)}</div></div></div></div></div>`;
         }

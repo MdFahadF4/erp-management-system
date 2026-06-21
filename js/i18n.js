@@ -46,6 +46,8 @@ const STRINGS = {
     'nav.creditorTransactions': 'Creditor Transactions',
     'nav.incomeHeads': 'Income Heads',
     'nav.incomeTransactions': 'Income Transactions',
+    'nav.capitalHeads': 'Capital Heads',
+    'nav.capitalTransactions': 'Capital Transactions',
     'nav.allTransactions': 'All Transaction View',
     'nav.reports': 'Reports System',
     'nav.users': 'User Access Control',
@@ -95,6 +97,8 @@ const STRINGS = {
     'page.creditorTransactions.title': 'Creditor Ledger (Loans & Returns)',
     'page.incomeHeads.title': 'Income Category Setup (Revenues)',
     'page.incomeTransactions.title': 'Income Ledger Logging',
+    'page.capitalHeads.title': 'Capital Head Setup (Equity)',
+    'page.capitalTransactions.title': 'Capital Ledger (Investment & Withdrawals)',
     'page.allTransactions.title': 'All Transaction View (Master Audit)',
     'page.reports.title': 'Enterprise Reporting System',
     'page.users.title': 'User Access Management',
@@ -111,6 +115,7 @@ const STRINGS = {
     'report.expenseDetails': 'Expense Details Report',
     'report.creditorDetails': 'Creditor Details Report',
     'report.incomeDetails': 'Income Details Report',
+    'report.capitalDetails': 'Capital Details Report',
     'report.masterExecutive': 'Master Executive Dashboard',
     'mobile.collapseLedger': 'Ledger loaded · Tap to show entry form',
     'mobile.collapseFilters': 'Showing audit records · Tap to change filters',
@@ -132,6 +137,7 @@ const STRINGS = {
     'allTxn.catExpense': 'Expense Transactions',
     'allTxn.catCreditor': 'Creditor Transactions',
     'allTxn.catIncome': 'Income Transactions',
+    'allTxn.catCapital': 'Capital Transactions',
     'allTxn.catInternal': 'Internal Transfers',
     'allTxn.searchFilter': 'Search / Filter Records',
     'allTxn.colDate': 'Date',
@@ -152,6 +158,7 @@ const STRINGS = {
     'allTxn.moduleExpense': 'Expense',
     'allTxn.moduleCreditor': 'Creditor',
     'allTxn.moduleIncome': 'Income',
+    'allTxn.moduleCapital': 'Capital',
     'allTxn.moduleInternal': 'Internal',
     'allTxn.finAmount': 'SAR {amount}',
     'allTxn.finSoldRecv': 'Sold: {sold} | Recv: {recv}',
@@ -160,6 +167,7 @@ const STRINGS = {
     'allTxn.finDepPaid': 'Dep: {dep} | Paid: {paid}',
     'allTxn.finRecvRet': 'Recv: {recv} | Ret: {ret}',
     'allTxn.finBilledRecv': 'Billed: {billed} | Recv: {recv}',
+    'allTxn.finCapInOut': 'In: {capIn} | Out: {capOut}',
     'allTxn.detailsUid': 'UID: {uid} | {method}',
     'allTxn.detailsNamed': '{name} ({category})',
     'allTxn.noRemarks': '-'
@@ -892,6 +900,7 @@ export const ALL_TXN_MODULE_I18N = {
   Expense: 'allTxn.moduleExpense',
   Creditor: 'allTxn.moduleCreditor',
   Income: 'allTxn.moduleIncome',
+  Capital: 'allTxn.moduleCapital',
   Internal: 'allTxn.moduleInternal'
 };
 
@@ -914,6 +923,7 @@ export const REPORT_OPTION_I18N = {
   expense_details: 'report.expenseDetails',
   creditor_details: 'report.creditorDetails',
   income_details: 'report.incomeDetails',
+  capital_details: 'report.capitalDetails',
   master_executive: 'report.masterExecutive'
 };
 

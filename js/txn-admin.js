@@ -143,6 +143,16 @@ const TXN_FORMS = {
       fieldHtml('received', 'field.actuallyReceivedCashIn', 'number', getCol(rec, ['Received Amount', 'Received Amt'])),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
+  },
+  Capital_Transactions(rec) {
+    return [
+      fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
+      fieldHtml('main', 'field.capitalParentHead', 'text', getCol(rec, ['Capital Parent Head', 'Parent Head', 'Main Head'])),
+      fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
+      fieldHtml('capin', 'field.capitalInAmount', 'number', getCol(rec, ['Capital In Amount', 'Capital In Amt', 'Capital In'])),
+      fieldHtml('capout', 'field.capitalOutAmount', 'number', getCol(rec, ['Capital Out Amount', 'Capital Out Amt', 'Capital Out'])),
+      fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
+    ].join('');
   }
 };
 
@@ -176,6 +186,8 @@ function buildRowData(sheetName, original) {
       return [date, readField('main'), readField('sub'), parseFloat(readField('received')) || 0, parseFloat(readField('returned')) || 0, readField('remarks').trim(), loggedBy, stamp];
     case 'Income_Transactions':
       return [date, readField('main'), readField('sub'), parseFloat(readField('receivable')) || 0, parseFloat(readField('received')) || 0, readField('remarks').trim(), loggedBy, stamp];
+    case 'Capital_Transactions':
+      return [date, readField('main'), readField('sub'), parseFloat(readField('capin')) || 0, parseFloat(readField('capout')) || 0, readField('remarks').trim(), loggedBy, stamp];
     default:
       return [];
   }
