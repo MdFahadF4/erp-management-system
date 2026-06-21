@@ -349,6 +349,49 @@ function syncDeliveryQueue() {
   return { success: true, message: added > 0 ? (added + ' delivery record(s) synced.') : 'Delivery queue is up to date.', added: added };
 }
 
+/** Recalculate HR master row (increment, current salary, earn, paid, due) from all HR_Transactions. */
+function syncHrMasterForEmployee_(ss, empName) {
+  var hrSheet = ss.getSheetByName("HR");
+  var txnSheet = ss.getSheetByName("HR_Transactions");
+  if (!hrSheet || !txnSheet) return;
+
+  var targetName = String(empName || "").trim();
+  if (!targetName) return;
+
+  var hrData = hrSheet.getDataRange().getValues();
+  var txnData = txnSheet.getDataRange().getValues();
+  var totalInc = 0;
+  var totalEarn = 0;
+  var totalPaid = 0;
+
+  for (var t = 1; t < txnData.length; t++) {
+    var txnEmp = String(txnData[t][2] || "").trim();
+    if (txnEmp !== targetName) continue;
+    var amt = parseFloat(txnData[t][3]) || 0;
+    var cat = String(txnData[t][4] || "").trim().toLowerCase();
+
+    if (cat.indexOf("increment") !== -1) totalInc += amt;
+    if (cat.indexOf("earn") !== -1 || cat.indexOf("previous due") !== -1 || cat.indexOf("opening balance") !== -1) {
+      totalEarn += amt;
+    } else if (cat.indexOf("paid") !== -1) {
+      totalPaid += amt;
+    }
+  }
+
+  for (var i = 1; i < hrData.length; i++) {
+    if (String(hrData[i][1] || "").trim() === targetName) {
+      var baseSalary = parseFloat(hrData[i][4]) || 0;
+      var targetRow = i + 1;
+      hrSheet.getRange(targetRow, 6).setValue(totalInc);
+      hrSheet.getRange(targetRow, 7).setValue(baseSalary + totalInc);
+      hrSheet.getRange(targetRow, 8).setValue(totalEarn);
+      hrSheet.getRange(targetRow, 9).setValue(totalPaid);
+      hrSheet.getRange(targetRow, 10).setValue(totalEarn - totalPaid);
+      break;
+    }
+  }
+}
+
 function createGenericRecord(sheetName, rowData) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
@@ -358,27 +401,7 @@ function createGenericRecord(sheetName, rowData) {
   sheet.appendRow(fullRow);
 
   if (sheetName === "HR_Transactions") {
-    const empName = rowData[1];
-    const amount = parseFloat(rowData[2]) || 0;
-    const category = rowData[3];
-    const hrSheet = ss.getSheetByName("HR");
-    if (hrSheet) {
-      const hrData = hrSheet.getDataRange().getValues();
-      for (let i = 1; i < hrData.length; i++) {
-        if (hrData[i][1] === empName) {
-          let currentTotalEarn = parseFloat(hrData[i][7]) || 0;
-          let currentPaidSalary = parseFloat(hrData[i][8]) || 0;
-          if (category === "Salary Earn") currentTotalEarn += amount;
-          else if (category === "Salary Paid") currentPaidSalary += amount;
-          let updatedDueBalance = currentTotalEarn - currentPaidSalary;
-          const targetRow = i + 1;
-          hrSheet.getRange(targetRow, 8).setValue(currentTotalEarn);
-          hrSheet.getRange(targetRow, 9).setValue(currentPaidSalary);
-          hrSheet.getRange(targetRow, 10).setValue(updatedDueBalance);
-          break;
-        }
-      }
-    }
+    syncHrMasterForEmployee_(ss, rowData[1]);
   }
 
   if (sheetName === "Supplier_Transactions") {
@@ -507,7 +530,18 @@ function updateGenericRecord(sheetName, id, rowData) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === targetId) {
       const targetRow = i + 1;
+      let prevEmpName = null;
+      if (sheetName === "HR_Transactions") {
+        prevEmpName = String(data[i][2] || "").trim();
+      }
       sheet.getRange(targetRow, 2, 1, rowData.length).setValues([rowData]);
+      if (sheetName === "HR_Transactions") {
+        syncHrMasterForEmployee_(ss, prevEmpName);
+        const newEmpName = String(rowData[1] || "").trim();
+        if (newEmpName && newEmpName !== prevEmpName) {
+          syncHrMasterForEmployee_(ss, newEmpName);
+        }
+      }
       return { success: true, message: 'Transaction updated successfully.' };
     }
   }
@@ -525,7 +559,14 @@ function deleteGenericRecord(sheetName, id) {
 
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === targetId) {
+      let empName = null;
+      if (sheetName === "HR_Transactions") {
+        empName = String(data[i][2] || "").trim();
+      }
       sheet.deleteRow(i + 1);
+      if (sheetName === "HR_Transactions" && empName) {
+        syncHrMasterForEmployee_(ss, empName);
+      }
       return { success: true, message: 'Transaction deleted successfully.' };
     }
   }
