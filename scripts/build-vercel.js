@@ -35,7 +35,16 @@ if (fs.existsSync(distDir)) {
 }
 fs.mkdirSync(distDir, { recursive: true });
 
-fs.copyFileSync(path.join(rootDir, 'index.html'), path.join(distDir, 'index.html'));
+const runtimeConfig = { API_URL: apiUrl, CLIENT_TOKEN: clientToken };
+let html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
+const runtimeScript = `<script>window.__ERP_CONFIG__=${JSON.stringify(runtimeConfig)};</script>`;
+if (!html.includes('window.__ERP_CONFIG__')) {
+  html = html.replace(
+    '<script type="module" src="./js/app.js"></script>',
+    `${runtimeScript}\n  <script type="module" src="./js/app.js"></script>`
+  );
+}
+fs.writeFileSync(path.join(distDir, 'index.html'), html, 'utf8');
 copyDir(path.join(rootDir, 'css'), path.join(distDir, 'css'));
 
 const jsSrc = path.join(rootDir, 'js');
@@ -57,4 +66,4 @@ export const CLIENT_TOKEN = ${JSON.stringify(clientToken)};
 
 fs.writeFileSync(path.join(jsDest, 'config.js'), configContent, 'utf8');
 
-console.log('Vercel build complete: dist/ ready with generated js/config.js');
+console.log('Vercel build complete: dist/ ready (runtime config in index.html + js/config.js).');

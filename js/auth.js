@@ -1,4 +1,16 @@
-import { API_URL, CLIENT_TOKEN } from './config.js';
+/** Local dev: js/config.js (gitignored). Vercel: window.__ERP_CONFIG__ injected in index.html at build. */
+const runtime = globalThis.__ERP_CONFIG__;
+let API_URL;
+let CLIENT_TOKEN;
+
+if (runtime?.API_URL && runtime?.CLIENT_TOKEN) {
+  API_URL = runtime.API_URL;
+  CLIENT_TOKEN = runtime.CLIENT_TOKEN;
+} else {
+  const config = await import('./config.js');
+  API_URL = config.API_URL;
+  CLIENT_TOKEN = config.CLIENT_TOKEN;
+}
 
 export { API_URL, CLIENT_TOKEN };
 
