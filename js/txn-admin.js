@@ -82,6 +82,10 @@ function fieldHtml(key, labelKey, type, value, extra = '') {
     const opts = ['Capital In', 'Capital Out', 'Previous Due'];
     return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none">${opts.map((o) => `<option value="${o}" ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
   }
+  if (type === 'select-exp-cat') {
+    const opts = ['Incurred', 'Payment Paid', 'Previous Due'];
+    return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none">${opts.map((o) => `<option value="${o}" ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+  }
   if (type === 'select-pay') {
     return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Cash" ${v === 'Cash' ? 'selected' : ''}>Cash</option><option value="Card" ${v === 'Card' ? 'selected' : ''}>Card</option></select></div>`;
   }
@@ -132,12 +136,18 @@ const TXN_FORMS = {
     ].join('');
   },
   Expense_Transactions(rec) {
+    const p = typeof window.parseTxnDualAmounts === 'function' ? window.parseTxnDualAmounts(rec, { bill: ['Incurred Amount', 'Total Deposit', 'Deposit'], discount: ['Discount', 'Discount Allowed'], pay: ['Payment Paid', 'Paid Amt', 'Paid Amount'], due: ['Transaction Due', 'Txn Due'], remarks: ['Remarks / Vouchers', 'Remarks'], main: ['Expense Parent Head', 'Parent Category'], sub: ['Sub Head'], categories: { bill: 'Incurred', pay: 'Payment Paid', prev: 'Previous Due' } }) : { bill: getCol(rec, ['Deposit', 'Total Deposit', 'Amount']), discount: 0, pay: getCol(rec, ['Paid Amt', 'Paid Amount']), txnDue: getCol(rec, ['Transaction Due', 'Txn Due']) };
+    const category = typeof window.getDualTxnCategory === 'function' ? window.getDualTxnCategory(rec, { bill: ['Incurred Amount', 'Total Deposit', 'Deposit'], discount: ['Discount'], pay: ['Payment Paid', 'Paid Amt', 'Paid Amount'], due: ['Transaction Due'], remarks: ['Remarks / Vouchers', 'Remarks'], main: ['Expense Parent Head', 'Parent Category'], sub: ['Sub Head'], categories: { bill: 'Incurred', pay: 'Payment Paid', prev: 'Previous Due' } }) : (getCol(rec, ['Category']) || 'Incurred');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
+      fieldHtml('txnId', 'col.trackingId', 'text', getCol(rec, ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID']), 'readonly'),
       fieldHtml('main', 'field.expenseParentHead', 'text', getCol(rec, ['Expense Parent Head', 'Parent Category', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
-      fieldHtml('deposit', 'field.totalDepositIncurred', 'number', getCol(rec, ['Deposit', 'Total Deposit', 'Amount'])),
-      fieldHtml('paid', 'field.actuallyPaidAmount', 'number', getCol(rec, ['Paid Amt', 'Paid Amount', 'Amount Paid'])),
+      fieldHtml('category', 'field.categoryClassification', 'select-exp-cat', category),
+      fieldHtml('deposit', 'field.totalDepositIncurred', 'number', p.bill),
+      fieldHtml('discount', 'field.discountAllowed', 'number', p.discount),
+      fieldHtml('paid', 'field.actuallyPaidAmount', 'number', p.pay),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', p.txnDue, 'readonly'),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
   },
@@ -146,6 +156,7 @@ const TXN_FORMS = {
     const category = typeof window.getDualTxnCategory === 'function' ? window.getDualTxnCategory(rec, { bill: ['Received Amount'], discount: ['Discount'], pay: ['Return Amount'], due: ['Transaction Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Creditor Parent Head'], sub: ['Sub Head'], categories: { bill: 'Received', pay: 'Return', prev: 'Previous Due' } }) : (getCol(rec, ['Category']) || 'Received');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
+      fieldHtml('txnId', 'col.trackingId', 'text', getCol(rec, ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID']), 'readonly'),
       fieldHtml('main', 'field.creditorParentHead', 'text', getCol(rec, ['Creditor Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
       fieldHtml('category', 'field.categoryClassification', 'select-cred-cat', category),
@@ -161,6 +172,7 @@ const TXN_FORMS = {
     const category = typeof window.getDualTxnCategory === 'function' ? window.getDualTxnCategory(rec, { bill: ['Receivable Amount'], discount: ['Discount'], pay: ['Received Amount'], due: ['Transaction Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Income Parent Head'], sub: ['Sub Head'], categories: { bill: 'Receivable', pay: 'Received', prev: 'Previous Due' } }) : (getCol(rec, ['Category']) || 'Receivable');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
+      fieldHtml('txnId', 'col.trackingId', 'text', getCol(rec, ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID']), 'readonly'),
       fieldHtml('main', 'field.incomeParentHead', 'text', getCol(rec, ['Income Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
       fieldHtml('category', 'field.categoryClassification', 'select-inc-cat', category),
@@ -176,6 +188,7 @@ const TXN_FORMS = {
     const category = typeof window.getDualTxnCategory === 'function' ? window.getDualTxnCategory(rec, { bill: ['Capital In Amount'], discount: ['Discount'], pay: ['Capital Out Amount'], due: ['Transaction Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Capital Parent Head'], sub: ['Sub Head'], categories: { bill: 'Capital In', pay: 'Capital Out', prev: 'Previous Due' } }) : (getCol(rec, ['Category']) || 'Capital In');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
+      fieldHtml('txnId', 'col.trackingId', 'text', getCol(rec, ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID']), 'readonly'),
       fieldHtml('main', 'field.capitalParentHead', 'text', getCol(rec, ['Capital Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
       fieldHtml('category', 'field.categoryClassification', 'select-cap-cat', category),
@@ -217,28 +230,45 @@ function buildRowData(sheetName, original) {
     }
     case 'Internal_Transfers':
       return [date, parseFloat(readField('amount')) || 0, readField('desc').trim(), loggedBy, stamp];
-    case 'Expense_Transactions':
-      return [date, readField('main'), readField('sub'), parseFloat(readField('deposit')) || 0, parseFloat(readField('paid')) || 0, readField('remarks').trim(), loggedBy, stamp];
+    case 'Expense_Transactions': {
+      const incurred = parseFloat(readField('deposit')) || 0;
+      const discount = parseFloat(readField('discount')) || 0;
+      const paid = parseFloat(readField('paid')) || 0;
+      const category = readField('category') || 'Incurred';
+      const txnId = readField('txnId') || (typeof window.buildModuleTxnTrackingId === 'function'
+        ? window.buildModuleTxnTrackingId('EXT', readField('main'), readField('sub'), date)
+        : `EXT-${Date.now()}`);
+      return [txnId, date, readField('main'), readField('sub'), incurred, discount, paid, incurred - discount - paid, category, readField('remarks').trim(), loggedBy, stamp];
+    }
     case 'Creditor_Transactions': {
       const received = parseFloat(readField('received')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
       const returned = parseFloat(readField('returned')) || 0;
       const category = readField('category') || 'Received';
-      return [date, readField('main'), readField('sub'), received, discount, returned, received - discount - returned, category, readField('remarks').trim(), loggedBy, stamp];
+      const txnId = readField('txnId') || (typeof window.buildModuleTxnTrackingId === 'function'
+        ? window.buildModuleTxnTrackingId('CRD', readField('main'), readField('sub'), date)
+        : `CRD-${Date.now()}`);
+      return [txnId, date, readField('main'), readField('sub'), received, discount, returned, received - discount - returned, category, readField('remarks').trim(), loggedBy, stamp];
     }
     case 'Income_Transactions': {
       const receivable = parseFloat(readField('receivable')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
       const received = parseFloat(readField('received')) || 0;
       const category = readField('category') || 'Receivable';
-      return [date, readField('main'), readField('sub'), receivable, discount, received, receivable - discount - received, category, readField('remarks').trim(), loggedBy, stamp];
+      const txnId = readField('txnId') || (typeof window.buildModuleTxnTrackingId === 'function'
+        ? window.buildModuleTxnTrackingId('INC', readField('main'), readField('sub'), date)
+        : `INC-${Date.now()}`);
+      return [txnId, date, readField('main'), readField('sub'), receivable, discount, received, receivable - discount - received, category, readField('remarks').trim(), loggedBy, stamp];
     }
     case 'Capital_Transactions': {
       const capin = parseFloat(readField('capin')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
       const capout = parseFloat(readField('capout')) || 0;
       const category = readField('category') || 'Capital In';
-      return [date, readField('main'), readField('sub'), capin, discount, capout, capin - discount - capout, category, readField('remarks').trim(), loggedBy, stamp];
+      const txnId = readField('txnId') || (typeof window.buildModuleTxnTrackingId === 'function'
+        ? window.buildModuleTxnTrackingId('CAP', readField('main'), readField('sub'), date)
+        : `CAP-${Date.now()}`);
+      return [txnId, date, readField('main'), readField('sub'), capin, discount, capout, capin - discount - capout, category, readField('remarks').trim(), loggedBy, stamp];
     }
     default:
       return [];
@@ -289,6 +319,9 @@ function openEditModal(sheetName, record) {
   }
   if (sheetName === 'Capital_Transactions') {
     bindDualDueSync(fields, ['capin', 'capout'], 'due', 'discount');
+  }
+  if (sheetName === 'Expense_Transactions') {
+    bindDualDueSync(fields, ['deposit', 'paid'], 'due', 'discount');
   }
 }
 

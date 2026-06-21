@@ -167,6 +167,7 @@ const STRINGS = {
     'allTxn.finCredTxn': 'Recv: {recv} | Disc: {disc} | Ret: {ret} | Due: {due}',
     'allTxn.finIncTxn': 'Billed: {billed} | Disc: {disc} | Recv: {recv} | Due: {due}',
     'allTxn.finCapTxn': 'In: {capIn} | Disc: {disc} | Out: {capOut} | Due: {due}',
+    'allTxn.finExpTxn': 'Inc: {inc} | Disc: {disc} | Paid: {paid} | Due: {due}',
     'allTxn.cashHandover': 'Cash Handover to Owner',
     'allTxn.finDepPaid': 'Dep: {dep} | Paid: {paid}',
     'allTxn.finRecvRet': 'Recv: {recv} | Ret: {ret}',
