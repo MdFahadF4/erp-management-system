@@ -87,11 +87,14 @@ const TXN_FORMS = {
     ].join('');
   },
   Supplier_Transactions(rec) {
+    const p = typeof parseSupplierTxnAmounts === 'function' ? parseSupplierTxnAmounts(rec) : { bill: getCol(rec, ['Amount']), discount: 0, pay: 0, txnDue: getCol(rec, ['Amount']) };
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
       fieldHtml('supplier', 'field.supplierName', 'text', getCol(rec, ['Supplier Name'])),
-      fieldHtml('amount', 'field.amount', 'number', getCol(rec, ['Amount'])),
-      fieldHtml('category', 'field.categoryClassification', 'select-sup-cat', getCol(rec, ['Category'])),
+      fieldHtml('purchase', 'field.purchaseAmount', 'number', p.bill),
+      fieldHtml('discount', 'field.discountAllowed', 'number', p.discount),
+      fieldHtml('paid', 'field.paymentPaidAmount', 'number', p.pay),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', p.txnDue, 'readonly'),
       fieldHtml('remarks', 'field.remarksReference', 'textarea', getCol(rec, ['Remarks / Reference', 'Remarks']))
     ].join('');
   },
@@ -130,7 +133,9 @@ const TXN_FORMS = {
       fieldHtml('main', 'field.creditorParentHead', 'text', getCol(rec, ['Creditor Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
       fieldHtml('received', 'field.receivedAmountCashIn', 'number', getCol(rec, ['Received Amount', 'Received Amt'])),
+      fieldHtml('discount', 'field.discountAllowed', 'number', getCol(rec, ['Discount', 'Discount Allowed'])),
       fieldHtml('returned', 'field.returnAmountCashOut', 'number', getCol(rec, ['Return Amount', 'Return Amt'])),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', getCol(rec, ['Transaction Due', 'Txn Due']), 'readonly'),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
   },
@@ -140,7 +145,9 @@ const TXN_FORMS = {
       fieldHtml('main', 'field.incomeParentHead', 'text', getCol(rec, ['Income Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
       fieldHtml('receivable', 'field.receivableAmountBilled', 'number', getCol(rec, ['Receivable Amount', 'Receivable'])),
+      fieldHtml('discount', 'field.discountAllowed', 'number', getCol(rec, ['Discount', 'Discount Allowed'])),
       fieldHtml('received', 'field.actuallyReceivedCashIn', 'number', getCol(rec, ['Received Amount', 'Received Amt'])),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', getCol(rec, ['Transaction Due', 'Txn Due']), 'readonly'),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
   },
@@ -150,7 +157,9 @@ const TXN_FORMS = {
       fieldHtml('main', 'field.capitalParentHead', 'text', getCol(rec, ['Capital Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
       fieldHtml('capin', 'field.capitalInAmount', 'number', getCol(rec, ['Capital In Amount', 'Capital In Amt', 'Capital In'])),
+      fieldHtml('discount', 'field.discountAllowed', 'number', getCol(rec, ['Discount', 'Discount Allowed'])),
       fieldHtml('capout', 'field.capitalOutAmount', 'number', getCol(rec, ['Capital Out Amount', 'Capital Out Amt', 'Capital Out'])),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', getCol(rec, ['Transaction Due', 'Txn Due', 'Transaction Net']), 'readonly'),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
   }
@@ -170,8 +179,12 @@ function buildRowData(sheetName, original) {
   switch (sheetName) {
     case 'HR_Transactions':
       return [date, readField('employee'), parseFloat(readField('amount')) || 0, readField('category'), readField('remarks').trim(), loggedBy, stamp];
-    case 'Supplier_Transactions':
-      return [date, readField('supplier'), parseFloat(readField('amount')) || 0, readField('category'), readField('remarks').trim(), loggedBy, stamp];
+    case 'Supplier_Transactions': {
+      const purchase = parseFloat(readField('purchase')) || 0;
+      const discount = parseFloat(readField('discount')) || 0;
+      const paid = parseFloat(readField('paid')) || 0;
+      return [date, readField('supplier'), purchase, discount, paid, purchase - discount - paid, readField('remarks').trim(), loggedBy, stamp];
+    }
     case 'Customer_Transactions': {
       const sold = parseFloat(readField('sold')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
@@ -182,12 +195,24 @@ function buildRowData(sheetName, original) {
       return [date, parseFloat(readField('amount')) || 0, readField('desc').trim(), loggedBy, stamp];
     case 'Expense_Transactions':
       return [date, readField('main'), readField('sub'), parseFloat(readField('deposit')) || 0, parseFloat(readField('paid')) || 0, readField('remarks').trim(), loggedBy, stamp];
-    case 'Creditor_Transactions':
-      return [date, readField('main'), readField('sub'), parseFloat(readField('received')) || 0, parseFloat(readField('returned')) || 0, readField('remarks').trim(), loggedBy, stamp];
-    case 'Income_Transactions':
-      return [date, readField('main'), readField('sub'), parseFloat(readField('receivable')) || 0, parseFloat(readField('received')) || 0, readField('remarks').trim(), loggedBy, stamp];
-    case 'Capital_Transactions':
-      return [date, readField('main'), readField('sub'), parseFloat(readField('capin')) || 0, parseFloat(readField('capout')) || 0, readField('remarks').trim(), loggedBy, stamp];
+    case 'Creditor_Transactions': {
+      const received = parseFloat(readField('received')) || 0;
+      const discount = parseFloat(readField('discount')) || 0;
+      const returned = parseFloat(readField('returned')) || 0;
+      return [date, readField('main'), readField('sub'), received, discount, returned, received - discount - returned, readField('remarks').trim(), loggedBy, stamp];
+    }
+    case 'Income_Transactions': {
+      const receivable = parseFloat(readField('receivable')) || 0;
+      const discount = parseFloat(readField('discount')) || 0;
+      const received = parseFloat(readField('received')) || 0;
+      return [date, readField('main'), readField('sub'), receivable, discount, received, receivable - discount - received, readField('remarks').trim(), loggedBy, stamp];
+    }
+    case 'Capital_Transactions': {
+      const capin = parseFloat(readField('capin')) || 0;
+      const discount = parseFloat(readField('discount')) || 0;
+      const capout = parseFloat(readField('capout')) || 0;
+      return [date, readField('main'), readField('sub'), capin, discount, capout, capin - discount - capout, readField('remarks').trim(), loggedBy, stamp];
+    }
     default:
       return [];
   }
@@ -224,15 +249,34 @@ function openEditModal(sheetName, record) {
   applyTranslations(fields);
 
   if (sheetName === 'Customer_Transactions') {
-    const soldEl = fields.querySelector('[data-field="sold"]');
-    const recvEl = fields.querySelector('[data-field="received"]');
-    const dueEl = fields.querySelector('[data-field="due"]');
-    const syncDue = () => {
-      if (dueEl) dueEl.value = ((parseFloat(soldEl?.value) || 0) - (parseFloat(recvEl?.value) || 0)).toFixed(2);
-    };
-    soldEl?.addEventListener('input', syncDue);
-    recvEl?.addEventListener('input', syncDue);
+    bindDualDueSync(fields, ['sold', 'received'], 'due', 'discount');
   }
+  if (sheetName === 'Supplier_Transactions') {
+    bindDualDueSync(fields, ['purchase', 'paid'], 'due', 'discount');
+  }
+  if (sheetName === 'Creditor_Transactions') {
+    bindDualDueSync(fields, ['received', 'returned'], 'due', 'discount');
+  }
+  if (sheetName === 'Income_Transactions') {
+    bindDualDueSync(fields, ['receivable', 'received'], 'due', 'discount');
+  }
+  if (sheetName === 'Capital_Transactions') {
+    bindDualDueSync(fields, ['capin', 'capout'], 'due', 'discount');
+  }
+}
+
+function bindDualDueSync(fields, amountKeys, dueKey, discountKey) {
+  const billEl = fields.querySelector(`[data-field="${amountKeys[0]}"]`);
+  const payEl = fields.querySelector(`[data-field="${amountKeys[1]}"]`);
+  const discEl = fields.querySelector(`[data-field="${discountKey}"]`);
+  const dueEl = fields.querySelector(`[data-field="${dueKey}"]`);
+  const syncDue = () => {
+    if (dueEl) dueEl.value = ((parseFloat(billEl?.value) || 0) - (parseFloat(discEl?.value) || 0) - (parseFloat(payEl?.value) || 0)).toFixed(2);
+  };
+  billEl?.addEventListener('input', syncDue);
+  payEl?.addEventListener('input', syncDue);
+  discEl?.addEventListener('input', syncDue);
+  syncDue();
 }
 
 function closeEditModal() {

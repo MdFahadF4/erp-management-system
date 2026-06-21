@@ -16,10 +16,19 @@
  * HR_Transactions — row order after ID: Date | Employee Name | Amount | Category | Remarks | Username | Timestamp
  * Updating Code.gs alone does not backfill the HR sheet; run SYNC_HR_MASTER (or open HR Management in the app) after deploy.
  *
+ * SUPPLIER_TRANSACTIONS — new row order (legacy Amount+Category still supported):
+ *   ID | Date | Supplier Name | Purchase Amount | Discount | Payment Paid | Transaction Due | Remarks | Logged By | Stamp
+ *
+ * CREDITOR_TRANSACTIONS — add Discount + Transaction Due columns (legacy rows still supported):
+ *   ID | Date | Creditor Parent Head | Sub Head | Received Amount | Discount | Return Amount | Transaction Due | Remarks | Logged By | Stamp
+ *
+ * INCOME_TRANSACTIONS — add Discount + Transaction Due columns:
+ *   ID | Date | Income Parent Head | Sub Head | Receivable Amount | Discount | Received Amount | Transaction Due | Remarks | Logged By | Stamp
+ *
  * CAPITAL_HEADS — create sheet with row 1 headers:
  *   ID | Tracking ID | Capital Parent Head | Sub Head Name | Authorized By | Creation Stamp
- * CAPITAL_TRANSACTIONS — create sheet with row 1 headers:
- *   ID | Date | Capital Parent Head | Sub Head | Capital In Amount | Capital Out Amount | Remarks | Logged By | Stamp
+ * CAPITAL_TRANSACTIONS — add Discount + Transaction Due columns:
+ *   ID | Date | Capital Parent Head | Sub Head | Capital In Amount | Discount | Capital Out Amount | Transaction Due | Remarks | Logged By | Stamp
  */
 const SPREADSHEET_ID = '1psluXui-l3VtYL-P-Z7bRtWop4KA9JO5UahnAgmaHwM';
 
@@ -439,8 +448,20 @@ function createGenericRecord(sheetName, rowData) {
 
   if (sheetName === "Supplier_Transactions") {
     const supplierName = rowData[1];
-    const amount = parseFloat(rowData[2]) || 0;
-    const category = rowData[3];
+    let purchase = 0;
+    let discount = 0;
+    let paymentPaid = 0;
+
+    if (rowData.length >= 9) {
+      purchase = parseFloat(rowData[2]) || 0;
+      discount = parseFloat(rowData[3]) || 0;
+      paymentPaid = parseFloat(rowData[4]) || 0;
+    } else {
+      const amount = parseFloat(rowData[2]) || 0;
+      const category = String(rowData[3] || "").trim();
+      if (category === "Purchase" || category === "Previous Due") purchase = amount;
+      else if (category === "Payment Paid") paymentPaid = amount;
+    }
 
     const supSheet = ss.getSheetByName("Suppliers");
     if (supSheet) {
@@ -450,13 +471,10 @@ function createGenericRecord(sheetName, rowData) {
           let totalPurchase = parseFloat(supData[i][5]) || 0;
           let totalPayments = parseFloat(supData[i][6]) || 0;
 
-          if (category === "Purchase") {
-            totalPurchase += amount;
-          } else if (category === "Payment Paid") {
-            totalPayments += amount;
-          }
+          totalPurchase += purchase;
+          totalPayments += paymentPaid;
 
-          let updatedDueBalance = totalPurchase - totalPayments;
+          let updatedDueBalance = totalPurchase - totalPayments - discount;
           const targetRow = i + 1;
 
           supSheet.getRange(targetRow, 6).setValue(totalPurchase);

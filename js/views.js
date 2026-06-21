@@ -88,7 +88,7 @@ export const templates = {
             <div class="space-y-3">
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalPurchased">Total Purchased</div><div class="font-mono font-bold text-gray-700 text-base">SAR <span id="dash-sup-pur">0.00</span></div></div>
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalPaid">Total Paid</div><div class="font-mono font-bold text-emerald-600 text-base">SAR <span id="dash-sup-paid">0.00</span></div></div>
-               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Payable</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-sup-due">0.00</span></div></div>
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Balance</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-sup-due">0.00</span></div></div>
             </div>
          </div>
 
@@ -106,7 +106,7 @@ export const templates = {
             <div class="space-y-3">
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalEarned">Total Earned</div><div class="font-mono font-bold text-gray-700 text-base">SAR <span id="dash-hr-earned">0.00</span></div></div>
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.salaryPaid">Salary Paid</div><div class="font-mono font-bold text-emerald-600 text-base">SAR <span id="dash-hr-paid">0.00</span></div></div>
-               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Payable</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-hr-due">0.00</span></div></div>
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Balance</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-hr-due">0.00</span></div></div>
             </div>
          </div>
 
@@ -115,7 +115,7 @@ export const templates = {
             <div class="space-y-3">
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalReceived">Total Received</div><div class="font-mono font-bold text-gray-700 text-base">SAR <span id="dash-crd-recv">0.00</span></div></div>
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalReturned">Total Returned</div><div class="font-mono font-bold text-emerald-600 text-base">SAR <span id="dash-crd-ret">0.00</span></div></div>
-               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Payable</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-crd-due">0.00</span></div></div>
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Balance</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-crd-due">0.00</span></div></div>
             </div>
          </div>
 
@@ -301,8 +301,23 @@ export const templates = {
           <form id="form-sup-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="sup-txn-date" required class="w-full border rounded p-2 text-sm outline-none"></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.supplierAccountSelection">Supplier Account Selection</label><select id="sup-txn-supplier" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="" data-i18n="dropdown.queryingAccounts">-- Querying Registered Accounts --</option></select></div>
-            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionAmount">Transaction Amount</label><input type="number" step="0.01" id="sup-txn-amount" required class="w-full border rounded p-2 text-sm outline-none" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
-            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.categoryClassification">Category Classification</label><select id="sup-txn-category" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Purchase" data-i18n="category.purchaseIncreases">Purchase (Increases Due)</option><option value="Payment Paid" data-i18n="category.paymentDecreases">Payment Paid (Decreases Due)</option></select></div>
+            <div id="sup-txn-due-info" class="hidden bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5">
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-bold text-red-800 text-[11px] uppercase" data-i18n="field.currentAccountDue">Current Due / Balance</span>
+                <span id="sup-txn-current-due" class="font-mono font-black text-red-700 text-sm">0.00</span>
+              </div>
+              <div class="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
+                <span class="font-bold text-gray-600 text-[11px] uppercase" data-i18n="field.remainingDueAfterTxn">Remaining Due After This Transaction</span>
+                <span id="sup-txn-remaining-due" class="font-mono font-bold text-orange-700 text-sm">0.00</span>
+              </div>
+            </div>
+            <div class="p-3 bg-gray-50 border rounded-lg space-y-3">
+              <div><label class="block font-bold text-gray-700 mb-1" data-i18n="field.purchaseAmount">Purchase Amount (Bill)</label><input type="number" step="0.01" id="sup-txn-purchase" value="0.00" min="0" class="w-full border rounded p-2 text-sm font-bold font-mono outline-none" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
+              <p class="text-[10px] text-gray-400 -mt-1" data-i18n="field.purchaseAmountHint">Enter opening/previous due in Purchase with remarks &quot;Previous Due&quot;, or leave 0 when paying only.</p>
+              <div><label class="block font-bold text-purple-700 mb-1" data-i18n="field.discountAllowed">Discount Allowed</label><input type="number" step="0.01" id="sup-txn-discount" value="0.00" class="w-full border rounded p-2 text-sm font-bold font-mono outline-none" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
+              <div><label class="block font-bold text-emerald-700 mb-1" data-i18n="field.paymentPaidAmount">Payment Paid (Cash Out)</label><input type="number" step="0.01" id="sup-txn-paid" value="0.00" min="0" class="w-full border rounded p-2 text-sm font-bold font-mono outline-none" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
+              <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-red-600 mb-1" data-i18n="field.transactionDueBalance">Transaction Due / Balance</label><input type="number" id="sup-txn-due" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-red-600 outline-none shadow-inner"></div>
+            </div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.remarksReferenceInfo">Remarks / Reference Info</label><textarea id="sup-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none" placeholder="Invoice reference number, notes..." data-i18n-placeholder="placeholder.invoiceRef"></textarea></div>
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider" data-i18n="form.postTransactionEntry">POST TRANSACTION ENTRY</button>
           </form>
@@ -317,7 +332,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.supplierName">Supplier Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="field.remarksReference">Remarks / Reference</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.supplierName">Supplier Name</th><th class="p-2.5" data-i18n="field.purchaseAmount">Purchase</th><th class="p-2.5" data-i18n="col.discount">Discount</th><th class="p-2.5" data-i18n="field.paymentPaidAmount">Payment Paid</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.category">Type</th><th class="p-2.5" data-i18n="field.remarksReference">Remarks / Reference</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-sup-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -663,9 +678,19 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="cred-txn-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-orange-500"></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.creditorParentHead">Creditor Parent Head</label><select id="cred-txn-main" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-orange-500"><option value="" data-i18n="dropdown.loadParentHead">-- Load Parent Head --</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.subHeadMapping">Sub Head Mapping</label><select id="cred-txn-sub" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-orange-500"><option value="" data-i18n="dropdown.chooseParentFirst">-- Choose Parent First --</option></select></div>
-            
+            <div id="cred-txn-due-info" class="hidden bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5">
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-bold text-red-800 text-[11px] uppercase" data-i18n="field.currentAccountDue">Current Due / Balance</span>
+                <span id="cred-txn-current-due" class="font-mono font-black text-red-700 text-sm">0.00</span>
+              </div>
+              <div class="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
+                <span class="font-bold text-gray-600 text-[11px] uppercase" data-i18n="field.remainingDueAfterTxn">Remaining Due After This Transaction</span>
+                <span id="cred-txn-remaining-due" class="font-mono font-bold text-orange-700 text-sm">0.00</span>
+              </div>
+            </div>
             <div class="p-3 bg-gray-50 border rounded-lg space-y-3">
               <div><label class="block font-bold text-gray-700 mb-1" data-i18n="field.receivedAmountCashIn">Received Amount (Cash In)</label><input type="number" step="0.01" id="cred-txn-received" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-gray-500"></div>
+              <div><label class="block font-bold text-purple-700 mb-1" data-i18n="field.discountAllowed">Discount Allowed</label><input type="number" step="0.01" id="cred-txn-discount" value="0.00" class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-purple-500"></div>
               <div><label class="block font-bold text-emerald-700 mb-1" data-i18n="field.returnAmountCashOut">Return Amount (Cash Out)</label><input type="number" step="0.01" id="cred-txn-return" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-emerald-500"></div>
               <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-red-600 mb-1" data-i18n="field.transactionDueBalance">Transaction Due / Balance</label><input type="number" id="cred-txn-due" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-red-600 outline-none shadow-inner"></div>
             </div>
@@ -692,7 +717,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.returnAmt">Return Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.discount">Discount</th><th class="p-2.5" data-i18n="col.returnAmt">Return Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-cred-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -745,9 +770,19 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="inc-txn-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-blue-500"></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.incomeParentHead">Income Parent Head</label><select id="inc-txn-main" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500"><option value="" data-i18n="dropdown.loadParentHead">-- Load Parent Head --</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.subHeadMapping">Sub Head Mapping</label><select id="inc-txn-sub" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-blue-500"><option value="" data-i18n="dropdown.chooseParentFirst">-- Choose Parent First --</option></select></div>
-            
+            <div id="inc-txn-due-info" class="hidden bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5">
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-bold text-red-800 text-[11px] uppercase" data-i18n="field.currentAccountDue">Current Due / Balance</span>
+                <span id="inc-txn-current-due" class="font-mono font-black text-red-700 text-sm">0.00</span>
+              </div>
+              <div class="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
+                <span class="font-bold text-gray-600 text-[11px] uppercase" data-i18n="field.remainingDueAfterTxn">Remaining Due After This Transaction</span>
+                <span id="inc-txn-remaining-due" class="font-mono font-bold text-orange-700 text-sm">0.00</span>
+              </div>
+            </div>
             <div class="p-3 bg-gray-50 border rounded-lg space-y-3">
               <div><label class="block font-bold text-gray-700 mb-1" data-i18n="field.receivableAmountBilled">Receivable Amount (Billed)</label><input type="number" step="0.01" id="inc-txn-receivable" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-gray-500"></div>
+              <div><label class="block font-bold text-purple-700 mb-1" data-i18n="field.discountAllowed">Discount Allowed</label><input type="number" step="0.01" id="inc-txn-discount" value="0.00" class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-purple-500"></div>
               <div><label class="block font-bold text-emerald-700 mb-1" data-i18n="field.actuallyReceivedCashIn">Actually Received (Cash In)</label><input type="number" step="0.01" id="inc-txn-received" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-emerald-500"></div>
               <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-red-600 mb-1" data-i18n="field.transactionDueBalance">Transaction Due / Balance</label><input type="number" id="inc-txn-due" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-red-600 outline-none shadow-inner"></div>
             </div>
@@ -774,7 +809,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.totalReceivable">Receivable</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.totalReceivable">Receivable</th><th class="p-2.5" data-i18n="col.discount">Discount</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-inc-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -827,10 +862,21 @@ export const templates = {
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="cap-txn-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-violet-500"></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.capitalParentHead">Capital Parent Head</label><select id="cap-txn-main" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-violet-500"><option value="" data-i18n="dropdown.loadParentHead">-- Load Parent Head --</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.subHeadMapping">Sub Head Mapping</label><select id="cap-txn-sub" required class="w-full border rounded p-2 bg-white text-sm outline-none focus:ring-2 focus:ring-violet-500"><option value="" data-i18n="dropdown.chooseParentFirst">-- Choose Parent First --</option></select></div>
+            <div id="cap-txn-due-info" class="hidden bg-violet-50 border border-violet-100 rounded-lg p-3 space-y-1.5">
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-bold text-violet-800 text-[11px] uppercase" data-i18n="field.currentAccountDue">Current Due / Balance</span>
+                <span id="cap-txn-current-due" class="font-mono font-black text-violet-700 text-sm">0.00</span>
+              </div>
+              <div class="flex justify-between items-center gap-2 border-t border-violet-100 pt-1.5">
+                <span class="font-bold text-gray-600 text-[11px] uppercase" data-i18n="field.remainingDueAfterTxn">Remaining Due After This Transaction</span>
+                <span id="cap-txn-remaining-due" class="font-mono font-bold text-orange-700 text-sm">0.00</span>
+              </div>
+            </div>
             <div class="p-3 bg-gray-50 border rounded-lg space-y-3">
               <div><label class="block font-bold text-gray-700 mb-1" data-i18n="field.capitalInAmount">Capital In Amount (Investment)</label><input type="number" step="0.01" id="cap-txn-in" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-gray-500"></div>
+              <div><label class="block font-bold text-purple-700 mb-1" data-i18n="field.discountAllowed">Discount Allowed</label><input type="number" step="0.01" id="cap-txn-discount" value="0.00" class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-purple-500"></div>
               <div><label class="block font-bold text-emerald-700 mb-1" data-i18n="field.capitalOutAmount">Capital Out Amount (Withdrawal)</label><input type="number" step="0.01" id="cap-txn-out" value="0.00" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none focus:ring-2 focus:ring-emerald-500"></div>
-              <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-violet-600 mb-1" data-i18n="field.transactionDueBalance">Transaction Net / Balance</label><input type="number" id="cap-txn-due" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-violet-600 outline-none shadow-inner"></div>
+              <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-violet-600 mb-1" data-i18n="field.transactionDueBalance">Transaction Due / Balance</label><input type="number" id="cap-txn-due" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-violet-600 outline-none shadow-inner"></div>
             </div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.remarksNarrative">Remarks / Narrative</label><textarea id="cap-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-violet-500" placeholder="Investment source, withdrawal purpose..." data-i18n-placeholder="placeholder.capitalRemarks"></textarea></div>
             <button type="submit" class="erp-submit-btn w-full bg-violet-600 hover:bg-violet-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase" data-i18n="form.cap.postLine">Post Capital Line</button>
@@ -852,7 +898,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.capitalInAmt">Capital In</th><th class="p-2.5" data-i18n="col.capitalOutAmt">Capital Out</th><th class="p-2.5" data-i18n="col.txnDue">Txn Net</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.parentCategory">Parent Category</th><th class="p-2.5" data-i18n="col.subHead">Sub Head</th><th class="p-2.5" data-i18n="col.capitalInAmt">Capital In</th><th class="p-2.5" data-i18n="col.discount">Discount</th><th class="p-2.5" data-i18n="col.capitalOutAmt">Capital Out</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-cap-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
