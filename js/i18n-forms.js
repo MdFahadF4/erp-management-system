@@ -46,6 +46,8 @@ export const FORM_EN = {
   'field.remainingDueAfterTxn': 'Remaining Due After This Transaction',
   'field.outstandingBalanceDue': 'Outstanding Balance Due',
   'field.soldAmount': 'Sold Amount',
+  'field.soldAmountOptional': 'Sold Amount (optional)',
+  'field.soldAmountOptionalHint': 'Leave 0 when customer is only paying a previous due balance.',
   'field.receivedAmount': 'Received Amount',
   'field.paymentMethod': 'Payment Method',
   'field.transferDate': 'Transfer Date',
