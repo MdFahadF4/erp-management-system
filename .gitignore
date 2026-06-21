@@ -6,6 +6,7 @@ JS/config.js
 
 # Dependencies (if you add npm later)
 node_modules/
+dist/
 
 # OS / editor noise
 .DS_Store

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/generate-config.js"
+    "build": "node scripts/build-vercel.js",
+    "build:config": "node scripts/generate-config.js"
   }
 }

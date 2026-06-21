@@ -72,7 +72,7 @@ On the import screen:
 | Framework Preset | **Other** |
 | Root Directory | `./` (leave default) |
 | Build Command | `npm run build` (should auto-detect from `vercel.json`) |
-| Output Directory | `.` |
+| Output Directory | `dist` |
 
 ### 3. Add environment variables (IMPORTANT)
 
@@ -136,6 +136,7 @@ Vercel redeploys automatically for every connected project.
 | Problem | Fix |
 |---------|-----|
 | Build fails: missing env vars | Add `API_URL` and `CLIENT_TOKEN` in Vercel → Settings → Environment Variables, then Redeploy |
+| Browser 404 on `js/config.js` | Redeploy with cache off; build must finish (Settings → Build Command = `npm run build`, Output = `dist`) |
 | Login fails after deploy | Token in Vercel must match Apps Script; URL must end with `/exec` |
 | `js/config.js` appeared in `git status` | It must stay gitignored — never `git add` it |
 | Blank page | Check browser console; confirm `index.html` loads `./js/app.js` |
