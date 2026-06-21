@@ -203,6 +203,7 @@ export const FORM_EN = {
   'option.standardUser': 'Standard operational User',
   'option.admin': 'System Admin',
   'placeholder.zero': '0.00',
+  'placeholder.zeroPaymentOnly': '0 for due payment only',
   'placeholder.optionalNotes': 'Optional notes...',
   'placeholder.invoiceRef': 'Invoice reference number, notes...',
   'placeholder.memoExample': 'e.g. INV-5501',
