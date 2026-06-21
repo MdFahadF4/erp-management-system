@@ -726,34 +726,70 @@ function createGenericRecord(sheetName, rowData) {
 function fetchGenericRecords(sheetName) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
   if (!sheet) return { success: false, message: "Sheet not found" };
+  if (usesRowIds_(sheetName)) {
+    ensureTransactionIdColumn_(sheet, sheetName);
+  }
   backfillMissingRecordIds_(sheet);
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return { success: true, records: [] };
   const headers = data[0];
+  const idCol = findIdColumnIndex_(headers);
   const records = [];
   for (let i = 1; i < data.length; i++) {
     let record = {};
     for (let j = 0; j < headers.length; j++) {
       record[headers[j]] = data[i][j];
     }
+    if (usesRowIds_(sheetName)) {
+      const idVal = data[i][idCol];
+      if (idVal !== "" && idVal !== null && idVal !== undefined) {
+        record.ID = idVal;
+      }
+    }
     records.push(record);
   }
   return { success: true, records: records };
+}
+
+function usesRowIds_(sheetName) {
+  return [
+    "HR_Transactions",
+    "Supplier_Transactions",
+    "Customer_Transactions",
+    "Internal_Transfers",
+    "Expense_Transactions",
+    "Creditor_Transactions",
+    "Income_Transactions",
+    "Capital_Transactions"
+  ].indexOf(sheetName) !== -1;
+}
+
+function findIdColumnIndex_(headers) {
+  const idx = findColumnIndex_(headers, ["ID", "Id", "Record ID"]);
+  return idx === -1 ? 0 : idx;
+}
+
+/** Ensure column A is an ID column on transaction sheets that were created without one. */
+function ensureTransactionIdColumn_(sheet, sheetName) {
+  if (!usesRowIds_(sheetName)) return;
+  const headerA = String(sheet.getRange(1, 1).getValue() || "").trim().toUpperCase();
+  if (headerA === "ID") return;
+  const looksLikeDataHeader =
+    headerA === "DATE" ||
+    headerA === "TRANSACTION DATE" ||
+    headerA === "" ||
+    headerA.indexOf("DATE") !== -1;
+  if (looksLikeDataHeader) {
+    sheet.insertColumnBefore(1);
+  }
+  sheet.getRange(1, 1).setValue("ID");
 }
 
 /** Assign UUIDs to transaction rows missing an ID (column with header "ID"). */
 function backfillMissingRecordIds_(sheet) {
   const data = sheet.getDataRange().getValues();
   if (data.length < 2) return;
-  const headers = data[0];
-  let idCol = -1;
-  for (let c = 0; c < headers.length; c++) {
-    if (String(headers[c]).trim().toUpperCase() === "ID") {
-      idCol = c;
-      break;
-    }
-  }
-  if (idCol === -1) return;
+  const idCol = findIdColumnIndex_(data[0]);
   for (let r = 1; r < data.length; r++) {
     const val = data[r][idCol];
     if (val === "" || val === null || val === undefined) {

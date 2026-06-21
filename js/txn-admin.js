@@ -27,6 +27,9 @@ export function canAdminEdit(sheetName) {
 
 export function getRecordId(rec) {
   if (!rec || typeof rec !== 'object') return null;
+  if (rec.ID !== undefined && rec.ID !== null && String(rec.ID).trim() !== '') {
+    return String(rec.ID).trim();
+  }
   const id = getCol(rec, ['ID', 'Id', 'id', 'Record ID']);
   if (id !== undefined && id !== null && String(id).trim() !== '') return String(id).trim();
   for (const key of Object.keys(rec)) {
@@ -35,9 +38,16 @@ export function getRecordId(rec) {
       if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
     }
   }
-  const fallback = rec?.ID ?? rec?.id;
+  const fallback = rec?.id;
   if (fallback !== undefined && fallback !== null && String(fallback).trim() !== '') return String(fallback).trim();
   return null;
+}
+
+function escapeAttr(val) {
+  return String(val ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
 }
 
 export function cacheTxnRecords(sheetName, records) {
@@ -54,9 +64,11 @@ export function renderTxnActions(rec, sheetName) {
   }
   const id = getRecordId(rec);
   if (!id) return `<td class="p-2.5 erp-col-actions text-gray-400">-</td>`;
+  const safeId = escapeAttr(id);
+  const safeSheet = escapeAttr(sheetName);
   return `<td class="p-2.5 erp-col-actions whitespace-nowrap">
-    <button type="button" class="btn-txn-edit bg-orange-500 hover:bg-orange-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1" data-id="${id}" data-sheet="${sheetName}">${t('common.edit')}</button>
-    <button type="button" class="btn-txn-delete bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]" data-id="${id}" data-sheet="${sheetName}">${t('common.delete')}</button>
+    <button type="button" class="btn-txn-edit bg-orange-500 hover:bg-orange-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1" data-id="${safeId}" data-sheet="${safeSheet}">${t('common.edit')}</button>
+    <button type="button" class="btn-txn-delete bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]" data-id="${safeId}" data-sheet="${safeSheet}">${t('common.delete')}</button>
   </td>`;
 }
 
