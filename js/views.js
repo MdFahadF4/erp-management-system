@@ -206,9 +206,23 @@ export const templates = {
           <h3 class="text-sm font-bold text-gray-700 mb-4 uppercase tracking-wider" data-i18n="form.logTransaction">Log Transaction</h3>
           <form id="form-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="txn-date" required class="w-full border rounded p-2 text-sm outline-none"></div>
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.categoryClassification">Category Classification</label><select id="txn-category" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Salary Earn" data-i18n="category.salaryEarn">Salary Earn (Increases Due)</option><option value="Salary Paid" data-i18n="category.salaryPaid">Salary Paid (Decreases Due)</option><option value="Salary Increment" data-i18n="category.salaryIncrement">Salary Increment</option><option value="Previous Due" data-i18n="category.previousDue">Previous Due</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.employeeName">Employee Name</label><select id="txn-employee" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="" data-i18n="dropdown.queryingPersonnel">-- Querying Personnel --</option></select></div>
-            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.amount">Amount</label><input type="number" step="0.01" id="txn-amount" required class="w-full border rounded p-2 text-sm outline-none" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
-            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.categoryClassification">Category Classification</label><select id="txn-category" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Salary Earn" data-i18n="category.salaryEarn">Salary Earn</option><option value="Salary Paid" data-i18n="category.salaryPaid">Salary Paid</option></select></div>
+            <div id="txn-due-info" class="hidden bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5">
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-bold text-red-800 text-[11px] uppercase" data-i18n="field.currentAccountDue">Current Due / Balance</span>
+                <span id="txn-current-due" class="font-mono font-black text-red-700 text-sm">0.00</span>
+              </div>
+              <div class="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
+                <span class="font-bold text-gray-600 text-[11px] uppercase" data-i18n="field.remainingDueAfterTxn">Remaining Due After This Transaction</span>
+                <span id="txn-remaining-due" class="font-mono font-bold text-orange-700 text-sm">0.00</span>
+              </div>
+            </div>
+            <div class="p-3 bg-gray-50 border rounded-lg space-y-3">
+              <div><label class="block font-bold text-gray-700 mb-1" data-i18n="field.amount">Amount</label><input type="number" step="0.01" id="txn-amount" value="0.00" min="0" required class="w-full border rounded p-2 text-sm font-bold font-mono outline-none" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
+              <p class="text-[10px] text-gray-400 -mt-1" data-i18n="field.hrAmountHint">Salary Earn and Previous Due increase due; Salary Paid decreases due; Increment updates salary only.</p>
+              <div class="pt-2 border-t border-gray-200"><label class="block font-bold text-red-600 mb-1" data-i18n="field.transactionDueBalance">Transaction Due / Balance</label><input type="number" id="txn-delta" readonly class="w-full border rounded p-2 text-sm bg-white font-bold text-red-600 outline-none shadow-inner"></div>
+            </div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.remarksReference">Remarks / Reference</label><textarea id="txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none" placeholder="Optional notes..." data-i18n-placeholder="placeholder.optionalNotes"></textarea></div>
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition" data-i18n="form.postTransaction">POST TRANSACTION</button>
           </form>
@@ -223,7 +237,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.employeeName">Employee Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.employeeName">Employee Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>

@@ -19,6 +19,7 @@ const btnLogout = document.getElementById('btn-logout');
 const navUsers = document.getElementById('nav-users');
 
 let cachedHrRecords = [];
+let cachedHrTxns = [];
 let cachedSupplierRecords = [];
 let cachedCustomerRecords = [];
 let cachedCustomerTxnRecords = [];
@@ -147,7 +148,11 @@ Date.prototype.toLocaleDateString = function() {
 
     initTxnAdminSystem({
       reloadHandlers: {
-        HR_Transactions: () => loadTxnTableRecords(true),
+        HR_Transactions: async () => {
+          await loadTxnTableRecords(true);
+          await loadHRTableRecords();
+          await populateEmployeeDropdown();
+        },
         Supplier_Transactions: async () => {
           await loadSupplierTxnTableRecords(true);
           await loadSupplierTableRecords();
@@ -899,6 +904,93 @@ function getSupplierDueBalance(supplierRec, txns) {
   return getSupplierDueFromTxns(name, txns);
 }
 
+function getHrDueBalance(hrRec, txns) {
+  if (!hrRec) return 0;
+  const name = String(getCol(hrRec, ["Employee Name"]) || "").trim();
+  return getHrDueFromTxns(name, txns);
+}
+
+function getHrTxnCategory(rec) {
+  const cat = String(getCol(rec, ["Category"]) || "").trim();
+  if (cat) return cat;
+  const rem = String(getCol(rec, ["Remarks"]) || "").toLowerCase();
+  if (rem.includes("previous due") || rem.includes("opening balance")) return "Previous Due";
+  if (rem.includes("increment")) return "Salary Increment";
+  if (rem.includes("paid")) return "Salary Paid";
+  return "Salary Earn";
+}
+
+function parseHrTxnAmounts(rec) {
+  const category = getHrTxnCategory(rec);
+  const catKey = category.toLowerCase();
+  const amt = parseFloat(getCol(rec, ["Amount"])) || 0;
+  const isIncrement = catKey.includes("increment");
+  const isPrev = catKey.includes("previous due") || catKey.includes("opening balance");
+  const isPaid = catKey.includes("paid") && !isIncrement;
+
+  if (isIncrement) return { earned: 0, paid: 0, txnDelta: 0, category: "Salary Increment", isIncrement: true };
+  if (isPrev) return { earned: amt, paid: 0, txnDelta: amt, category: "Previous Due", isIncrement: false };
+  if (isPaid) return { earned: 0, paid: amt, txnDelta: -amt, category: "Salary Paid", isIncrement: false };
+  return { earned: amt, paid: 0, txnDelta: amt, category: category || "Salary Earn", isIncrement: false };
+}
+
+function rollupHrTxnTotals(txns, employeeName) {
+  const name = employeeName ? String(employeeName).trim() : "";
+  let earned = 0, paid = 0, increment = 0;
+  (txns || []).forEach((t) => {
+    if (name && String(getCol(t, ["Employee Name"]) || "").trim() !== name) return;
+    const p = parseHrTxnAmounts(t);
+    if (p.isIncrement) increment += parseFloat(getCol(t, ["Amount"])) || 0;
+    else {
+      earned += p.earned;
+      paid += p.paid;
+    }
+  });
+  return { earned, paid, increment, due: Math.max(0, earned - paid) };
+}
+
+function getHrDueFromTxns(employeeName, txns) {
+  return rollupHrTxnTotals(txns, employeeName).due;
+}
+
+function createHrTxnDueController(opts) {
+  const { amountInput, txnDeltaInput, dueInfoBox, currentDueEl, remainingDueEl, categorySelect } = opts;
+  let currentDue = 0;
+
+  const getTxnDelta = () => {
+    const amt = parseFloat(amountInput?.value) || 0;
+    const cat = String(categorySelect?.value || "").toLowerCase();
+    if (cat.includes("increment")) return 0;
+    if (cat.includes("paid")) return -amt;
+    return amt;
+  };
+
+  const resetDueInfo = () => {
+    currentDue = 0;
+    if (currentDueEl) currentDueEl.textContent = "0.00";
+    if (remainingDueEl) remainingDueEl.textContent = "0.00";
+    dueInfoBox?.classList.add("hidden");
+  };
+
+  const runCalculations = () => {
+    const delta = getTxnDelta();
+    if (txnDeltaInput) txnDeltaInput.value = delta.toFixed(2);
+    if (remainingDueEl) remainingDueEl.textContent = Math.max(0, currentDue + delta).toFixed(2);
+  };
+
+  const showCurrentDue = (amount) => {
+    currentDue = Math.max(0, parseFloat(amount) || 0);
+    if (currentDueEl) currentDueEl.textContent = currentDue.toFixed(2);
+    dueInfoBox?.classList.remove("hidden");
+    runCalculations();
+  };
+
+  amountInput?.addEventListener("input", runCalculations);
+  categorySelect?.addEventListener("change", runCalculations);
+
+  return { runCalculations, resetDueInfo, showCurrentDue, getCurrentDue: () => currentDue, getTxnDelta };
+}
+
 function getDualTxnCategory(rec, fieldMap) {
   const cats = fieldMap.categories || {};
   const cat = String(getCol(rec, ["Category"]) || "").trim();
@@ -1248,36 +1340,7 @@ async function loadHRTableRecords() {
       cachedHrRecords = hrRes.records; 
       if (cachedHrRecords.length === 0) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hr.noEntries')}</td></tr>`; return; }
 
-      // --- MASTER INTERCEPTOR: Dynamic Math Engine for ALL HR Totals ---
-      let incTotals = {}; 
-      let earnTotals = {};
-      let paidTotals = {};
-
-      if (txnRes.success) {
-          txnRes.records.forEach(txn => {
-              let emp = String(txn["Employee Name"] || "").trim();
-              let cat = String(txn["Category"] || "").trim().toLowerCase();
-              let amt = parseFloat(txn["Amount"]) || 0;
-              
-              if (!incTotals[emp]) incTotals[emp] = 0; 
-              if (!earnTotals[emp]) earnTotals[emp] = 0;
-              if (!paidTotals[emp]) paidTotals[emp] = 0;
-
-              // 1. Calculate Increments (ONLY changes Current Salary, NEVER adds to debt!)
-              if (cat.includes("increment")) {
-                  incTotals[emp] += amt;
-              }
-              
-              // 2. Interceptor: Earned Side (Ignores Increment completely)
-              if (cat.includes("earn") || cat.includes("previous due") || cat.includes("opening balance")) {
-                  earnTotals[emp] += amt;
-              } 
-              // 3. Paid Side
-              else if (cat.includes("paid")) {
-                  paidTotals[emp] += amt;
-              }
-          });
-      }
+      const txns = txnRes.success ? txnRes.records : [];
 
       container.innerHTML = cachedHrRecords.map(rec => {
         const canEdit = userCanEditModule(fetchSessionUser(), 'hr');
@@ -1286,14 +1349,12 @@ async function loadHRTableRecords() {
 
         let empName = String(rec["Employee Name"] || "").trim();
         let baseSalary = parseFloat(rec["Salary Start"]) || 0;
-        
-        // Dynamic Math replaces static Google Sheets reads!
-        let totalInc = incTotals[empName] || 0;
+        const totals = rollupHrTxnTotals(txns, empName);
+        let totalInc = totals.increment;
         let currentSalary = baseSalary + totalInc;
-
-        let dbEarned = earnTotals[empName] || 0;
-        let dbPaid = paidTotals[empName] || 0;
-        let dbDue = dbEarned - dbPaid;
+        let dbEarned = totals.earned;
+        let dbPaid = totals.paid;
+        let dbDue = totals.due;
 
         return `
           <tr class="hover:bg-gray-50 whitespace-nowrap border-b border-gray-100">
@@ -1314,91 +1375,134 @@ async function loadHRTableRecords() {
 /**
  * MODULE: HR TRANSACTIONS INTERACTION ENGINE
  */
-async function populateEmployeeDropdown() {
-  const dropdown = document.getElementById('txn-employee'); if (!dropdown) return; dropdown.innerHTML = `<option value="">${t('dropdown.loadingEmployees')}</option>`;
+async function populateEmployeeDropdown(mode = 'all') {
+  const dropdown = document.getElementById('txn-employee'); if (!dropdown) return;
+  dropdown.innerHTML = `<option value="">${t('dropdown.loadingEmployees')}</option>`;
   try {
-    const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR" } });
-    if (result.success && result.records.length > 0) {
-      dropdown.innerHTML = `<option value="">${t('dropdown.chooseEmployee')}</option>` + result.records.map(emp => `<option value="${emp["Employee Name"]}">${emp["Employee Name"]} (${emp["Designation"]})</option>`).join('');
-    } else { dropdown.innerHTML = `<option value="">${t('dropdown.noEmployees')}</option>`; }
+    const [hrRes, txnRes] = await Promise.all([
+      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR" } }),
+      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } })
+    ]);
+    cachedHrTxns = txnRes.success ? txnRes.records : [];
+    if (hrRes.success && hrRes.records.length > 0) {
+      cachedHrRecords = hrRes.records;
+      let activeEmployees = hrRes.records.filter((e) => e["Status"] !== "Inactive" && e["Status"] !== "Released");
+      if (mode === 'with-due') {
+        activeEmployees = activeEmployees.filter((emp) => getHrDueBalance(emp, cachedHrTxns) > 0.009);
+      }
+      if (activeEmployees.length === 0) {
+        dropdown.innerHTML = `<option value="">${mode === 'with-due' ? t('dropdown.noEmployeesWithDue') || 'No employees with due balance' : t('dropdown.noEmployees')}</option>`;
+        return;
+      }
+      dropdown.innerHTML = `<option value="">${t('dropdown.chooseEmployee')}</option>` + activeEmployees.map((emp) => {
+        const name = emp["Employee Name"];
+        const due = getHrDueBalance(emp, cachedHrTxns);
+        return `<option value="${name}">${name} (${emp["Designation"] || '-'}) — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
+      }).join('');
+    } else {
+      dropdown.innerHTML = `<option value="">${t('dropdown.noEmployees')}</option>`;
+    }
   } catch (err) { dropdown.innerHTML = `<option value="">${t('dropdown.errorRecords')}</option>`; }
 }
 
 function initTxnFormListeners() {
   const form = document.getElementById('form-txn-entry'); if (!form) return;
-  const dateInput = document.getElementById('txn-date'); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+  if (form.dataset.bound === 'true') return;
+  form.dataset.bound = 'true';
 
-  // --- ULTIMATE MAGIC INJECTOR (Perfectly matched to "Salary Earn") ---
-  const catInput = document.getElementById('txn-category');
-  if (catInput) {
-     if (catInput.tagName === 'SELECT') {
-        if (!Array.from(catInput.options).some(o => o.value === 'Salary Increment')) {
-           catInput.insertAdjacentHTML('beforeend', `<option value="Salary Increment">${t('category.salaryIncrement')}</option><option value="Salary Earn">${t('category.salaryEarn')}</option><option value="Previous Due">${t('category.previousDue')}</option>`);
-        }
-     } else {
-        let incBox = document.getElementById('magic-btn-container');
-        if (!incBox) {
-           catInput.insertAdjacentHTML('afterend', `
-             <div id="magic-btn-container" class="flex gap-2 mt-3">
-               <button type="button" id="btn-magic-increment" class="w-1/3 bg-purple-50 text-purple-700 border border-purple-200 font-bold p-2.5 rounded-lg hover:bg-purple-100 transition shadow-sm uppercase tracking-wider text-[10px]">${t('hrTxn.magicIncrement')}</button>
-               <button type="button" id="btn-magic-earn" class="w-1/3 bg-amber-50 text-amber-700 border border-amber-200 font-bold p-2.5 rounded-lg hover:bg-amber-100 transition shadow-sm uppercase tracking-wider text-[10px]">${t('hrTxn.magicEarn')}</button>
-               <button type="button" id="btn-magic-prevdue" class="w-1/3 bg-slate-50 text-slate-700 border border-slate-200 font-bold p-2.5 rounded-lg hover:bg-slate-100 transition shadow-sm uppercase tracking-wider text-[10px]">${t('hrTxn.magicPrevDue')}</button>
-             </div>
-           `);
-           
-           const resetBtns = () => {
-               document.getElementById('btn-magic-increment').className = "w-1/3 bg-purple-50 text-purple-700 border border-purple-200 font-bold p-2.5 rounded-lg hover:bg-purple-100 transition shadow-sm uppercase tracking-wider text-[10px]";
-               document.getElementById('btn-magic-increment').textContent = "+ Increment";
-               
-               document.getElementById('btn-magic-earn').className = "w-1/3 bg-amber-50 text-amber-700 border border-amber-200 font-bold p-2.5 rounded-lg hover:bg-amber-100 transition shadow-sm uppercase tracking-wider text-[10px]";
-               document.getElementById('btn-magic-earn').textContent = "+ Salary Earn";
+  const dateInput = document.getElementById('txn-date');
+  if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-               document.getElementById('btn-magic-prevdue').className = "w-1/3 bg-slate-50 text-slate-700 border border-slate-200 font-bold p-2.5 rounded-lg hover:bg-slate-100 transition shadow-sm uppercase tracking-wider text-[10px]";
-               document.getElementById('btn-magic-prevdue').textContent = "+ Prev Due";
-           };
+  const employeeSelect = document.getElementById('txn-employee');
+  const catSelect = document.getElementById('txn-category');
+  const amountInput = document.getElementById('txn-amount');
+  const remarksInput = document.getElementById('txn-remarks');
 
-           document.getElementById('btn-magic-increment').onclick = function() {
-               resetBtns();
-               catInput.value = 'Salary Increment';
-               this.textContent = "✔ Increment";
-               this.className = "w-1/3 bg-purple-600 text-white font-bold p-2.5 rounded-lg shadow-md uppercase tracking-wider text-[10px] transition";
-           };
-           
-           document.getElementById('btn-magic-earn').onclick = function() {
-               resetBtns();
-               catInput.value = 'Salary Earn';
-               this.textContent = "✔ Salary Earn";
-               this.className = "w-1/3 bg-amber-600 text-white font-bold p-2.5 rounded-lg shadow-md uppercase tracking-wider text-[10px] transition";
-           };
+  const dueCtrl = createHrTxnDueController({
+    amountInput,
+    txnDeltaInput: document.getElementById('txn-delta'),
+    dueInfoBox: document.getElementById('txn-due-info'),
+    currentDueEl: document.getElementById('txn-current-due'),
+    remainingDueEl: document.getElementById('txn-remaining-due'),
+    categorySelect: catSelect
+  });
 
-           document.getElementById('btn-magic-prevdue').onclick = function() {
-               resetBtns();
-               catInput.value = 'Previous Due';
-               this.textContent = "✔ Prev Due";
-               this.className = "w-1/3 bg-slate-600 text-white font-bold p-2.5 rounded-lg shadow-md uppercase tracking-wider text-[10px] transition";
-           };
-        }
-     }
-  }
-  // ---------------------------------------------------------------------  // ---------------------------------------------------------------------
+  const applyCategoryMode = async () => {
+    const cat = catSelect?.value || 'Salary Earn';
+    const isIncrement = cat === 'Salary Increment';
+    const isPay = cat === 'Salary Paid';
+
+    await populateEmployeeDropdown(isPay ? 'with-due' : 'all');
+    employeeSelect.value = '';
+    dueCtrl.resetDueInfo();
+
+    if (amountInput) amountInput.readOnly = false;
+    if (isIncrement) {
+      dueCtrl.resetDueInfo();
+    }
+    dueCtrl.runCalculations();
+  };
+
+  const onEmployeeSelected = () => {
+    const name = employeeSelect?.value || '';
+    const cat = catSelect?.value || 'Salary Earn';
+    if (!name || cat === 'Salary Increment') {
+      dueCtrl.resetDueInfo();
+      dueCtrl.runCalculations();
+      return;
+    }
+    const rec = cachedHrRecords.find((r) => String(getCol(r, ["Employee Name"]) || "").trim() === name);
+    dueCtrl.showCurrentDue(getHrDueBalance(rec, cachedHrTxns));
+  };
+
+  catSelect?.addEventListener('change', applyCategoryMode);
+  employeeSelect?.addEventListener('change', onEmployeeSelected);
+  amountInput?.addEventListener('input', () => dueCtrl.runCalculations());
 
   form.onsubmit = async (e) => {
     e.preventDefault();
     if (!guardModuleEdit('hr_transactions')) return;
     const currentUser = fetchSessionUser();
-    const rowPayload = [ document.getElementById('txn-date').value, document.getElementById('txn-employee').value, parseFloat(document.getElementById('txn-amount').value) || 0, document.getElementById('txn-category').value, document.getElementById('txn-remarks').value.trim(), currentUser.username, new Date().toLocaleString() ];
+    dueCtrl.runCalculations();
+
+    const category = catSelect?.value || 'Salary Earn';
+    let remarksText = remarksInput?.value.trim() || '';
+    let amount = parseFloat(amountInput?.value) || 0;
+
+    if (category === 'Previous Due') {
+      if (!remarksText.toLowerCase().includes('previous due')) {
+        remarksText = remarksText ? `Previous Due - ${remarksText}` : 'Previous Due';
+      }
+    }
+
+    const rowPayload = [
+      dateInput.value,
+      employeeSelect.value,
+      amount,
+      category,
+      remarksText,
+      currentUser.username,
+      new Date().toLocaleString()
+    ];
     try {
-      const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "HR_Transactions", rowData: rowPayload } }); alert(result.message); 
-      if (result.success) { 
-          form.reset(); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0]; 
-          if (document.getElementById('btn-magic-increment')) {
-             document.getElementById('btn-magic-increment').className = "w-1/2 bg-purple-50 text-purple-700 border border-purple-200 font-bold p-2.5 rounded-lg hover:bg-purple-100 transition shadow-sm uppercase tracking-wider text-[10px]"; document.getElementById('btn-magic-increment').textContent = "+ Increment";
-             document.getElementById('btn-magic-earn').className = "w-1/2 bg-amber-50 text-amber-700 border border-amber-200 font-bold p-2.5 rounded-lg hover:bg-amber-100 transition shadow-sm uppercase tracking-wider text-[10px]"; document.getElementById('btn-magic-earn').textContent = "+ Salary Earned";
-          }
-          await loadTxnTableRecords(true); await loadHRTableRecords(); await updateLiveUserCashDrawerBalance(); 
+      const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "HR_Transactions", rowData: rowPayload } });
+      alert(result.message);
+      if (result.success) {
+        form.reset();
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        if (amountInput) amountInput.value = '0.00';
+        if (catSelect) catSelect.value = 'Salary Earn';
+        dueCtrl.resetDueInfo();
+        dueCtrl.runCalculations();
+        await populateEmployeeDropdown();
+        await loadTxnTableRecords(true);
+        await loadHRTableRecords();
+        await updateLiveUserCashDrawerBalance();
       }
     } catch (err) { alert(t('alert.errorLog')); }
   };
+
+  dueCtrl.runCalculations();
 }
 
 async function loadTxnTableRecords(isFilter = false) {
@@ -1406,10 +1510,10 @@ async function loadTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-hr');
   const tDateInput = document.getElementById('filter-to-hr');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } });
     if (result.success) {
@@ -1417,11 +1521,16 @@ async function loadTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noResultsInRange')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noResultsInRange')}</td></tr>`; return; }
       cacheTxnRecords("HR_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
-        let catColor = "text-blue-600 bg-blue-50"; if (rec["Category"] === "Salary Paid") catColor = "text-emerald-600 bg-emerald-50"; if (rec["Category"] === "Salary Increment") catColor = "text-purple-600 bg-purple-50";
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Employee Name"]||''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${getCategoryLabel(rec["Category"] || '', t)}</span></td><td class="max-w-xs truncate" title="${rec["Remarks"]||''}">${rec["Remarks"]||'-'}</td><td>${rec["Username"]||''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"]||''}</td>${renderTxnActions(rec, "HR_Transactions")}</tr>`;
+        const category = getHrTxnCategory(rec);
+        let catColor = "text-blue-600 bg-blue-50";
+        if (category === "Salary Paid") catColor = "text-emerald-600 bg-emerald-50";
+        if (category === "Salary Increment") catColor = "text-purple-600 bg-purple-50";
+        if (category === "Previous Due") catColor = "text-slate-700 bg-slate-100";
+        const p = parseHrTxnAmounts(rec);
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Employee Name"]||''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${getCategoryLabel(category, t)}</span></td><td class="font-mono text-[10px] ${p.txnDelta >= 0 ? 'text-red-600' : 'text-emerald-600'}">${p.txnDelta >= 0 ? '+' : ''}${p.txnDelta.toFixed(2)}</td><td class="max-w-xs truncate" title="${rec["Remarks"]||''}">${rec["Remarks"]||'-'}</td><td>${rec["Username"]||''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"]||''}</td>${renderTxnActions(rec, "HR_Transactions")}</tr>`;
       }).join('');
     }
   } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracking')}</td></tr>`; }
