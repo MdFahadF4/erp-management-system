@@ -433,6 +433,62 @@ export const templates = {
       </div>
     </div>
   `,
+  delivery_dashboard: `
+    <div id="delivery-dashboard-root" class="space-y-4 md:space-y-6 erp-module-page pb-6">
+      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.deliveryDashboard.title">Delivery Dashboard</h2>
+        <button type="button" id="btn-refresh-delivery" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.refresh">Refresh</button>
+      </div>
+      <p class="text-xs text-gray-500" data-i18n="delivery.hint">Customer unique IDs queue as Pending (newest first). Users with edit access can mark items Delivered with delivery remarks.</p>
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div class="bg-white p-4 md:p-5 rounded-xl shadow border border-amber-200 flex flex-col min-h-[420px]">
+          <h3 class="text-md font-bold text-amber-800 mb-3 uppercase tracking-wider flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+            <span data-i18n="delivery.pendingList">Pending List</span>
+            <span class="text-[10px] font-normal normal-case text-gray-400" data-i18n="delivery.lifoHint">(LIFO — newest first)</span>
+          </h3>
+          <div class="overflow-x-auto border rounded-lg flex-1 min-h-0 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-amber-50 font-bold text-amber-900 uppercase border-b whitespace-nowrap sticky top-0 z-10">
+                <tr>
+                  <th class="p-2.5" data-i18n="col.systemUniqueId">System Unique ID</th>
+                  <th class="p-2.5" data-i18n="col.remarks">Remarks</th>
+                  <th class="p-2.5" data-i18n="delivery.issuedDate">Issued Date</th>
+                  <th class="p-2.5" data-i18n="field.username">Username</th>
+                  <th class="p-2.5" data-i18n="col.status">Status</th>
+                </tr>
+              </thead>
+              <tbody id="table-delivery-pending" class="divide-y text-gray-600 font-medium">
+                <tr><td colspan="5" class="p-6 text-center text-gray-400 animate-pulse" data-i18n="delivery.loading">Loading delivery queue...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="bg-white p-4 md:p-5 rounded-xl shadow border border-emerald-200 flex flex-col min-h-[420px]">
+          <h3 class="text-md font-bold text-emerald-800 mb-3 uppercase tracking-wider flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+            <span data-i18n="delivery.deliveredList">Delivered List</span>
+          </h3>
+          <div class="overflow-x-auto border rounded-lg flex-1 min-h-0 max-h-[calc(100vh-16rem)] overflow-y-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead class="bg-emerald-50 font-bold text-emerald-900 uppercase border-b whitespace-nowrap sticky top-0 z-10">
+                <tr>
+                  <th class="p-2.5" data-i18n="col.systemUniqueId">System Unique ID</th>
+                  <th class="p-2.5" data-i18n="col.remarks">Remarks</th>
+                  <th class="p-2.5" data-i18n="field.username">Username</th>
+                  <th class="p-2.5" data-i18n="delivery.deliveryDate">Delivery Date</th>
+                  <th class="p-2.5" data-i18n="delivery.deliveredRemarks">Delivered Remarks</th>
+                </tr>
+              </thead>
+              <tbody id="table-delivery-delivered" class="divide-y text-gray-600 font-medium">
+                <tr><td colspan="5" class="p-6 text-center text-gray-400 animate-pulse" data-i18n="delivery.loading">Loading delivery queue...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  `,
   internal_transfer: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">

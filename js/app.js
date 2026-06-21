@@ -5,6 +5,7 @@ import { initTxnAdminSystem, renderTxnActions, cacheTxnRecords } from './txn-adm
 import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, renderUserDirectoryRow, buildPermCheckboxes, readPermCheckboxes } from './user-admin.js';
 import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
 import { refreshSessionUser, userCanAccessModule, userCanEditModule, getDefaultModuleForUser } from './user-session.js';
+import { initDeliveryDashboard } from './delivery-dashboard.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -567,6 +568,8 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
       loadCustomerTxnTableRecords(true);
       onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
     });
+  } else if (target === 'delivery_dashboard') {
+    await initDeliveryDashboard();
   } else if (target === 'internal_transfer') {
     initInternalTransferFormListeners(); await loadInternalTransferTableRecords();
     document.getElementById('btn-filter-int')?.addEventListener('click', () => {

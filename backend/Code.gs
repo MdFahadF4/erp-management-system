@@ -8,6 +8,10 @@
  *
  * CUSTOMER_TRANSACTIONS — add column D = Discount (after Sold Amount) if missing.
  * New row order: Date | System Unique ID | Sold | Discount | Received | Method | Txn Due | Remarks | Logged By | Stamp
+ *
+ * DELIVERY_QUEUE — create sheet with row 1 headers:
+ *   ID | System Unique ID | Remarks | Issued Date | Username | Status | Delivery Date | Delivered Remarks | Stamp
+ * Status = Pending or Delivered. New customers auto-queue as Pending; run SYNC_DELIVERY_QUEUE for existing customers.
  */
 const SPREADSHEET_ID = '1psluXui-l3VtYL-P-Z7bRtWop4KA9JO5UahnAgmaHwM';
 
@@ -94,6 +98,8 @@ function doPost(e) {
       response = resetForgotPassword(payload);
     } else if (action === "UPDATE_USER") {
       response = updateUserAdmin(payload);
+    } else if (action === "SYNC_DELIVERY_QUEUE") {
+      response = syncDeliveryQueue();
     }
   } catch (error) {
     response = { success: false, message: error.message };
@@ -263,6 +269,66 @@ function updateUserAdmin(payload) {
   return { success: true, message: 'User account updated successfully.' };
 }
 
+function ensureDeliveryQueueEntry_(ss, systemUID, remarks, username, issuedDate) {
+  var delSheet = ss.getSheetByName('Delivery_Queue');
+  if (!delSheet || !systemUID) return;
+  var uid = String(systemUID).trim();
+  if (!uid) return;
+  var delData = delSheet.getDataRange().getValues();
+  for (var i = 1; i < delData.length; i++) {
+    if (String(delData[i][1]).trim() === uid) return;
+  }
+  delSheet.appendRow([
+    Utilities.getUuid(),
+    uid,
+    String(remarks || ''),
+    issuedDate || new Date(),
+    String(username || ''),
+    'Pending',
+    '',
+    '',
+    new Date().toLocaleString()
+  ]);
+}
+
+function syncDeliveryQueue() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var custSheet = ss.getSheetByName('Customers');
+  var delSheet = ss.getSheetByName('Delivery_Queue');
+  if (!custSheet) return { success: false, message: 'Customers sheet not found.' };
+  if (!delSheet) return { success: false, message: 'Delivery_Queue sheet not found. Add the sheet with headers: ID, System Unique ID, Remarks, Issued Date, Username, Status, Delivery Date, Delivered Remarks, Stamp' };
+
+  var custData = custSheet.getDataRange().getValues();
+  var delData = delSheet.getDataRange().getValues();
+  var existing = {};
+  for (var i = 1; i < delData.length; i++) {
+    existing[String(delData[i][1]).trim()] = true;
+  }
+
+  var added = 0;
+  for (var j = 1; j < custData.length; j++) {
+    var systemUID = String(custData[j][1] || '').trim();
+    if (!systemUID || existing[systemUID]) continue;
+    var memo = String(custData[j][6] || '');
+    var loggedBy = String(custData[j][13] || custData[j][12] || '');
+    var issued = custData[j][14] || custData[j][13] || new Date();
+    delSheet.appendRow([
+      Utilities.getUuid(),
+      systemUID,
+      memo,
+      issued,
+      loggedBy,
+      'Pending',
+      '',
+      '',
+      new Date().toLocaleString()
+    ]);
+    existing[systemUID] = true;
+    added++;
+  }
+  return { success: true, message: added > 0 ? (added + ' delivery record(s) synced.') : 'Delivery queue is up to date.', added: added };
+}
+
 function createGenericRecord(sheetName, rowData) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
@@ -382,6 +448,10 @@ function createGenericRecord(sheetName, rowData) {
         }
       }
     }
+  }
+
+  if (sheetName === "Customers") {
+    ensureDeliveryQueueEntry_(ss, rowData[0], rowData[5] || '', rowData[12], rowData[13] || new Date());
   }
 
   return { success: true, message: "Record saved successfully!" };

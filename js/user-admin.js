@@ -14,6 +14,7 @@ export const USER_PERM_MODULES = [
   { perm: 'Supplier_Transactions', labelKey: 'users.permSupplierTransactions' },
   { perm: 'Customers', labelKey: 'users.permCustomers' },
   { perm: 'Customer_Transactions', labelKey: 'users.permCustomerTransactions' },
+  { perm: 'Delivery_Dashboard', labelKey: 'users.permDeliveryDashboard' },
   { perm: 'Internal_Transfer', labelKey: 'users.permInternalTransfer' },
   { perm: 'Expense_Heads', labelKey: 'users.permExpenseHeads' },
   { perm: 'Expense_Transactions', labelKey: 'users.permExpenseLedger' },
