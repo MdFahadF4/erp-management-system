@@ -436,11 +436,8 @@ export const templates = {
   `,
   delivery_dashboard: `
     <div id="delivery-dashboard-root" class="space-y-3 erp-module-page pb-4">
-      <div class="border-b border-gray-200 pb-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
-        <div class="min-w-0 flex-1">
-          <h2 class="text-lg font-bold text-gray-800 leading-tight" data-i18n="page.deliveryDashboard.title">Delivery Dashboard</h2>
-          <p class="text-[10px] text-gray-500 leading-snug mt-0.5" data-i18n="delivery.hint">Customer unique IDs queue as Pending (oldest first, newest last). Remarks come from customer transaction notes, not invoice numbers.</p>
-        </div>
+      <div class="border-b border-gray-200 pb-2 mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 class="text-lg font-bold text-gray-800 leading-tight" data-i18n="page.deliveryDashboard.title">Delivery Dashboard</h2>
         <button type="button" id="btn-refresh-delivery" class="shrink-0 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-3 py-1.5 rounded text-xs transition shadow-sm" data-i18n="common.refresh">Refresh</button>
       </div>
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
