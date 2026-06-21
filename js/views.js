@@ -394,7 +394,18 @@ export const templates = {
           <form id="form-cust-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="cust-txn-date" required class="w-full border rounded p-2 text-sm outline-none"></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.systemUniqueId">System Unique ID</label><select id="cust-txn-uid" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="" data-i18n="dropdown.queryingCustomerAccounts">-- Querying Accounts --</option></select></div>
+            <div id="cust-txn-due-info" class="hidden bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5">
+              <div class="flex justify-between items-center gap-2">
+                <span class="font-bold text-red-800 text-[11px] uppercase" data-i18n="field.currentCustomerDue">Current Customer Due / Balance</span>
+                <span id="cust-txn-current-due" class="font-mono font-black text-red-700 text-sm">0.00</span>
+              </div>
+              <div class="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
+                <span class="font-bold text-gray-600 text-[11px] uppercase" data-i18n="field.remainingDueAfterTxn">Remaining Due After This Transaction</span>
+                <span id="cust-txn-remaining-due" class="font-mono font-bold text-orange-700 text-sm">0.00</span>
+              </div>
+            </div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.soldAmount">Sold Amount</label><input type="number" step="0.01" id="cust-txn-sell" value="0" required class="w-full border rounded p-2 text-sm outline-none" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
+            <div><label class="block font-bold text-purple-700 mb-1" data-i18n="field.discountAllowed">Discount Allowed</label><input type="number" step="0.01" id="cust-txn-discount" value="0" class="w-full border rounded p-2 text-sm outline-none font-mono" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
             <div><label class="block font-bold text-emerald-700 mb-1" data-i18n="field.receivedAmount">Received Amount</label><input type="number" step="0.01" id="cust-txn-received" value="0" required class="w-full border rounded p-2 text-sm outline-none focus:ring-emerald-500" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.paymentMethod">Payment Method</label><select id="cust-txn-method" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Cash" data-i18n="option.cash">Cash</option><option value="Card" data-i18n="option.card">Card</option></select></div>
             <div><label class="block font-bold text-gray-500 mb-1" data-i18n="field.transactionDueBalance">Transaction Due / Balance</label><input type="number" id="cust-txn-due" readonly class="w-full border rounded p-2 text-sm bg-gray-50 font-bold text-red-600 outline-none"></div>
@@ -412,7 +423,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.sysUid">Sys UID</th><th class="p-2.5" data-i18n="col.soldAmt">Sold Amt</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.method">Method</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.sysUid">Sys UID</th><th class="p-2.5" data-i18n="col.soldAmt">Sold Amt</th><th class="p-2.5" data-i18n="col.discount">Discount</th><th class="p-2.5" data-i18n="col.receivedAmt">Received Amt</th><th class="p-2.5" data-i18n="col.method">Method</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.stamp">Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-cust-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>

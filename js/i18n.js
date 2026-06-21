@@ -153,6 +153,7 @@ const STRINGS = {
     'allTxn.moduleInternal': 'Internal',
     'allTxn.finAmount': 'SAR {amount}',
     'allTxn.finSoldRecv': 'Sold: {sold} | Recv: {recv}',
+    'allTxn.finSoldDiscRecv': 'Sold: {sold} | Disc: {disc} | Recv: {recv}',
     'allTxn.cashHandover': 'Cash Handover to Owner',
     'allTxn.finDepPaid': 'Dep: {dep} | Paid: {paid}',
     'allTxn.finRecvRet': 'Recv: {recv} | Ret: {ret}',

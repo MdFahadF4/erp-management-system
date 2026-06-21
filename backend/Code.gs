@@ -5,6 +5,9 @@
  * USERS SHEET — add these column headers in row 1 (after Created Date):
  *   H = Mobile | I = Email | J = Status  (Active / Paused / Removed)
  * Existing users without Status are treated as Active.
+ *
+ * CUSTOMER_TRANSACTIONS — add column D = Discount (after Sold Amount) if missing.
+ * New row order: Date | System Unique ID | Sold | Discount | Received | Method | Txn Due | Remarks | Logged By | Stamp
  */
 const SPREADSHEET_ID = '1psluXui-l3VtYL-P-Z7bRtWop4KA9JO5UahnAgmaHwM';
 
@@ -325,9 +328,23 @@ function createGenericRecord(sheetName, rowData) {
 
   if (sheetName === "Customer_Transactions") {
     const systemUID = rowData[1];
-    const soldAmount = parseFloat(rowData[2]) || 0;
-    const receivedAmount = parseFloat(rowData[3]) || 0;
-    const paymentMethod = rowData[4];
+    let soldAmount = 0;
+    let discountAmount = 0;
+    let receivedAmount = 0;
+    let paymentMethod = '';
+
+    // New format: Date, UID, Sold, Discount, Received, Method, TxnDue, Remarks, User, Stamp
+    if (rowData.length >= 10) {
+      soldAmount = parseFloat(rowData[2]) || 0;
+      discountAmount = parseFloat(rowData[3]) || 0;
+      receivedAmount = parseFloat(rowData[4]) || 0;
+      paymentMethod = rowData[5];
+    } else {
+      // Legacy format without discount column
+      soldAmount = parseFloat(rowData[2]) || 0;
+      receivedAmount = parseFloat(rowData[3]) || 0;
+      paymentMethod = rowData[4];
+    }
 
     const custSheet = ss.getSheetByName("Customers");
     if (custSheet) {
@@ -342,12 +359,15 @@ function createGenericRecord(sheetName, rowData) {
           let currentDiscount = parseFloat(custData[i][11]) || 0;
 
           currentSell += soldAmount;
+          currentDiscount += discountAmount;
           if (paymentMethod === "Cash") {
             currentCash += receivedAmount;
           } else if (paymentMethod === "Card") {
             currentCard += receivedAmount;
           }
-          currentReceived += receivedAmount;
+          if (paymentMethod === "Cash" || paymentMethod === "Card") {
+            currentReceived += receivedAmount;
+          }
 
           let updatedDueBalance = currentSell - currentReceived - currentDiscount;
           const targetRow = i + 1;
@@ -356,6 +376,7 @@ function createGenericRecord(sheetName, rowData) {
           custSheet.getRange(targetRow, 9).setValue(currentCash);
           custSheet.getRange(targetRow, 10).setValue(currentCard);
           custSheet.getRange(targetRow, 11).setValue(currentReceived);
+          custSheet.getRange(targetRow, 12).setValue(currentDiscount);
           custSheet.getRange(targetRow, 13).setValue(updatedDueBalance);
           break;
         }

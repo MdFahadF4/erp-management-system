@@ -630,6 +630,33 @@ function getRemarks(rec) {
   return (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : '-';
 }
 
+function canViewAllCustomers() {
+  const u = fetchSessionUser();
+  return !!(u && (u.role === 'Super Admin' || u.role === 'Admin'));
+}
+
+function getCustomerDueBalance(rec) {
+  if (!rec) return 0;
+  const sell = parseFloat(getCol(rec, ["Total Sell", "Sell Amount", "Gross Sell"])) || 0;
+  const cash = parseFloat(getCol(rec, ["Cash Amt", "Cash Amount", "Cash"])) || 0;
+  const card = parseFloat(getCol(rec, ["Card Amt", "Card Amount", "Card"])) || 0;
+  const discount = parseFloat(getCol(rec, ["Discount", "Discount Allowed"])) || 0;
+  let received = cash + card;
+  if (received === 0) received = parseFloat(getCol(rec, ["Received Amount", "Total Received", "Received"])) || 0;
+  let due = sell - received - discount;
+  if (due <= 0.009) due = parseFloat(getCol(rec, ["Due Balance", "Due", "Outstanding Balance Due"])) || 0;
+  return Math.max(0, due);
+}
+
+function filterCustomersForCurrentUser(records) {
+  if (!Array.isArray(records)) return [];
+  if (canViewAllCustomers()) return records;
+  const user = fetchSessionUser();
+  if (!user) return [];
+  const cln = (s) => String(s || '').trim().toLowerCase();
+  return records.filter((r) => cln(getCol(r, ["Username", "Logged By", "Created By"])) === cln(user.username));
+}
+
 function getExpenseIncurredAmt(rec) {
   let raw = getCol(rec, [
     "Total Deposit Incurred Amt", "Total Deposit", "Deposit/Incurred", "Deposit",
@@ -1255,12 +1282,56 @@ async function loadCustomerTableRecords() {
 
 function initCustomerTxnFormListeners() {
   const form = document.getElementById('form-cust-txn-entry'); if (!form) return;
-  const tSell = document.getElementById('cust-txn-sell'); const tReceived = document.getElementById('cust-txn-received'); const tDue = document.getElementById('cust-txn-due');
-  
-  const runTxnCalculations = () => { tDue.value = ((parseFloat(tSell.value) || 0) - (parseFloat(tReceived.value) || 0)).toFixed(2); };
-  tSell.addEventListener('input', runTxnCalculations); tReceived.addEventListener('input', runTxnCalculations);
+  if (form.dataset.bound === 'true') return;
+  form.dataset.bound = 'true';
 
-  // --- MAGIC INJECTOR: Automatically adds 'Previous Due' to the Payment Method Dropdown ---
+  const tSell = document.getElementById('cust-txn-sell');
+  const tDiscount = document.getElementById('cust-txn-discount');
+  const tReceived = document.getElementById('cust-txn-received');
+  const tDue = document.getElementById('cust-txn-due');
+  const uidSelect = document.getElementById('cust-txn-uid');
+  const dueInfo = document.getElementById('cust-txn-due-info');
+  const currentDueEl = document.getElementById('cust-txn-current-due');
+  const remainingDueEl = document.getElementById('cust-txn-remaining-due');
+
+  let selectedCustomerDue = 0;
+
+  const resetDueInfo = () => {
+    selectedCustomerDue = 0;
+    if (currentDueEl) {
+      currentDueEl.textContent = '0.00';
+      currentDueEl.dataset.rawDue = '0';
+    }
+    if (remainingDueEl) remainingDueEl.textContent = '0.00';
+    dueInfo?.classList.add('hidden');
+  };
+
+  const runTxnCalculations = () => {
+    const sell = parseFloat(tSell?.value) || 0;
+    const discount = parseFloat(tDiscount?.value) || 0;
+    const received = parseFloat(tReceived?.value) || 0;
+    const txnDue = sell - discount - received;
+    if (tDue) tDue.value = txnDue.toFixed(2);
+    const remaining = Math.max(0, selectedCustomerDue + sell - discount - received);
+    if (remainingDueEl) remainingDueEl.textContent = remaining.toFixed(2);
+  };
+
+  const onCustomerSelected = () => {
+    const uid = uidSelect?.value || '';
+    if (!uid) { resetDueInfo(); runTxnCalculations(); return; }
+    const rec = cachedCustomerRecords.find((r) => getCol(r, ["System Unique ID", "Sys UID", "UNIQUEID"]) === uid);
+    selectedCustomerDue = getCustomerDueBalance(rec);
+    if (currentDueEl) {
+      currentDueEl.textContent = selectedCustomerDue.toFixed(2);
+      currentDueEl.dataset.rawDue = String(selectedCustomerDue);
+    }
+    dueInfo?.classList.remove('hidden');
+    runTxnCalculations();
+  };
+
+  [tSell, tDiscount, tReceived].forEach((el) => el?.addEventListener('input', runTxnCalculations));
+  uidSelect?.addEventListener('change', onCustomerSelected);
+
   const methodInput = document.getElementById('cust-txn-method');
   if (methodInput && methodInput.tagName === 'SELECT') {
       let hasPrevDue = Array.from(methodInput.options).some(o => o.value === 'Previous Due');
@@ -1268,16 +1339,40 @@ function initCustomerTxnFormListeners() {
           methodInput.insertAdjacentHTML('beforeend', `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">📌 Previous Due</option>`);
       }
   }
-  // --------------------------------------------------------------------------------------
 
   form.onsubmit = async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser(); runTxnCalculations();
-    const rowPayload = [ document.getElementById('cust-txn-date').value, document.getElementById('cust-txn-uid').value, parseFloat(tSell.value) || 0, parseFloat(tReceived.value) || 0, document.getElementById('cust-txn-method').value, parseFloat(tDue.value) || 0, document.getElementById('cust-txn-remarks').value.trim(), currentUser.username, new Date().toLocaleString() ];
+    e.preventDefault();
+    const currentUser = fetchSessionUser();
+    runTxnCalculations();
+    const rowPayload = [
+      document.getElementById('cust-txn-date').value,
+      document.getElementById('cust-txn-uid').value,
+      parseFloat(tSell.value) || 0,
+      parseFloat(tDiscount?.value) || 0,
+      parseFloat(tReceived.value) || 0,
+      document.getElementById('cust-txn-method').value,
+      parseFloat(tDue.value) || 0,
+      document.getElementById('cust-txn-remarks').value.trim(),
+      currentUser.username,
+      new Date().toLocaleString()
+    ];
     try {
-      const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Customer_Transactions", rowData: rowPayload } }); alert(result.message); 
-      if (result.success) { form.reset(); document.getElementById('cust-txn-date').value = new Date().toISOString().split('T')[0]; runTxnCalculations(); await loadCustomerTxnTableRecords(true); await updateLiveUserCashDrawerBalance(); }
+      const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Customer_Transactions", rowData: rowPayload } });
+      alert(result.message);
+      if (result.success) {
+        form.reset();
+        document.getElementById('cust-txn-date').value = new Date().toISOString().split('T')[0];
+        if (tDiscount) tDiscount.value = '0';
+        resetDueInfo();
+        runTxnCalculations();
+        await populateCustomerTxnDropdown();
+        await loadCustomerTxnTableRecords(true);
+        await updateLiveUserCashDrawerBalance();
+      }
     } catch (err) { alert(t('alert.errorLog')); }
   };
+
+  runTxnCalculations();
 }
 
 async function loadCustomerTxnTableRecords(isFilter = false) {
@@ -1285,10 +1380,10 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-cust');
   const tDateInput = document.getElementById('filter-to-cust');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customer_Transactions" } });
     if (result.success) {
@@ -1296,20 +1391,21 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; return; }
       cacheTxnRecords("Customer_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         const uid = getCol(rec, ["System Unique ID", "Sys UID", "UNIQUEID"]) || '';
         const soldAmt = parseFloat(getCol(rec, ["Sold Amount", "Sold Amt", "SOLDAMT"])) || 0;
+        const discAmt = parseFloat(getCol(rec, ["Discount", "Discount Amount", "Txn Discount"])) || 0;
         const recAmt = parseFloat(getCol(rec, ["Received Amount", "Received Amt", "RECEIVEDAMT"])) || 0;
         const method = getCol(rec, ["Payment Method", "Method", "METHOD"]) || '';
         const dueAmt = parseFloat(getCol(rec, ["Transaction Due", "Txn Due", "TXNDUE", "Due"])) || 0;
         const remarks = getCol(rec, ["Remarks", "Remarks / Reference"]) || '-';
-        const methodColor = method === "Cash" ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50";
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono">${soldAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${getCategoryLabel(method, t)}</span></td><td class="font-mono text-red-600 font-bold">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td>${renderTxnActions(rec, "Customer_Transactions")}</tr>`;
+        const methodColor = method === "Cash" ? "text-emerald-600 bg-emerald-50" : (method === "Card" ? "text-blue-600 bg-blue-50" : "text-slate-600 bg-slate-50");
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono">${soldAmt.toFixed(2)}</td><td class="font-mono text-purple-600">${discAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${getCategoryLabel(method, t)}</span></td><td class="font-mono text-red-600 font-bold">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td>${renderTxnActions(rec, "Customer_Transactions")}</tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 function upsertCustomerInCache(customerRecord) {
@@ -1325,7 +1421,8 @@ function renderCustomerTxnDropdownOptions(records) {
   return `<option value="">${t('dropdown.chooseAccountUid')}</option>` + records.map(c => {
     const uid = getCol(c, ["System Unique ID", "Sys UID", "UNIQUEID"]);
     const name = getCol(c, ["Customer Name", "Name"]);
-    return `<option value="${uid}">${uid} (${name})</option>`;
+    const due = getCustomerDueBalance(c);
+    return `<option value="${uid}">${uid} (${name}) — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
   }).join('');
 }
 
@@ -1339,15 +1436,15 @@ async function populateCustomerTxnDropdown() {
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customers" } });
     if (result.success && Array.isArray(result.records)) {
-      records = result.records;
       cachedCustomerRecords = result.records;
+      records = filterCustomersForCurrentUser(result.records);
     } else if (cachedCustomerRecords.length > 0) {
-      records = cachedCustomerRecords;
+      records = filterCustomersForCurrentUser(cachedCustomerRecords);
     }
   } catch (err) {
     fetchFailed = true;
     console.error("Customer dropdown fetch failed:", err);
-    if (cachedCustomerRecords.length > 0) records = cachedCustomerRecords;
+    if (cachedCustomerRecords.length > 0) records = filterCustomersForCurrentUser(cachedCustomerRecords);
   }
 
   if (records.length > 0) {
@@ -1355,7 +1452,10 @@ async function populateCustomerTxnDropdown() {
     return;
   }
 
-  dropdown.innerHTML = `<option value="">${fetchFailed ? t('dropdown.serverError') : t('dropdown.noCustomers')}</option>`;
+  const emptyMsg = !canViewAllCustomers() && !fetchFailed
+    ? t('dropdown.noOwnCustomers')
+    : (fetchFailed ? t('dropdown.serverError') : t('dropdown.noCustomers'));
+  dropdown.innerHTML = `<option value="">${emptyMsg}</option>`;
 }
 
 /**
@@ -2184,7 +2284,11 @@ async function loadAllTxnTableRecords(isFilter = false) {
 
     addRecords(resCust, "Customer", "Customer_Transactions", r => ({
        details: t('allTxn.detailsUid', { uid: getCol(r, ["System Unique ID", "Sys UID"]) || t('allTxn.noRemarks'), method: getCategoryLabel(getCol(r, ["Payment Method", "Method"]) || '', t) || t('allTxn.noRemarks') }),
-       financial: t('allTxn.finSoldRecv', { sold: Number(getCol(r, ["Sold Amount", "Sold Amt"])||0).toFixed(2), recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2) }),
+       financial: t('allTxn.finSoldDiscRecv', {
+         sold: Number(getCol(r, ["Sold Amount", "Sold Amt"])||0).toFixed(2),
+         disc: Number(getCol(r, ["Discount", "Discount Amount", "Txn Discount"])||0).toFixed(2),
+         recv: Number(getCol(r, ["Received Amount", "Received Amt"])||0).toFixed(2)
+       }),
        remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])

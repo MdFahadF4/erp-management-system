@@ -100,6 +100,7 @@ const TXN_FORMS = {
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
       fieldHtml('uid', 'field.systemUniqueId', 'text', getCol(rec, ['System Unique ID', 'Sys UID']), 'readonly'),
       fieldHtml('sold', 'field.soldAmount', 'number', getCol(rec, ['Sold Amount', 'Sold Amt'])),
+      fieldHtml('discount', 'field.discountAllowed', 'number', getCol(rec, ['Discount', 'Discount Amount', 'Txn Discount'])),
       fieldHtml('received', 'field.receivedAmount', 'number', getCol(rec, ['Received Amount', 'Received Amt'])),
       fieldHtml('method', 'field.paymentMethod', 'select-pay', getCol(rec, ['Payment Method', 'Method'])),
       fieldHtml('due', 'field.transactionDueBalance', 'number', getCol(rec, ['Transaction Due', 'Txn Due', 'Due']), 'readonly'),
@@ -163,8 +164,9 @@ function buildRowData(sheetName, original) {
       return [date, readField('supplier'), parseFloat(readField('amount')) || 0, readField('category'), readField('remarks').trim(), loggedBy, stamp];
     case 'Customer_Transactions': {
       const sold = parseFloat(readField('sold')) || 0;
+      const discount = parseFloat(readField('discount')) || 0;
       const recv = parseFloat(readField('received')) || 0;
-      return [date, readField('uid'), sold, recv, readField('method'), sold - recv, readField('remarks').trim(), loggedBy, stamp];
+      return [date, readField('uid'), sold, discount, recv, readField('method'), sold - discount - recv, readField('remarks').trim(), loggedBy, stamp];
     }
     case 'Internal_Transfers':
       return [date, parseFloat(readField('amount')) || 0, readField('desc').trim(), loggedBy, stamp];
