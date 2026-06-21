@@ -4,6 +4,7 @@ import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getA
 import { initTxnAdminSystem, renderTxnActions, cacheTxnRecords } from './txn-admin.js';
 import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, renderUserDirectoryRow } from './user-admin.js';
 import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
+import { refreshSessionUser, userCanAccessModule, getDefaultModuleForUser, normalizeUserPermissions } from './user-session.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -49,13 +50,13 @@ Date.prototype.toLocaleDateString = function() {
   return `${day} ${month} ${year}`;
 };
 // =====================================================================
-  const user = fetchSessionUser();
+  const user = await refreshSessionUser();
   if (user) {
     if (loginScreen) loginScreen.classList.add('hidden');
     if (mainContent) {
-      const normalizedPerms = user.permissions ? user.permissions.map(p => p.trim().toLowerCase()) : [];
-      if (user.role === "Super Admin" || user.role === "Admin" || normalizedPerms.includes('dashboard')) {
-        await loadModulePage('dashboard', { replaceHistory: true });
+      const defaultModule = getDefaultModuleForUser(user);
+      if (defaultModule) {
+        await loadModulePage(defaultModule, { replaceHistory: true });
       } else {
         mainContent.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl mt-10">${t('common.welcome', { name: user.username })}</div>`;
         history.replaceState({ module: 'home' }, '', '#home');
@@ -77,35 +78,9 @@ Date.prototype.toLocaleDateString = function() {
     if (badge) badge.classList.remove('hidden');
     await updateLiveUserCashDrawerBalance();
 
-    const normalizedPerms = user.permissions ? user.permissions.map(p => p.trim().toLowerCase()) : [];
+    applyMenuPermissions(user);
 
-    if (menuButtons) {
-      menuButtons.forEach(btn => {
-        const target = btn.getAttribute('data-target');
-        if (!target) return;
-        
-        const lowerTarget = target.toLowerCase();
-
-        
-        
-        if (user.role === "Super Admin" || user.role === "Admin") {
-          btn.classList.remove('hidden');
-        } else if (normalizedPerms.includes(lowerTarget)) {
-          btn.classList.remove('hidden');
-        } else {
-          btn.classList.add('hidden');
-        }
-      });
-    }
-
-    if (navUsers) {
-      if (user.role === "Super Admin" || user.role === "Admin") {
-        navUsers.classList.remove('hidden');
-      } else {
-        navUsers.classList.add('hidden');
-      }
-    }
-
+    bindSessionSyncOnce();
     bindMobileSnapshotResizeOnce();
     requestAnimationFrame(() => syncMobileHeaderHeight());
     bindDashboardRefreshOnce();
@@ -138,6 +113,7 @@ function openMenu() {
   if (sidebar) sidebar.classList.remove('-translate-x-full');
   if (sidebarBackdrop) sidebarBackdrop.classList.remove('hidden');
   document.body.classList.add('erp-sidebar-open');
+  syncSessionPermissions();
 }
 
 function closeMenu() {
@@ -401,8 +377,70 @@ function initMobileModuleSnapshot(target) {
   return null;
 }
 
+function applyMenuPermissions(user) {
+  if (!user) return;
+  if (menuButtons) {
+    menuButtons.forEach((btn) => {
+      const target = btn.getAttribute('data-target');
+      if (!target) return;
+      if (userCanAccessModule(user, target)) btn.classList.remove('hidden');
+      else btn.classList.add('hidden');
+    });
+  }
+  if (navUsers) {
+    if (user.role === 'Super Admin' || user.role === 'Admin') navUsers.classList.remove('hidden');
+    else navUsers.classList.add('hidden');
+  }
+}
+
+async function syncSessionPermissions() {
+  if (!fetchSessionUser()) return null;
+  const user = await refreshSessionUser();
+  if (!user) return null;
+  applyMenuPermissions(user);
+  if (activeModuleTarget && !userCanAccessModule(user, activeModuleTarget)) {
+    const fallback = getDefaultModuleForUser(user);
+    if (fallback) {
+      await loadModulePage(fallback, { replaceHistory: true });
+    } else if (mainContent) {
+      mainContent.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl mt-10">${t('common.welcome', { name: user.username })}</div>`;
+      activeModuleTarget = null;
+      history.replaceState({ module: 'home' }, '', '#home');
+    }
+  }
+  return user;
+}
+
+function bindSessionSyncOnce() {
+  if (document.body.dataset.sessionSyncBound === 'true') return;
+  document.body.dataset.sessionSyncBound = 'true';
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') syncSessionPermissions();
+  });
+  window.addEventListener('focus', () => syncSessionPermissions());
+  setInterval(() => {
+    if (fetchSessionUser()) syncSessionPermissions();
+  }, 120000);
+}
+
 async function loadModulePage(target, { pushHistory = false, replaceHistory = false } = {}) {
   if (!templates[target] || !mainContent) return;
+
+  let user = fetchSessionUser();
+  if (user) {
+    user = await refreshSessionUser();
+    if (!user) return;
+    applyMenuPermissions(user);
+    if (!userCanAccessModule(user, target)) {
+      alert(t('alert.unauthorizedModule'));
+      const fallback = getDefaultModuleForUser(user);
+      if (fallback && fallback !== target) {
+        await loadModulePage(fallback, { replaceHistory: true });
+      }
+      return;
+    }
+  }
 
   mainContent.innerHTML = templates[target];
   applyTranslations(mainContent);
@@ -5295,7 +5333,9 @@ if (formPwd) {
  * SECURITY COMPONENT LAYER & ACTIVE DIRECTORIES
  */
 function initUserManagementFormListener() {
-  const userForm = document.getElementById('form-create-user'); if (!userForm) return;
+  const userForm = document.getElementById('form-create-user');
+  if (!userForm || userForm.dataset.bound === 'true') return;
+  userForm.dataset.bound = 'true';
   userForm.addEventListener('submit', async (e) => {
     e.preventDefault(); const currentUser = fetchSessionUser();
     const mobile = document.getElementById('new-mobile')?.value.trim() || '';
@@ -5593,6 +5633,8 @@ async function refreshDashboardData(triggerBtn) {
     btn.textContent = busyLabel;
   }
   try {
+    await syncSessionPermissions();
+    if (!fetchSessionUser() || !userCanAccessModule(fetchSessionUser(), 'dashboard')) return;
     await Promise.all([loadDashboardData(), updateLiveUserCashDrawerBalance()]);
     if (btn) {
       btn.textContent = t('dash.refreshDone');

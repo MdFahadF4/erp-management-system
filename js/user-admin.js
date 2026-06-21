@@ -143,14 +143,19 @@ function closeEditUserModal() {
 async function updateUser(payload) {
   const actor = fetchSessionUser();
   if (!canManageUsers()) return alert(t('alert.unauthorized'));
-  const res = await apiRequest({
-    action: 'UPDATE_USER',
-    payload: { ...payload, actorUsername: actor.username, actorRole: actor.role }
-  });
-  alert(res.message || (res.success ? t('users.updateSuccess') : t('users.updateFailed')));
-  if (res.success) {
-    closeEditUserModal();
-    if (typeof onUserReload === 'function') await onUserReload();
+  try {
+    const res = await apiRequest({
+      action: 'UPDATE_USER',
+      payload: { ...payload, actorUsername: actor.username, actorRole: actor.role }
+    });
+    alert(res.message || (res.success ? t('users.updateSuccess') : t('users.updateFailed')));
+    if (res.success) {
+      closeEditUserModal();
+      if (typeof onUserReload === 'function') await onUserReload();
+    }
+  } catch (err) {
+    console.error('UPDATE_USER failed:', err);
+    alert(t('users.updateFailed'));
   }
 }
 
@@ -180,6 +185,10 @@ export function initUserAdminSystem(options = {}) {
   document.body.dataset.userAdminBound = 'true';
 
   document.addEventListener('click', (e) => {
+    if (e.target.id === 'close-user-modal' || e.target.id === 'btn-cancel-user-edit') {
+      closeEditUserModal();
+      return;
+    }
     const editBtn = e.target.closest('.btn-user-edit');
     if (editBtn) {
       const rec = findCachedUser(editBtn.dataset.username);
@@ -204,9 +213,9 @@ export function initUserAdminSystem(options = {}) {
     }
   });
 
-  document.getElementById('form-edit-user')?.addEventListener('submit', handleEditSubmit);
-  document.getElementById('close-user-modal')?.addEventListener('click', closeEditUserModal);
-  document.getElementById('btn-cancel-user-edit')?.addEventListener('click', closeEditUserModal);
+  document.addEventListener('submit', (e) => {
+    if (e.target?.id === 'form-edit-user') handleEditSubmit(e);
+  });
 }
 
 export function initForgotPasswordSystem() {

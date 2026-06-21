@@ -252,6 +252,7 @@ export const REPORT_EN = {
   'alert.errorGenerate': 'Error generating report.',
   'alert.errorLoad': 'Failed to load data. Please refresh and try again.',
   'alert.unauthorized': 'Unauthorized. Only Super Admin or Admin can edit or delete transactions.',
+  'alert.unauthorizedModule': 'You no longer have access to this module. Redirecting to your allowed workspace.',
   'alert.updateSuccess': 'Transaction updated successfully.',
   'alert.deleteSuccess': 'Transaction deleted successfully.',
   'alert.deleteFailed': 'Failed to delete transaction.',

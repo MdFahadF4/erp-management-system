@@ -136,7 +136,7 @@ function authenticateUser(username, password) {
         userData: {
           username: data[i][1],
           role: data[i][3],
-          permissions: String(data[i][4] || 'ALL').split(',').filter(function (p) { return String(p).trim(); }),
+          permissions: String(data[i][4] || '').split(',').map(function (p) { return String(p).trim(); }).filter(Boolean),
           status: status
         }
       };
@@ -249,7 +249,7 @@ function updateUserAdmin(payload) {
     }
     sheet.getRange(idx + 1, 4).setValue(payload.role);
   }
-  if (payload.permissions !== undefined) sheet.getRange(idx + 1, 5).setValue(payload.permissions);
+  if (payload.permissions !== undefined) sheet.getRange(idx + 1, 5).setValue(String(payload.permissions));
   if (payload.mobile !== undefined) sheet.getRange(idx + 1, 8).setValue(payload.mobile);
   if (payload.email !== undefined) sheet.getRange(idx + 1, 9).setValue(payload.email);
   if (payload.status !== undefined) sheet.getRange(idx + 1, 10).setValue(payload.status);
