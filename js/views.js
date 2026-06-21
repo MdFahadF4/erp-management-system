@@ -34,12 +34,18 @@ export const templates = {
                   <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Balance</div>
                   <div class="font-mono font-bold text-lg text-red-500">SAR <span id="dash-sale-due">0.00</span></div>
                </div>
-               <div class="col-span-2 border-t pt-3 mt-1">
-                  <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1" data-i18n="dash.totalReceived">Total Received</div>
-                  <div class="font-mono font-black text-2xl text-emerald-600">SAR <span id="dash-sale-recv">0.00</span></div>
-                  <div class="text-xs font-medium text-gray-500 mt-1 flex gap-4">
-                     <span data-i18n="dash.cash">Cash:</span> <b class="text-emerald-500 font-mono" id="dash-sale-cash">0.00</b></span>
-                     <span><span data-i18n="dash.card">Card:</span> <b class="text-blue-500 font-mono" id="dash-sale-card">0.00</b></span>
+               <div class="col-span-2 grid grid-cols-2 gap-4 border-t pt-3 mt-1">
+                  <div>
+                     <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1" data-i18n="dash.totalReceived">Total Received</div>
+                     <div class="font-mono font-black text-2xl text-emerald-600">SAR <span id="dash-sale-recv">0.00</span></div>
+                     <div class="text-xs font-medium text-gray-500 mt-1 flex gap-4">
+                        <span><span data-i18n="dash.cash">Cash:</span> <b class="text-emerald-500 font-mono" id="dash-sale-cash">0.00</b></span>
+                        <span><span data-i18n="dash.card">Card:</span> <b class="text-blue-500 font-mono" id="dash-sale-card">0.00</b></span>
+                     </div>
+                  </div>
+                  <div>
+                     <div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1" data-i18n="dash.totalDiscount">Total Discount</div>
+                     <div class="font-mono font-black text-2xl text-purple-600">SAR <span id="dash-sale-disc">0.00</span></div>
                   </div>
                </div>
             </div>
@@ -58,6 +64,10 @@ export const templates = {
                <div class="flex justify-between items-center border-b pb-2">
                   <div class="text-xs text-gray-500 font-bold uppercase tracking-wider" data-i18n="dash.totalReceived">Total Received</div>
                   <div class="font-mono font-bold text-emerald-600 text-lg">SAR <span id="dash-inc-recv">0.00</span></div>
+               </div>
+               <div class="flex justify-between items-center border-b pb-2">
+                  <div class="text-xs text-gray-500 font-bold uppercase tracking-wider" data-i18n="dash.totalDiscount">Total Discount</div>
+                  <div class="font-mono font-bold text-purple-600 text-lg">SAR <span id="dash-inc-disc">0.00</span></div>
                </div>
                <div class="flex justify-between items-center">
                   <div class="text-xs text-gray-500 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Balance</div>
@@ -87,6 +97,7 @@ export const templates = {
             <h4 class="font-bold text-gray-800 mb-3 border-b pb-2" data-i18n="dash.supplierPurchases">Supplier Purchases</h4>
             <div class="space-y-3">
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalPurchased">Total Purchased</div><div class="font-mono font-bold text-gray-700 text-base">SAR <span id="dash-sup-pur">0.00</span></div></div>
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalDiscount">Total Discount</div><div class="font-mono font-bold text-purple-600 text-base">SAR <span id="dash-sup-disc">0.00</span></div></div>
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalPaid">Total Paid</div><div class="font-mono font-bold text-emerald-600 text-base">SAR <span id="dash-sup-paid">0.00</span></div></div>
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Balance</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-sup-due">0.00</span></div></div>
             </div>
@@ -96,6 +107,7 @@ export const templates = {
             <h4 class="font-bold text-gray-800 mb-3 border-b pb-2" data-i18n="dash.operationalExpenses">Operational Expenses</h4>
             <div class="space-y-3">
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalIncurred">Total Incurred</div><div class="font-mono font-bold text-gray-700 text-base">SAR <span id="dash-exp-inc">0.00</span></div></div>
+               <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalDiscount">Total Discount</div><div class="font-mono font-bold text-purple-600 text-base">SAR <span id="dash-exp-disc">0.00</span></div></div>
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.totalPaid">Total Paid</div><div class="font-mono font-bold text-emerald-600 text-base">SAR <span id="dash-exp-paid">0.00</span></div></div>
                <div><div class="text-[10px] text-gray-400 font-bold uppercase tracking-wider" data-i18n="dash.dueBalance">Due / Balance</div><div class="font-mono font-bold text-red-500 text-base">SAR <span id="dash-exp-due">0.00</span></div></div>
             </div>

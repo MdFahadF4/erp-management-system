@@ -3841,28 +3841,33 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         let hasDates = (typeof fDate !== 'undefined' && fDate && typeof tDate !== 'undefined' && tDate && !isNaN(new Date(fDate).getTime()));
 
         window.aggReportData = {
-           sales: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
-           income: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
-           purchase: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
-           expense: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
-           hr: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
-           creditor: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] },
-           capital: { lInc:0, lPaid:0, rInc:0, rPaid:0, rows: [] }
+           sales: { lInc:0, lPaid:0, lDisc:0, rInc:0, rPaid:0, rDisc:0, rows: [] },
+           income: { lInc:0, lPaid:0, lDisc:0, rInc:0, rPaid:0, rDisc:0, rows: [] },
+           purchase: { lInc:0, lPaid:0, lDisc:0, rInc:0, rPaid:0, rDisc:0, rows: [] },
+           expense: { lInc:0, lPaid:0, lDisc:0, rInc:0, rPaid:0, rDisc:0, rows: [] },
+           hr: { lInc:0, lPaid:0, lDisc:0, rInc:0, rPaid:0, rDisc:0, rows: [] },
+           creditor: { lInc:0, lPaid:0, lDisc:0, rInc:0, rPaid:0, rDisc:0, rows: [] },
+           capital: { lInc:0, lPaid:0, lDisc:0, rInc:0, rPaid:0, rDisc:0, rows: [] }
         };
 
-        const addD = (cat, dStr, inc, paid, rem, usr) => {
+        const addD = (cat, dStr, inc, paid, rem, usr, disc = 0) => {
             let d = dStr ? new Date(dStr) : new Date();
             let inRange = !hasDates || (d >= fDate && d <= tDate);
             window.aggReportData[cat].lInc += inc;
             window.aggReportData[cat].lPaid += paid;
-            if (hasDates && inRange) { window.aggReportData[cat].rInc += inc; window.aggReportData[cat].rPaid += paid; }
-            if (inc > 0 || paid > 0) window.aggReportData[cat].rows.push({ d, inc, paid, rem: rem||'-', usr: usr||'-', inRange });
+            window.aggReportData[cat].lDisc += disc;
+            if (hasDates && inRange) {
+              window.aggReportData[cat].rInc += inc;
+              window.aggReportData[cat].rPaid += paid;
+              window.aggReportData[cat].rDisc += disc;
+            }
+            if (inc > 0 || paid > 0 || disc > 0) window.aggReportData[cat].rows.push({ d, inc, paid, disc, rem: rem||'-', usr: usr||'-', inRange });
         };
 
         // --- CUSTOMER SALES LOGIC ---
         const sellCols = ["soldamount", "soldamt", "totalsell", "sellamount", "grosssell", "sell"];
         const recvCols = ["receivedamount", "receivedamt", "received", "cashreceived", "cashamt", "cashamount", "paidamount", "amountpaid"];
-        let tSold=0, tPaid=0;
+        let tSold=0, tPaid=0, tDisc=0;
         
         if (rCustT.success) rCustT.records.forEach(r => {
             let s = gF(r, sellCols); let p = gF(r, recvCols);
@@ -3873,16 +3878,19 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 tSold += prevAmt; 
                 addD('sales', gV(r, ["date", "timestamp"]), prevAmt, 0, "📌 Previous Due", gV(r, ["username", "loggedby"]));
             } else {
-                tSold += s; tPaid += p;
-                addD('sales', gV(r, ["date", "timestamp"]), s, p, gV(r, ["remarks"])||"Sale Txn", gV(r, ["username", "loggedby"]));
+                let disc = gF(r, ["discount", "discountallowed", "txndiscount", "discountamount"]);
+                tSold += s; tPaid += p; tDisc += disc;
+                addD('sales', gV(r, ["date", "timestamp"]), s, p, gV(r, ["remarks"])||"Sale Txn", gV(r, ["username", "loggedby"]), disc);
             }
         });
         if (rCust.success) rCust.records.forEach(r => {
             let sheetS = gF(r, sellCols);
             let sheetP = gF(r, ["cashamt", "cashamount", "cash", "totalpayments"]) + gF(r, ["cardamt", "cardamount", "card"]);
+            let sheetDisc = gF(r, ["discount", "discountallowed"]);
             let initS = sheetS - tSold; initS = initS > 0 ? initS : 0; 
             let initP = sheetP - tPaid; initP = initP > 0 ? initP : 0;
-            if (initS > 0 || initP > 0) addD('sales', gV(r, ["date", "timestamp", "creationstamp"]), initS, initP, "Base Master Record", gV(r, ["username", "loggedby", "createdby"]));
+            let initDisc = sheetDisc - tDisc; initDisc = initDisc > 0 ? initDisc : 0;
+            if (initS > 0 || initP > 0 || initDisc > 0) addD('sales', gV(r, ["date", "timestamp", "creationstamp"]), initS, initP, "Base Master Record", gV(r, ["username", "loggedby", "createdby"]), initDisc);
         });
 
         // --- INCOME LOGIC ---
@@ -3897,7 +3905,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 addD('income', gV(r, ["date", "timestamp"]), prevAmt, 0, "📌 Previous Due", gV(r, ["username", "loggedby"]));
             } else {
                 tIncS += amounts.bill; tIncP += amounts.pay;
-                addD('income', gV(r, ["date", "timestamp"]), amounts.bill, amounts.pay, gV(r, ["remarks", "details"])||"Income", gV(r, ["username", "loggedby"]));
+                addD('income', gV(r, ["date", "timestamp"]), amounts.bill, amounts.pay, gV(r, ["remarks", "details"])||"Income", gV(r, ["username", "loggedby"]), amounts.discount);
             }
         });
         if (typeof rInc !== 'undefined' && rInc && rInc.success) rInc.records.forEach(r => {
@@ -3921,7 +3929,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 tPurS += Math.max(p.bill, p.pay);
                 addD('purchase', d, Math.max(p.bill, p.pay), 0, "📌 Previous Due", usr);
             } else { 
-                if (p.bill > 0) { tPurS += p.bill; addD('purchase', d, p.bill, 0, rem, usr); }
+                if (p.bill > 0) { tPurS += p.bill; addD('purchase', d, p.bill, 0, rem, usr, p.discount); }
                 if (p.pay > 0) { tPurP += p.pay; addD('purchase', d, 0, p.pay, rem, usr); }
             }
         });
@@ -3937,7 +3945,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 addD('expense', gV(r, ["date", "timestamp"]), prevAmt, 0, "📌 Previous Due", gV(r, ["username", "loggedby"]));
             } else {
                 tExpS += amounts.bill; tExpP += amounts.pay;
-                addD('expense', gV(r, ["date", "timestamp"]), amounts.bill, amounts.pay, gV(r, ["remarks", "description"])||"Expense", gV(r, ["username", "loggedby"]));
+                addD('expense', gV(r, ["date", "timestamp"]), amounts.bill, amounts.pay, gV(r, ["remarks", "description"])||"Expense", gV(r, ["username", "loggedby"]), amounts.discount);
             }
         });
 
@@ -3997,34 +4005,47 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         });
 
         let d = window.aggReportData;
-        let totalReceivable = (d.sales.lInc - d.sales.lPaid) + (d.income.lInc - d.income.lPaid);
-        let totalPayable = (d.purchase.lInc - d.purchase.lPaid) + (d.expense.lInc - d.expense.lPaid) + (d.hr.lInc - d.hr.lPaid) + (d.creditor.lInc - d.creditor.lPaid);
+        const netDue = (box, mode) => {
+          const inc = mode === 'range' ? box.rInc : box.lInc;
+          const paid = mode === 'range' ? box.rPaid : box.lPaid;
+          const disc = mode === 'range' ? box.rDisc : box.lDisc;
+          return inc - paid - disc;
+        };
+        let totalReceivable = netDue(d.sales, 'lifetime') + netDue(d.income, 'lifetime');
+        let totalPayable = netDue(d.purchase, 'lifetime') + netDue(d.expense, 'lifetime') + netDue(d.hr, 'lifetime') + netDue(d.creditor, 'lifetime');
         let netStatus = totalReceivable - totalPayable;
         
-        let rngReceivable = (d.sales.rInc - d.sales.rPaid) + (d.income.rInc - d.income.rPaid);
-        let rngPayable = (d.purchase.rInc - d.purchase.rPaid) + (d.expense.rInc - d.expense.rPaid) + (d.hr.rInc - d.hr.rPaid) + (d.creditor.rInc - d.creditor.rPaid);
+        let rngReceivable = netDue(d.sales, 'range') + netDue(d.income, 'range');
+        let rngPayable = netDue(d.purchase, 'range') + netDue(d.expense, 'range') + netDue(d.hr, 'range') + netDue(d.creditor, 'range');
         let rngNetStatus = rngReceivable - rngPayable;
 
-        const buildBox = (title, incL, paidL, l1, l2, key, mode) => `
+        const buildBox = (title, incL, paidL, discL, l1, l2, key, mode) => {
+            const balance = incL - paidL - discL;
+            const showDisc = ['sales', 'income', 'purchase', 'expense'].includes(key);
+            return `
             <div onclick="window.openAggModal('${key}', '${title}', '${mode}')" class="bg-white border border-gray-200 rounded-xl shadow-sm p-5 cursor-pointer hover:ring-2 hover:${mode === 'lifetime' ? 'ring-blue-400' : 'ring-purple-400'} hover:shadow-md transition duration-200 group relative">
                <div class="absolute top-3 right-3 text-gray-300 group-hover:${mode === 'lifetime' ? 'text-blue-500' : 'text-purple-500'}"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg></div>
                <h3 class="text-sm font-black text-gray-800 uppercase tracking-wider mb-4 border-b pb-2">${title}</h3>
-               <div class="flex justify-between">
-                   <div class="w-1/2 pr-2">
+               <div class="flex justify-between ${showDisc ? 'gap-2' : ''}">
+                   <div class="${showDisc ? 'w-1/3' : 'w-1/2'} pr-2">
                        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">${l1}</div>
                        <div class="text-lg font-bold text-blue-600 font-mono mt-1">SAR ${incL.toFixed(2)}</div>
                    </div>
-                   <div class="w-1/2 border-l pl-3">
+                   ${showDisc ? `<div class="w-1/3 border-l pl-2">
+                       <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">${t('report.totalDiscount')}</div>
+                       <div class="text-lg font-bold text-purple-600 font-mono mt-1">SAR ${discL.toFixed(2)}</div>
+                   </div>` : ''}
+                   <div class="${showDisc ? 'w-1/3' : 'w-1/2'} border-l pl-3">
                        <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">${l2}</div>
                        <div class="text-lg font-bold text-emerald-600 font-mono mt-1">SAR ${paidL.toFixed(2)}</div>
                    </div>
                </div>
                <div class="mt-4 pt-3 border-t ${mode === 'lifetime' ? 'bg-gray-50' : 'bg-purple-50'} -mx-5 -mb-5 p-3 rounded-b-xl text-center">
                    <div class="text-[10px] font-bold ${mode === 'lifetime' ? 'text-gray-500' : 'text-purple-700'} uppercase tracking-widest">${mode === 'lifetime' ? t('report.lifetimeBalanceDue') : t('report.rangeBalanceDue')}</div>
-                   <div class="text-xl font-black ${(incL - paidL) > 0 ? 'text-red-500' : 'text-emerald-500'} font-mono mt-1">SAR ${(incL - paidL).toFixed(2)}</div>
+                   <div class="text-xl font-black ${balance > 0 ? 'text-red-500' : 'text-emerald-500'} font-mono mt-1">SAR ${balance.toFixed(2)}</div>
                </div>
-            </div>
-        `;
+            </div>`;
+        };
 
         cardsEl.innerHTML = `
           <div class="col-span-full bg-slate-900 rounded-xl shadow-lg p-6 mb-6 flex flex-wrap justify-between items-center text-white border-b-4 border-slate-700">
@@ -4047,13 +4068,13 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              <h2 class="text-xs font-black text-gray-500 uppercase tracking-widest border-b pb-2 flex items-center gap-2"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6h-8.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9"></path></svg> ${t('report.lifetimeAggregates')}</h2>
           </div>
           <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-             ${buildBox(t('report.boxCustomerSales'), d.sales.lInc, d.sales.lPaid, t('report.soldAmount'), t('report.receivedAmount'), "sales", "lifetime")}
-             ${buildBox(t('report.boxOtherIncome'), d.income.lInc, d.income.lPaid, t('report.incurredAmount'), t('report.receivedAmount'), "income", "lifetime")}
-             ${buildBox(t('report.boxSupplierPurchases'), d.purchase.lInc, d.purchase.lPaid, t('report.purchaseAmount'), t('report.paidAmountLabel'), "purchase", "lifetime")}
-             ${buildBox(t('report.boxOperationalExpenses'), d.expense.lInc, d.expense.lPaid, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "lifetime")}
-             ${buildBox(t('report.boxHrPayroll'), d.hr.lInc, d.hr.lPaid, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "lifetime")}
-             ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.lInc, d.creditor.lPaid, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "lifetime")}
-             ${buildBox(t('report.boxOwnerCapital'), d.capital.lInc, d.capital.lPaid, t('report.capitalInLabel'), t('report.capitalOutLabel'), "capital", "lifetime")}
+             ${buildBox(t('report.boxCustomerSales'), d.sales.lInc, d.sales.lPaid, d.sales.lDisc, t('report.soldAmount'), t('report.receivedAmount'), "sales", "lifetime")}
+             ${buildBox(t('report.boxOtherIncome'), d.income.lInc, d.income.lPaid, d.income.lDisc, t('report.incurredAmount'), t('report.receivedAmount'), "income", "lifetime")}
+             ${buildBox(t('report.boxSupplierPurchases'), d.purchase.lInc, d.purchase.lPaid, d.purchase.lDisc, t('report.purchaseAmount'), t('report.paidAmountLabel'), "purchase", "lifetime")}
+             ${buildBox(t('report.boxOperationalExpenses'), d.expense.lInc, d.expense.lPaid, d.expense.lDisc, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "lifetime")}
+             ${buildBox(t('report.boxHrPayroll'), d.hr.lInc, d.hr.lPaid, d.hr.lDisc, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "lifetime")}
+             ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.lInc, d.creditor.lPaid, d.creditor.lDisc, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "lifetime")}
+             ${buildBox(t('report.boxOwnerCapital'), d.capital.lInc, d.capital.lPaid, d.capital.lDisc, t('report.capitalInLabel'), t('report.capitalOutLabel'), "capital", "lifetime")}
           </div>
           
           ${hasDates ? `
@@ -4067,13 +4088,13 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              <h2 class="text-xs font-black text-purple-600 uppercase tracking-widest border-b border-purple-200 pb-2 flex items-center gap-2"><svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg> ${t('report.selectedRangeAggregates')}</h2>
           </div>
           <div class="col-span-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-4">
-             ${buildBox(t('report.boxCustomerSales'), d.sales.rInc, d.sales.rPaid, t('report.soldAmount'), t('report.receivedAmount'), "sales", "range")}
-             ${buildBox(t('report.boxOtherIncome'), d.income.rInc, d.income.rPaid, t('report.incurredAmount'), t('report.receivedAmount'), "income", "range")}
-             ${buildBox(t('report.boxSupplierPurchases'), d.purchase.rInc, d.purchase.rPaid, t('report.purchaseAmount'), t('report.paidAmountLabel'), "purchase", "range")}
-             ${buildBox(t('report.boxOperationalExpenses'), d.expense.rInc, d.expense.rPaid, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "range")}
-             ${buildBox(t('report.boxHrPayroll'), d.hr.rInc, d.hr.rPaid, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "range")}
-             ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.rInc, d.creditor.rPaid, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "range")}
-             ${buildBox(t('report.boxOwnerCapital'), d.capital.rInc, d.capital.rPaid, t('report.capitalInLabel'), t('report.capitalOutLabel'), "capital", "range")}
+             ${buildBox(t('report.boxCustomerSales'), d.sales.rInc, d.sales.rPaid, d.sales.rDisc, t('report.soldAmount'), t('report.receivedAmount'), "sales", "range")}
+             ${buildBox(t('report.boxOtherIncome'), d.income.rInc, d.income.rPaid, d.income.rDisc, t('report.incurredAmount'), t('report.receivedAmount'), "income", "range")}
+             ${buildBox(t('report.boxSupplierPurchases'), d.purchase.rInc, d.purchase.rPaid, d.purchase.rDisc, t('report.purchaseAmount'), t('report.paidAmountLabel'), "purchase", "range")}
+             ${buildBox(t('report.boxOperationalExpenses'), d.expense.rInc, d.expense.rPaid, d.expense.rDisc, t('report.incurredAmount'), t('report.paidAmountLabel'), "expense", "range")}
+             ${buildBox(t('report.boxHrPayroll'), d.hr.rInc, d.hr.rPaid, d.hr.rDisc, t('report.salaryEarned'), t('report.salaryPaidLabel'), "hr", "range")}
+             ${buildBox(t('report.boxCreditorLiabilities'), d.creditor.rInc, d.creditor.rPaid, d.creditor.rDisc, t('report.receivedLoaned'), t('report.returnedPaid'), "creditor", "range")}
+             ${buildBox(t('report.boxOwnerCapital'), d.capital.rInc, d.capital.rPaid, d.capital.rDisc, t('report.capitalInLabel'), t('report.capitalOutLabel'), "capital", "range")}
           </div>` : ''}
         `;
         cardsEl.className = "grid grid-cols-1 mb-2";
@@ -4088,12 +4109,13 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 </div>
                 <div class="p-4 bg-gray-50 flex justify-around border-b border-gray-200 text-center">
                    <div><div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="agg-l1">${t('report.colIncurred')}</div><div id="agg-v1" class="text-xl font-bold text-blue-600 font-mono">0.00</div></div>
+                   <div id="agg-disc-wrap" class="border-l pl-8 hidden"><div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="agg-l3">${t('report.totalDiscount')}</div><div id="agg-v3" class="text-xl font-bold text-purple-600 font-mono">0.00</div></div>
                    <div class="border-l pl-8"><div class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="agg-l2">${t('report.colPaid')}</div><div id="agg-v2" class="text-xl font-bold text-emerald-600 font-mono">0.00</div></div>
                 </div>
                 <div class="flex-1 overflow-y-auto p-4">
                    <table class="w-full text-left text-xs">
                       <thead class="bg-gray-100 text-gray-600 sticky top-0 border-b">
-                         <tr><th class="p-3 font-semibold">${t('col.date')}</th><th class="p-3 font-semibold" id="agg-h1">${t('report.colIncurred')}</th><th class="p-3 font-semibold" id="agg-h2">${t('report.colPaid')}</th><th class="p-3 font-semibold">${t('col.remarks')}</th><th class="p-3 font-semibold">${t('report.colUser')}</th></tr>
+                         <tr><th class="p-3 font-semibold">${t('col.date')}</th><th class="p-3 font-semibold" id="agg-h1">${t('report.colIncurred')}</th><th class="p-3 font-semibold" id="agg-h3">${t('report.totalDiscount')}</th><th class="p-3 font-semibold" id="agg-h2">${t('report.colPaid')}</th><th class="p-3 font-semibold">${t('col.remarks')}</th><th class="p-3 font-semibold">${t('report.colUser')}</th></tr>
                       </thead>
                       <tbody id="agg-modal-body" class="divide-y divide-gray-100"></tbody>
                    </table>
@@ -4118,19 +4140,34 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             document.getElementById('agg-l2').textContent = l2; document.getElementById('agg-h2').textContent = l2;
             
             let incAmt = mode === 'range' ? data.rInc : data.lInc; let paidAmt = mode === 'range' ? data.rPaid : data.lPaid;
+            let discAmt = mode === 'range' ? data.rDisc : data.lDisc;
+            const showDisc = ['sales', 'income', 'purchase', 'expense'].includes(key);
             document.getElementById('agg-v1').textContent = "SAR " + incAmt.toFixed(2);
             document.getElementById('agg-v2').textContent = "SAR " + paidAmt.toFixed(2);
+            const discWrap = document.getElementById('agg-disc-wrap');
+            const discHeader = document.getElementById('agg-h3');
+            if (discWrap) discWrap.classList.toggle('hidden', !showDisc);
+            if (discHeader) discHeader.classList.toggle('hidden', !showDisc);
+            const discVal = document.getElementById('agg-v3');
+            if (discVal) discVal.textContent = "SAR " + discAmt.toFixed(2);
+            const modalTable = document.querySelector('#agg-modal table thead tr');
+            if (modalTable) {
+              const discTh = modalTable.querySelector('#agg-h3');
+              if (discTh) discTh.style.display = showDisc ? '' : 'none';
+            }
 
             let tBody = document.getElementById('agg-modal-body');
             let rowsToDisplay = mode === 'range' ? data.rows.filter(r => r.inRange) : data.rows;
             let sorted = rowsToDisplay.sort((a,b) => b.d - a.d);
+            const colSpan = showDisc ? 6 : 5;
             
-            if (sorted.length === 0) { tBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-gray-400 italic">${t('report.noTransactionsView')}</td></tr>`; } 
+            if (sorted.length === 0) { tBody.innerHTML = `<tr><td colspan="${colSpan}" class="p-6 text-center text-gray-400 italic">${t('report.noTransactionsView')}</td></tr>`; } 
             else {
                 tBody.innerHTML = sorted.map(r => `
                     <tr class="hover:bg-gray-50">
                         <td class="p-3 whitespace-nowrap">${r.d.toLocaleDateString()}</td>
                         <td class="p-3 font-mono font-bold text-blue-600">${r.inc > 0 ? Number(r.inc).toFixed(2) : '-'}</td>
+                        ${showDisc ? `<td class="p-3 font-mono font-bold text-purple-600">${r.disc > 0 ? Number(r.disc).toFixed(2) : '-'}</td>` : ''}
                         <td class="p-3 font-mono font-bold text-emerald-600">${r.paid > 0 ? Number(r.paid).toFixed(2) : '-'}</td>
                         <td class="p-3 text-gray-600 truncate max-w-[150px]" title="${r.rem}">${r.rem}</td>
                         <td class="p-3 text-gray-500">${r.usr}</td>
@@ -4146,18 +4183,50 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
 
       case 'pnl': {
         titleEl.textContent = t('report.titlePnl');
-        let revSales = 0; let revIncome = 0;
-        let expSup = 0; let expOp = 0; let expHR = 0;
+        let revSales = 0, revSalesDisc = 0;
+        let revIncome = 0, revIncomeDisc = 0;
+        let expSup = 0, expSupDisc = 0;
+        let expOp = 0, expOpDisc = 0;
+        let expHR = 0;
 
-        filterByDate(rCust.records, ["Creation Stamp", "Timestamp", "Date", "Created By"]).forEach(r => revSales += parseFloat(getCol(r, ["Total Sell", "Sell Amount"])) || 0);
-        filterByDate(rIncT.records, ["Date"]).forEach(r => revIncome += parseFloat(getCol(r, ["Receivable Amount", "Receivable"])) || 0);
+        filterByDate(rCust.records, ["Creation Stamp", "Timestamp", "Date", "Created By"]).forEach(r => {
+          revSales += parseFloat(getCol(r, ["Total Sell", "Sell Amount"])) || 0;
+          revSalesDisc += parseFloat(getCol(r, ["Discount", "Discount Allowed"])) || 0;
+        });
+        filterByDate(rCustT.records, ["Date"]).forEach(r => {
+          const check = String(getCol(r, ["Remarks", "Category", "Method", "Type", "Payment Method"]) || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (check.includes('previousdue') || check.includes('openingbalance')) return;
+          revSalesDisc += parseFloat(getCol(r, ["Discount", "Discount Allowed", "Txn Discount", "Discount Amount"])) || 0;
+        });
+        filterByDate(rIncT.records, ["Date"]).forEach(r => {
+          const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
+          const check = String(getDualTxnCategory(r, INCOME_TXN_FIELDS) + ' ' + getRemarks(r)).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (check.includes('previousdue') || check.includes('openingbalance')) return;
+          revIncome += amounts.bill;
+          revIncomeDisc += amounts.discount;
+        });
         
-        filterByDate(rSupT.records, ["Date"]).forEach(r => { if(String(getCol(r, ["Category"])).trim().toUpperCase() === "PURCHASE") expSup += parseFloat(getCol(r, ["Amount"])) || 0; });
-        filterByDate(rExp.records, ["Date"]).forEach(r => expOp += parseFloat(getCol(r, ["Deposit", "Amount"])) || 0);
-        filterByDate(rHrT.records, ["Date"]).forEach(r => { if(String(getCol(r, ["Category"])).trim().toUpperCase() === "SALARY EARN") expHR += parseFloat(getCol(r, ["Amount"])) || 0; });
+        filterByDate(rSupT.records, ["Date"]).forEach(r => {
+          const p = parseSupplierTxnAmounts(r);
+          const check = String(getSupplierTxnCategory(r)).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (check.includes('previousdue') || check.includes('openingbalance') || check.includes('paid')) return;
+          expSup += p.bill;
+          expSupDisc += p.discount;
+        });
+        filterByDate(rExp.records, ["Date"]).forEach(r => {
+          const amounts = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
+          const check = String(getDualTxnCategory(r, EXPENSE_TXN_FIELDS) + ' ' + getRemarks(r)).replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (check.includes('previousdue') || check.includes('openingbalance')) return;
+          expOp += amounts.bill;
+          expOpDisc += amounts.discount;
+        });
+        filterByDate(rHrT.records, ["Date"]).forEach(r => {
+          const cat = String(getCol(r, ["Category", "Remarks"]) || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+          if (cat.includes('earn') || cat.includes('bill')) expHR += Math.abs(parseFloat(getCol(r, ["Amount"])) || 0);
+        });
 
-        let totalRev = revSales + revIncome;
-        let totalExp = expSup + expOp + expHR;
+        let totalRev = (revSales - revSalesDisc) + (revIncome - revIncomeDisc);
+        let totalExp = (expSup - expSupDisc) + (expOp - expOpDisc) + expHR;
         let netProfit = totalRev - totalExp;
 
         cardsEl.innerHTML = 
@@ -4170,10 +4239,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         tBody.innerHTML = `
           <tr class="bg-emerald-50"><td class="p-3 font-bold text-emerald-800" colspan="3">${t('report.revenues')}</td></tr>
           <tr class="border-b"><td class="p-3 pl-6">${t('report.customerSalesBilled')}</td><td>${t('report.operatingRevenue')}</td><td class="text-right font-mono">${revSales.toFixed(2)}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.customerSalesDiscount')}</td><td>${t('report.operatingRevenue')}</td><td class="text-right font-mono text-purple-600">-${revSalesDisc.toFixed(2)}</td></tr>
           <tr class="border-b"><td class="p-3 pl-6">${t('report.otherIncomeBilled')}</td><td>${t('report.operatingRevenue')}</td><td class="text-right font-mono">${revIncome.toFixed(2)}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.otherIncomeDiscount')}</td><td>${t('report.operatingRevenue')}</td><td class="text-right font-mono text-purple-600">-${revIncomeDisc.toFixed(2)}</td></tr>
           <tr class="bg-red-50"><td class="p-3 font-bold text-red-800" colspan="3">${t('report.expensesSection')}</td></tr>
           <tr class="border-b"><td class="p-3 pl-6">${t('report.cogsSuppliers')}</td><td>${t('report.directCost')}</td><td class="text-right font-mono">${expSup.toFixed(2)}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.supplierPurchaseDiscount')}</td><td>${t('report.directCost')}</td><td class="text-right font-mono text-purple-600">-${expSupDisc.toFixed(2)}</td></tr>
           <tr class="border-b"><td class="p-3 pl-6">${t('report.operationalExpenses')}</td><td>${t('report.overhead')}</td><td class="text-right font-mono">${expOp.toFixed(2)}</td></tr>
+          <tr class="border-b"><td class="p-3 pl-6">${t('report.operationalExpenseDiscount')}</td><td>${t('report.overhead')}</td><td class="text-right font-mono text-purple-600">-${expOpDisc.toFixed(2)}</td></tr>
           <tr class="border-b"><td class="p-3 pl-6">${t('report.hrPayrollEarned')}</td><td>${t('report.overhead')}</td><td class="text-right font-mono">${expHR.toFixed(2)}</td></tr>
           <tr class="bg-slate-100 font-bold text-lg border-t-2 border-slate-300"><td class="p-4 uppercase" colspan="2">${t('report.netProfitSlashLoss')}</td><td class="text-right font-mono ${netProfit >= 0 ? 'text-blue-600' : 'text-red-600'}">${netProfit.toFixed(2)}</td></tr>
         `;
@@ -4261,16 +4334,26 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
 
         let tRecv = tRecvCust + tRecvInc;
 
-        // 3. Gather Suppliers (Payable)
+        // 3. Gather Suppliers (Payable) — transaction totals only (master Due/Balance can be stale)
+        const supTxns = (typeof rSupT !== 'undefined' && rSupT.success) ? rSupT.records : [];
+        const supNames = new Set();
         if (typeof rSup !== 'undefined' && rSup.success) {
-           rSup.records.forEach(r => {
-              let due = parseFloat(getCol(r, ["Due Balance", "Due"])) || 0;
-              if (due > 0) {
-                 tPaySup += due;
-                 paySuppliers.push({ name: getCol(r, ["Supplier Name"]) || 'Unknown', amt: due });
-              }
-           });
+          rSup.records.forEach((r) => {
+            const name = String(getCol(r, ["Supplier Name"]) || "").trim();
+            if (name) supNames.add(name);
+          });
         }
+        supTxns.forEach((t) => {
+          const name = String(getCol(t, ["Supplier Name"]) || "").trim();
+          if (name) supNames.add(name);
+        });
+        supNames.forEach((name) => {
+          const due = getSupplierDueFromTxns(name, supTxns);
+          if (due > 0.009) {
+            tPaySup += due;
+            paySuppliers.push({ name, amt: due });
+          }
+        });
 
         // 4. Gather HR (Payable) - DYNAMIC MATH ENGINE (Ignores Increments & Base Salary)
         let hrBalances = {};
@@ -4385,8 +4468,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         titleEl.textContent = t('report.titleExpenseStatement');
         
         let cdIncurred = []; let cdPayments = [];
-        let lifeInc = 0, lifePaid = 0;
-        let rngInc = 0, rngPaid = 0;
+        let lifeInc = 0, lifePaid = 0, lifeDiscount = 0;
+        let rngInc = 0, rngPaid = 0, rngDiscount = 0;
 
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
@@ -4434,13 +4517,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
 
                 lifeInc += inc;
                 lifePaid += paid;
+                lifeDiscount += amounts.discount;
 
                 let dStr = gV(r, ["date", "timestamp"]);
                 let d = dStr ? new Date(dStr) : new Date();
                 let inRange = !hasDates || (d >= fDate && d <= tDate);
 
                 if (inRange) {
-                    if (hasDates) { rngInc += inc; rngPaid += paid; }
+                    if (hasDates) { rngInc += inc; rngPaid += paid; rngDiscount += amounts.discount; }
                     let remarks = getRemarks(r);
                     let usr = getCol(r, ["Logged By", "Username", "User"]) || gV(r, ["username", "loggedby"]) || '-';
                     
@@ -4450,20 +4534,24 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             });
         }
 
-        let lifeDue = lifeInc - lifePaid;
+        let lifeDue = lifeInc - lifePaid - lifeDiscount;
 
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
-                <div class="text-left w-1/3">
+                <div class="text-left w-1/4">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalIncurred')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeInc.toFixed(2)}</div>
                 </div>
-                <div class="text-center w-1/3 border-l border-gray-100">
+                <div class="text-center w-1/4 border-l border-gray-100">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.totalDiscount')}</div>
+                   <div class="text-3xl font-black text-purple-600 font-mono mt-1">SAR ${lifeDiscount.toFixed(2)}</div>
+                </div>
+                <div class="text-center w-1/4 border-l border-gray-100">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifePaid.toFixed(2)}</div>
                 </div>
-                <div class="text-right w-1/3 border-l border-gray-100">
+                <div class="text-right w-1/4 border-l border-gray-100">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDuePayable')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
@@ -4471,6 +4559,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeIncurred')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngInc.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeDiscount')}</div><div class="text-lg font-bold text-purple-700 font-mono mt-1">SAR ${rngDiscount.toFixed(2)}</div></div>
                 <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaid')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
@@ -4731,8 +4820,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         titleEl.textContent = t('report.titleIncomeStatement');
         
         let incReceivables = []; let incReceivedLogs = [];
-        let lifeReceivable = 0, lifeReceived = 0;
-        let rngReceivable = 0, rngReceived = 0;
+        let lifeReceivable = 0, lifeReceived = 0, lifeDiscount = 0;
+        let rngReceivable = 0, rngReceived = 0, rngDiscount = 0;
 
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
@@ -4777,14 +4866,16 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
 
         if (typeof rIncT !== 'undefined' && rIncT && rIncT.success) {
             rIncT.records.filter(isInc).forEach(r => {
-                let rawReceivable = Math.abs(parseFloat(gV(r, recvbleCols))); if(isNaN(rawReceivable)) rawReceivable = 0;
-                let rawReceived = Math.abs(parseFloat(gV(r, recvdCols))); if(isNaN(rawReceived)) rawReceived = 0;
+                const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
+                let rawReceivable = Math.abs(amounts.bill);
+                let rawReceived = Math.abs(amounts.pay);
+                let rawDiscount = Math.abs(amounts.discount);
 
                 let mHead = String(gV(r, ["incomeparenthead", "parenthead", "mainhead"])).trim().toUpperCase();
                 let sHead = String(gV(r, ["subheadname", "subhead", "subcategory"])).trim().toUpperCase();
                 let rem = String(gV(r, ["remarks", "description", "details"])).trim().toUpperCase();
                 
-                let receivable = 0; let received = 0; let typeLabel = "Receivable";
+                let receivable = 0; let received = 0; let discount = 0; let typeLabel = "Receivable";
 
                 // INTERCEPTOR FLIPPER: Catch Previous Due and force it to the Due Increasing side!
                 let isPrevDue = mHead.includes("PREVIOUS DUE") || sHead.includes("PREVIOUS DUE") || rem.includes("PREVIOUS DUE") || rem.includes("OPENING BALANCE");
@@ -4796,18 +4887,20 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 } else {
                     receivable = rawReceivable;
                     received = rawReceived;
+                    discount = rawDiscount;
                     typeLabel = "Receivable";
                 }
 
                 lifeReceivable += receivable;
                 lifeReceived += received;
+                lifeDiscount += discount;
 
                 let dStr = gV(r, ["date", "timestamp"]);
                 let d = dStr ? new Date(dStr) : new Date();
                 let inRange = !hasDates || (d >= fDate && d <= tDate);
 
                 if (inRange) {
-                    if (hasDates) { rngReceivable += receivable; rngReceived += received; }
+                    if (hasDates) { rngReceivable += receivable; rngReceived += received; rngDiscount += discount; }
                     let remarks = getRemarks(r);
                     let usr = gV(r, ["username", "loggedby"]) || '-';
                     
@@ -4817,20 +4910,24 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             });
         }
 
-        let lifeDue = lifeReceivable - lifeReceived;
+        let lifeDue = lifeReceivable - lifeReceived - lifeDiscount;
 
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
-                <div class="text-left w-1/3">
+                <div class="text-left w-1/4">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceivable')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeReceivable.toFixed(2)}</div>
                 </div>
-                <div class="text-center w-1/3 border-l border-gray-100">
+                <div class="text-center w-1/4 border-l border-gray-100">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.totalDiscount')}</div>
+                   <div class="text-3xl font-black text-purple-600 font-mono mt-1">SAR ${lifeDiscount.toFixed(2)}</div>
+                </div>
+                <div class="text-center w-1/4 border-l border-gray-100">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalReceived')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifeReceived.toFixed(2)}</div>
                 </div>
-                <div class="text-right w-1/3 border-l border-gray-100">
+                <div class="text-right w-1/4 border-l border-gray-100">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDueMarketOwes')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-blue-600' : 'text-gray-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
@@ -4838,6 +4935,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReceivable')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngReceivable.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeDiscount')}</div><div class="text-lg font-bold text-purple-700 font-mono mt-1">SAR ${rngDiscount.toFixed(2)}</div></div>
                 <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeReceived')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngReceived.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
@@ -5005,7 +5103,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         
         // 1. Separate Buckets for Lifetime vs Date Range
         let lifeSold = 0, lifePaid = 0, lifeCash = 0, lifeCard = 0, lifeDiscount = 0;
-        let rngSold = 0, rngPaid = 0, rngCash = 0, rngCard = 0;
+        let rngSold = 0, rngPaid = 0, rngCash = 0, rngCard = 0, rngDiscount = 0;
 
         // Super Matchers
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -5026,17 +5124,23 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         let sheetSold = 0, sheetCash = 0, sheetCard = 0;
 
         // 4. Process Transactions & Populate Ledgers
-        let tSold = 0, tCash = 0, tCard = 0;
+        let tSold = 0, tCash = 0, tCard = 0, tDisc = 0;
         if (rCustT.success) {
             rCustT.records.filter(isC).forEach(t => {
                 let sell = gF(t, sellCols);
                 let recv = gF(t, recvCols);
+                let disc = gF(t, ["discount", "discountallowed", "txndiscount", "discountamount"]);
                 let method = cln(gV(t, methCols));
                 if(method === "") method = "cash";
+                let check = cln(gV(t, ["remarks", "category", "method", "type", "paymentmethod"]));
 
                 // Sum up transactions to subtract from Master later
                 tSold += sell;
+                tDisc += disc;
                 if(method.includes("cash")) tCash += recv; else tCard += recv;
+                if (!check.includes("previousdue") && !check.includes("openingbalance")) {
+                  lifeDiscount += disc;
+                }
 
                 let dStr = gV(t, ["date", "timestamp"]);
                 let d = dStr ? new Date(dStr) : new Date();
@@ -5048,6 +5152,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                     if (hasDates) {
                        rngSold += sell;
                        if(method.includes("cash")) rngCash += recv; else rngCard += recv;
+                       if (!check.includes("previousdue") && !check.includes("openingbalance")) rngDiscount += disc;
                     }
                     let remarks = gV(t, ["remarks", "remarksreference"]) || '-';
                     let usr = gV(t, ["username", "loggedby"]) || '-';
@@ -5128,10 +5233,18 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 </div>
              </div>
              
+             <div class="flex justify-center bg-purple-50 p-3 rounded-lg border border-purple-100">
+                <div class="text-center px-6">
+                   <div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">${t('report.totalDiscount')}</div>
+                   <div class="text-xl font-bold text-purple-700 font-mono mt-1">SAR ${lifeDiscount.toFixed(2)}</div>
+                </div>
+             </div>
+             
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeSold')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngSold.toFixed(2)}</div></div>
                 <div class="text-center border-l border-r px-8 border-blue-200"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaid')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
+                <div class="text-center border-r pr-8 border-blue-200"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeDiscount')}</div><div class="text-lg font-bold text-purple-700 font-mono mt-1">SAR ${rngDiscount.toFixed(2)}</div></div>
                 <div class="text-center border-r pr-8 border-blue-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCashIn')}</div><div class="text-sm font-bold text-emerald-500 font-mono mt-1">SAR ${rngCash.toFixed(2)}</div></div>
                 <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCardIn')}</div><div class="text-sm font-bold text-purple-500 font-mono mt-1">SAR ${rngCard.toFixed(2)}</div></div>
              </div>
@@ -5195,8 +5308,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         titleEl.textContent = t('report.titleExpenseStatement');
         
         let cdIncurred = []; let cdPayments = [];
-        let lifeInc = 0, lifePaid = 0;
-        let rngInc = 0, rngPaid = 0;
+        let lifeInc = 0, lifePaid = 0, lifeDiscount = 0;
+        let rngInc = 0, rngPaid = 0, rngDiscount = 0;
 
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
@@ -5221,13 +5334,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
 
                 lifeInc += inc;
                 lifePaid += paid;
+                lifeDiscount += amounts.discount;
 
                 let dStr = gV(r, ["date", "timestamp"]);
                 let d = dStr ? new Date(dStr) : new Date();
                 let inRange = !hasDates || (d >= fDate && d <= tDate);
 
                 if (inRange) {
-                    if (hasDates) { rngInc += inc; rngPaid += paid; }
+                    if (hasDates) { rngInc += inc; rngPaid += paid; rngDiscount += amounts.discount; }
                     let remarks = getRemarks(r);
                     let usr = gV(r, ["username", "loggedby"]) || '-';
                     
@@ -5237,20 +5351,24 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             });
         }
 
-        let lifeDue = lifeInc - lifePaid;
+        let lifeDue = lifeInc - lifePaid - lifeDiscount;
 
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
-                <div class="text-left w-1/3">
+                <div class="text-left w-1/4">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalIncurred')}</div>
                    <div class="text-3xl font-black text-blue-600 font-mono mt-1">SAR ${lifeInc.toFixed(2)}</div>
                 </div>
-                <div class="text-center w-1/3 border-l border-gray-100">
+                <div class="text-center w-1/4 border-l border-gray-100">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.totalDiscount')}</div>
+                   <div class="text-3xl font-black text-purple-600 font-mono mt-1">SAR ${lifeDiscount.toFixed(2)}</div>
+                </div>
+                <div class="text-center w-1/4 border-l border-gray-100">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalPaid')}</div>
                    <div class="text-3xl font-black text-emerald-600 font-mono mt-1">SAR ${lifePaid.toFixed(2)}</div>
                 </div>
-                <div class="text-right w-1/3 border-l border-gray-100">
+                <div class="text-right w-1/4 border-l border-gray-100">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeDuePayable')}</div>
                    <div class="text-3xl font-black ${lifeDue > 0 ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${lifeDue.toFixed(2)}</div>
                 </div>
@@ -5258,6 +5376,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              ${hasDates ? `
              <div class="flex justify-around bg-blue-50 p-4 rounded-lg border border-blue-100">
                 <div class="text-center"><div class="text-blue-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeIncurred')}</div><div class="text-lg font-bold text-blue-700 font-mono mt-1">SAR ${rngInc.toFixed(2)}</div></div>
+                <div class="text-center border-l border-blue-200 pl-8"><div class="text-purple-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeDiscount')}</div><div class="text-lg font-bold text-purple-700 font-mono mt-1">SAR ${rngDiscount.toFixed(2)}</div></div>
                 <div class="text-center border-l border-blue-200 pl-8"><div class="text-emerald-600 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaid')}</div><div class="text-lg font-bold text-emerald-700 font-mono mt-1">SAR ${rngPaid.toFixed(2)}</div></div>
              </div>` : ''}
           </div>
@@ -5439,6 +5558,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         const lifetimeTotals = rollupSupplierTxnTotals(allSupTxns);
         let globalPur = lifetimeTotals.bill;
         let globalPay = lifetimeTotals.pay;
+        let globalDisc = lifetimeTotals.discount;
         let globalDue = lifetimeTotals.due;
 
         // 2. Filtered Range Transactions
@@ -5446,6 +5566,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         let sdPayments = [];
         let sdRangePur = 0;
         let sdRangePay = 0;
+        let sdRangeDisc = 0;
 
         let sdFilteredTxns = filterByDate(allSupTxns, ["Date"]);
 
@@ -5458,8 +5579,9 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
 
            if (p.bill > 0) {
               sdRangePur += p.bill;
+              sdRangeDisc += p.discount;
               const displayType = category === "Previous Due" ? "Previous Due" : "Purchase";
-              sdPurchases.push({ d, amt: p.bill, rem, usr, type: displayType });
+              sdPurchases.push({ d, amt: p.bill, disc: p.discount, rem, usr, type: displayType });
            }
            if (p.pay > 0) {
               sdRangePay += p.pay;
@@ -5477,6 +5599,10 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                   <div class="text-2xl font-black text-red-600 font-mono mt-1">SAR ${globalPur.toFixed(2)}</div>
                 </div>
                 <div class="text-center">
+                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.totalDiscount')}</div>
+                  <div class="text-2xl font-black text-purple-600 font-mono mt-1">SAR ${globalDisc.toFixed(2)}</div>
+                </div>
+                <div class="text-center">
                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimePaymentsMade')}</div>
                   <div class="text-2xl font-black text-emerald-600 font-mono mt-1">SAR ${globalPay.toFixed(2)}</div>
                 </div>
@@ -5490,6 +5616,10 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 <div class="text-center">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePurchasesTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
                    <div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${sdRangePur.toFixed(2)}</div>
+                </div>
+                <div class="text-center">
+                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeDiscount')}</div>
+                   <div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${sdRangeDisc.toFixed(2)}</div>
                 </div>
                 <div class="text-center">
                    <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaymentsTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
@@ -6560,10 +6690,10 @@ async function loadDashboardData() {
     const recvCols = ["receivedamount", "receivedamt", "received", "cashreceived", "cashamt", "cashamount", "paidamount", "paidamt", "amountpaid"];
     const methCols = ["paymentmethod", "method", "paymenttype", "type"];
 
-    let saleSold=0, saleRecv=0, saleCash=0, saleCard=0, saleDue=0;
-    let incBilled=0, incRecv=0, incDue=0;
-    let purPur=0, purPaid=0, purDue=0;
-    let expInc=0, expPaid=0, expDue=0;
+    let saleSold=0, saleRecv=0, saleCash=0, saleCard=0, saleDue=0, saleDiscount=0;
+    let incBilled=0, incRecv=0, incDue=0, incDiscount=0;
+    let purPur=0, purPaid=0, purDue=0, purDiscount=0;
+    let expInc=0, expPaid=0, expDue=0, expDiscount=0;
     let crdRecv=0, crdRet=0, crdDue=0;
     let capIn=0, capOut=0, capNet=0;
     let hrEarned=0, hrPaid=0, hrDue=0; 
@@ -6587,7 +6717,7 @@ async function loadDashboardData() {
        let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
        let sell = gF(r, sellCols); let cash = gF(r, ["cashamt", "cashamount", "cash"]); let card = gF(r, ["cardamt", "cardamount", "card"]); let discount = gF(r, ["discount", "discountallowed"]);
        let recv = cash + card; let due = sell - recv - discount;
-       saleSold += sell; saleCash += cash; saleCard += card; saleRecv += recv; saleDue += due;
+       saleSold += sell; saleCash += cash; saleCard += card; saleRecv += recv; saleDue += due; saleDiscount += discount;
        let initCash = cash - (txnTotals[uid] ? txnTotals[uid].cash : 0);
        let creator = gV(r, ["username", "loggedby", "createdby"]);
        if (creator) addCash(creator, initCash);
@@ -6598,6 +6728,7 @@ async function loadDashboardData() {
        if (check.includes("previousdue") || check.includes("openingbalance")) {
            saleSold += amt; saleDue += amt;
        } else {
+           saleDiscount += gF(t, ["discount", "discountallowed", "txndiscount", "discountamount"]);
            let method = cln(gV(t, methCols)); if (method === "") method = "cash";
            let logger = gV(t, ["username", "loggedby"]);
            if (method.includes("cash") && logger) addCash(logger, amt);
@@ -6612,7 +6743,7 @@ async function loadDashboardData() {
            let prevAmt = Math.max(amounts.bill, amounts.pay);
            incBilled += prevAmt; incDue += prevAmt;
        } else {
-           incBilled += amounts.bill; incRecv += amounts.pay; incDue += amounts.txnDue;
+           incBilled += amounts.bill; incRecv += amounts.pay; incDue += amounts.txnDue; incDiscount += amounts.discount;
        }
     });
 
@@ -6632,6 +6763,7 @@ async function loadDashboardData() {
     Object.values(supTotals).forEach((s) => {
       purPur += s.bill;
       purPaid += s.pay;
+      purDiscount += s.discount;
       purDue += Math.max(0, s.bill - s.discount - s.pay);
     });
 
@@ -6643,7 +6775,7 @@ async function loadDashboardData() {
            let prevAmt = Math.max(amounts.bill, amounts.pay);
            expInc += prevAmt; expDue += prevAmt;
        } else {
-           expInc += amounts.bill; expPaid += amounts.pay; expDue += amounts.txnDue;
+           expInc += amounts.bill; expPaid += amounts.pay; expDue += amounts.txnDue; expDiscount += amounts.discount;
            let logger = gV(r, ["username", "loggedby"]);
            if (logger && !isAdm(logger) && amounts.pay > 0) addCash(logger, -amounts.pay);
        }
@@ -6701,10 +6833,10 @@ async function loadDashboardData() {
 
     const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = Number(val).toFixed(2); };
     setVal('dash-recv', tRecv); setVal('dash-pay', tPay);
-    setVal('dash-sale-sold', saleSold); setVal('dash-sale-recv', saleRecv); setVal('dash-sale-due', saleDue); setVal('dash-sale-cash', saleCash); setVal('dash-sale-card', saleCard);
-    setVal('dash-inc-billed', incBilled); setVal('dash-inc-recv', incRecv); setVal('dash-inc-due', incDue);
-    setVal('dash-sup-pur', purPur); setVal('dash-sup-paid', purPaid); setVal('dash-sup-due', purDue);
-    setVal('dash-exp-inc', expInc); setVal('dash-exp-paid', expPaid); setVal('dash-exp-due', expDue);
+    setVal('dash-sale-sold', saleSold); setVal('dash-sale-recv', saleRecv); setVal('dash-sale-due', saleDue); setVal('dash-sale-disc', saleDiscount); setVal('dash-sale-cash', saleCash); setVal('dash-sale-card', saleCard);
+    setVal('dash-inc-billed', incBilled); setVal('dash-inc-recv', incRecv); setVal('dash-inc-due', incDue); setVal('dash-inc-disc', incDiscount);
+    setVal('dash-sup-pur', purPur); setVal('dash-sup-paid', purPaid); setVal('dash-sup-due', purDue); setVal('dash-sup-disc', purDiscount);
+    setVal('dash-exp-inc', expInc); setVal('dash-exp-paid', expPaid); setVal('dash-exp-due', expDue); setVal('dash-exp-disc', expDiscount);
     setVal('dash-hr-earned', hrEarned); setVal('dash-hr-paid', hrPaid); setVal('dash-hr-due', hrDue);
     setVal('dash-crd-recv', crdRecv); setVal('dash-crd-ret', crdRet); setVal('dash-crd-due', crdDue);
     setVal('dash-cap-in', capIn); setVal('dash-cap-out', capOut); setVal('dash-cap-net', capNet);
