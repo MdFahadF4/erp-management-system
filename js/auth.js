@@ -50,18 +50,18 @@ export async function processLogin(username, password) {
       action: "LOGIN",
       payload: { username, password }
     });
-    if (result.success) {
+    if (result.success && result.userData) {
       localStorage.setItem('currentUser', JSON.stringify(result.userData));
       localStorage.setItem('isLoggedIn', 'true');
       return { success: true, user: result.userData };
-    } else {
-      alert(result.message);
-      return { success: false };
     }
+    const msg = result.message || 'Login failed. Check username, password, and security token.';
+    alert(msg);
+    return { success: false, message: msg };
   } catch (error) {
     console.error("Authentication system pipeline failure:", error);
-    alert("Connection Error. Check backend status configurations.");
-    return { success: false };
+    alert("Connection Error. Check API URL, Apps Script deploy, and that CLIENT_TOKEN matches Code.gs SECRET_TOKEN.");
+    return { success: false, message: error.message };
   }
 }
 

@@ -128,12 +128,13 @@ export async function refreshSessionUser() {
     if (!rec) return current;
 
     const status = String(getUserField(rec, ['Status', 'Account Status']) || 'Active').trim() || 'Active';
-    if (status === 'Paused') {
+    const statusKey = status.toLowerCase();
+    if (statusKey === 'paused') {
       alert('Account paused. Contact your administrator.');
       processLogout();
       return null;
     }
-    if (status === 'Removed') {
+    if (statusKey === 'removed') {
       alert('Account removed. Contact your administrator.');
       processLogout();
       return null;

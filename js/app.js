@@ -2920,7 +2920,8 @@ async function loadAllTxnTableRecords(isFilter = false) {
        remarks: getCol(r, ["Remarks / Reference", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
-    }; }),
+    };
+    });
 
     addRecords(resCust, "Customer", "Customer_Transactions", r => ({
        details: t('allTxn.detailsUid', { uid: getCol(r, ["System Unique ID", "Sys UID"]) || t('allTxn.noRemarks'), method: getCategoryLabel(getCol(r, ["Payment Method", "Method"]) || '', t) || t('allTxn.noRemarks') }),
@@ -2958,7 +2959,8 @@ async function loadAllTxnTableRecords(isFilter = false) {
        remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
-    }; }),
+    };
+    });
 
     addRecords(resInc, "Income", "Income_Transactions", r => {
        const a = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
@@ -2968,7 +2970,8 @@ async function loadAllTxnTableRecords(isFilter = false) {
        remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
-    }; }),
+    };
+    });
 
     addRecords(resCap, "Capital", "Capital_Transactions", r => {
        const a = parseTxnDualAmounts(r, CAPITAL_TXN_FIELDS);
@@ -2978,7 +2981,8 @@ async function loadAllTxnTableRecords(isFilter = false) {
        remarks: getCol(r, ["Remarks / Vouchers", "Remarks"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
        stamp: getCol(r, ["Timestamp"])
-    }; }),
+    };
+    });
 
     if (moduleFilter && moduleFilter.value) {
        allRecords = allRecords.filter(r => r.module === moduleFilter.value);

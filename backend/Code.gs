@@ -6,6 +6,11 @@
  *   H = Mobile | I = Email | J = Status  (Active / Paused / Removed)
  * Existing users without Status are treated as Active.
  *
+ * ADMIN_SETTINGS — optional sheet; cell B1 must be ACTIVE to allow API access.
+ * If B1 is empty, login is allowed. Any other non-empty value (e.g. SUSPENDED) blocks all requests.
+ *
+ * SECURITY — CLIENT_TOKEN in js/config.js (and Vercel env) must match SECRET_TOKEN in doPost below.
+ *
  * CUSTOMER_TRANSACTIONS — add column D = Discount (after Sold Amount) if missing.
  * New row order: Date | System Unique ID | Sold | Discount | Received | Method | Txn Due | Remarks | Logged By | Stamp
  *
@@ -67,8 +72,9 @@ function doPost(e) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const adminSheet = ss.getSheetByName("Admin_Settings");
   if (adminSheet) {
-    const accountStatus = adminSheet.getRange("B1").getValue();
-    if (accountStatus !== "ACTIVE") {
+    const accountStatus = String(adminSheet.getRange("B1").getValue() || '').trim().toUpperCase();
+    // Only block when explicitly set to a non-ACTIVE value (empty B1 = allow login)
+    if (accountStatus && accountStatus !== 'ACTIVE') {
       return ContentService.createTextOutput(JSON.stringify({
         success: false,
         status: "error",
@@ -145,15 +151,19 @@ function hashPassword(password) {
 function authenticateUser(username, password) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName('Users');
   const data = sheet.getDataRange().getValues();
+  const headers = data.length > 0 ? data[0] : [];
   const inputHash = hashPassword(password);
+  const targetUser = String(username || '').trim().toLowerCase();
 
   for (let i = 1; i < data.length; i++) {
-    if (data[i][1] === username && data[i][2] === inputHash) {
-      var status = getUserStatus_(data[i]);
-      if (status === 'Paused') {
+    const rowUser = String(data[i][1] || '').trim().toLowerCase();
+    if (rowUser === targetUser && data[i][2] === inputHash) {
+      var status = getUserStatus_(headers, data[i]);
+      var statusKey = String(status || 'Active').trim().toLowerCase();
+      if (statusKey === 'paused') {
         return { success: false, message: 'Account paused. Contact your administrator.' };
       }
-      if (status === 'Removed') {
+      if (statusKey === 'removed') {
         return { success: false, message: 'Account removed. Contact your administrator.' };
       }
       return {
@@ -170,8 +180,23 @@ function authenticateUser(username, password) {
   return { success: false, message: "Invalid username or password" };
 }
 
-function getUserStatus_(row) {
-  var status = row[9];
+function findColumnIndex_(headers, names) {
+  var targets = names.map(function (n) {
+    return String(n || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  });
+  for (var c = 0; c < headers.length; c++) {
+    var h = String(headers[c] || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+    for (var t = 0; t < targets.length; t++) {
+      if (h === targets[t]) return c;
+    }
+  }
+  return -1;
+}
+
+function getUserStatus_(headers, row) {
+  var statusIdx = findColumnIndex_(headers, ['Status', 'Account Status']);
+  if (statusIdx === -1) statusIdx = 9; // legacy fallback: column J
+  var status = row[statusIdx];
   if (!status || String(status).trim() === '') return 'Active';
   return String(status).trim();
 }
@@ -236,10 +261,12 @@ function resetForgotPassword(payload) {
   var idx = findUserRowIndex_(data, username);
   if (idx === -1) return { success: false, message: 'No account found with that username.' };
 
+  var headers = data.length > 0 ? data[0] : [];
   var row = data[idx];
-  var status = getUserStatus_(row);
-  if (status === 'Paused') return { success: false, message: 'Account is paused. Contact your administrator.' };
-  if (status === 'Removed') return { success: false, message: 'Account was removed. Contact your administrator.' };
+  var status = getUserStatus_(headers, row);
+  var statusKey = String(status || 'Active').trim().toLowerCase();
+  if (statusKey === 'paused') return { success: false, message: 'Account is paused. Contact your administrator.' };
+  if (statusKey === 'removed') return { success: false, message: 'Account was removed. Contact your administrator.' };
 
   var rowMobile = normalizeMobile_(row[7]);
   var rowEmail = normalizeEmail_(row[8]);
