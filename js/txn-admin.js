@@ -26,7 +26,9 @@ export function canAdminEdit(sheetName) {
 }
 
 export function getRecordId(rec) {
-  return getCol(rec, ['ID', 'Id', 'id']) ?? rec['ID'];
+  const id = getCol(rec, ['ID', 'Id', 'id', 'Record ID']);
+  if (id !== undefined && id !== null && String(id).trim() !== '') return id;
+  return rec?.ID ?? rec?.id ?? null;
 }
 
 export function cacheTxnRecords(sheetName, records) {
@@ -39,11 +41,11 @@ export function findCachedTxn(sheetName, id) {
 
 export function renderTxnActions(rec, sheetName) {
   if (!canAdminEdit(sheetName)) {
-    return `<td class="p-2.5"><span class="text-gray-300 italic text-[10px]">${t('common.locked')}</span></td>`;
+    return `<td class="p-2.5 erp-col-actions"><span class="text-gray-300 italic text-[10px]">${t('common.locked')}</span></td>`;
   }
   const id = getRecordId(rec);
-  if (!id) return `<td class="p-2.5 text-gray-400">-</td>`;
-  return `<td class="p-2.5 whitespace-nowrap">
+  if (!id) return `<td class="p-2.5 erp-col-actions text-gray-400">-</td>`;
+  return `<td class="p-2.5 erp-col-actions whitespace-nowrap">
     <button type="button" class="btn-txn-edit bg-orange-500 hover:bg-orange-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1" data-id="${id}" data-sheet="${sheetName}">${t('common.edit')}</button>
     <button type="button" class="btn-txn-delete bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]" data-id="${id}" data-sheet="${sheetName}">${t('common.delete')}</button>
   </td>`;
@@ -92,14 +94,24 @@ function fieldHtml(key, labelKey, type, value, extra = '') {
   return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><input data-field="${key}" type="${type}" step="any" class="w-full border rounded p-2 text-sm outline-none" value="${v}" ${extra}></div>`;
 }
 
+function getHrTxnCategoryForEdit(rec) {
+  const cat = String(getCol(rec, ['Category', 'Category Classification', 'Type']) || '').trim();
+  if (cat) return cat;
+  const rem = String(getCol(rec, ['Remarks', 'Remarks / Reference']) || '').toLowerCase();
+  if (rem.includes('previous due') || rem.includes('opening balance')) return 'Previous Due';
+  if (rem.includes('increment')) return 'Salary Increment';
+  if (rem.includes('paid')) return 'Salary Paid';
+  return 'Salary Earn';
+}
+
 const TXN_FORMS = {
   HR_Transactions(rec) {
     return [
-      fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
-      fieldHtml('employee', 'field.employeeName', 'text', getCol(rec, ['Employee Name'])),
-      fieldHtml('amount', 'field.amount', 'number', getCol(rec, ['Amount'])),
-      fieldHtml('category', 'field.categoryClassification', 'select-categories-hr', getCol(rec, ['Category'])),
-      fieldHtml('remarks', 'field.remarksReference', 'textarea', getCol(rec, ['Remarks']))
+      fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date', 'Transaction Date']))),
+      fieldHtml('employee', 'field.employeeName', 'text', getCol(rec, ['Employee Name', 'Employee', 'Name'])),
+      fieldHtml('amount', 'field.amount', 'number', getCol(rec, ['Amount', 'Amt', 'Transaction Amount'])),
+      fieldHtml('category', 'field.categoryClassification', 'select-categories-hr', getHrTxnCategoryForEdit(rec)),
+      fieldHtml('remarks', 'field.remarksReference', 'textarea', getCol(rec, ['Remarks', 'Remarks / Reference']))
     ].join('');
   },
   Supplier_Transactions(rec) {

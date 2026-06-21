@@ -237,7 +237,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.employeeName">Employee Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="col.txnDue">Txn Due</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.employeeName">Employee Name</th><th class="p-2.5" data-i18n="col.amount">Amount</th><th class="p-2.5" data-i18n="col.category">Category</th><th class="p-2.5" data-i18n="col.remarks">Remarks</th><th class="p-2.5" data-i18n="col.loggedBy">Logged By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5 erp-col-actions" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-txn-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>
@@ -975,7 +975,7 @@ export const templates = {
                 <th class="p-3" data-i18n="allTxn.colRemarks">Remarks / Narrative</th>
                 <th class="p-3" data-i18n="allTxn.colLoggedBy">Logged By</th>
                 <th class="p-3" data-i18n="allTxn.colStamp">Stamp</th>
-                <th class="p-3" data-i18n="col.actions">Actions</th>
+                <th class="p-3 erp-col-actions" data-i18n="col.actions">Actions</th>
               </tr>
             </thead>
             <tbody id="table-all-txn-rows" class="divide-y text-gray-600 font-medium">

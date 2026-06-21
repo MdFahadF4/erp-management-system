@@ -18,7 +18,9 @@
  *   ID | System Unique ID | Remarks | Issued Date | Username | Status | Delivery Date | Delivered Remarks | Stamp
  * Status = Pending or Delivered. New customers auto-queue as Pending; run SYNC_DELIVERY_QUEUE for existing customers.
  *
- * HR_Transactions — row order after ID: Date | Employee Name | Amount | Category | Remarks | Username | Timestamp
+ * HR_Transactions — row 1 headers (ledger table matches these columns; do not add extra UI-only columns):
+ *   ID | Date | Employee Name | Amount | Category | Remarks | Username | Timestamp
+ * Category = Salary Earn | Salary Paid | Salary Increment | Previous Due
  * Updating Code.gs alone does not backfill the HR sheet; run SYNC_HR_MASTER (or open HR Management in the app) after deploy.
  *
  * SUPPLIER_TRANSACTIONS — row order (legacy Amount+Category still supported):

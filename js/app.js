@@ -170,6 +170,7 @@ Date.prototype.toLocaleDateString = function() {
       },
       onGlobalRefresh: async () => {
         if (document.getElementById('table-all-txn-rows')) {
+          ensureLedgerDateInputs('filter-from-all', 'filter-to-all');
           await loadAllTxnTableRecords(true);
         }
       },
@@ -639,7 +640,10 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   } else if (target === 'hr') {
     initHRFormListeners(); await loadHRTableRecords();
   } else if (target === 'hr_transactions') {
-    await populateEmployeeDropdown(); initTxnFormListeners(); await loadTxnTableRecords();
+    await populateEmployeeDropdown();
+    initTxnFormListeners();
+    ensureLedgerDateInputs('filter-from-hr', 'filter-to-hr');
+    await loadTxnTableRecords(true);
     document.getElementById('btn-filter-hr')?.addEventListener('click', () => {
       loadTxnTableRecords(true);
       onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
@@ -807,6 +811,46 @@ function getCol(rec, possibleNames) {
   return undefined;
 }
 
+function normalizeHrEmployeeName(name) {
+  return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function parseRecordDate(val) {
+  if (val === undefined || val === null || val === "") return null;
+  if (val instanceof Date && !isNaN(val.getTime())) return val;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function ensureLedgerDateInputs(fromId, toId, opts = {}) {
+  const fromEl = document.getElementById(fromId);
+  const toEl = document.getElementById(toId);
+  if (!fromEl || !toEl) return { fromEl, toEl };
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  const defaultFrom = opts.from || "2020-01-01";
+  if (!fromEl.value) fromEl.value = defaultFrom;
+  if (!toEl.value) toEl.value = todayStr;
+  return { fromEl, toEl };
+}
+
+function filterRecordsByDateInputs(records, fromEl, toEl, dateCols = ["Date", "Transaction Date"]) {
+  if (!fromEl?.value || !toEl?.value) return null;
+  const fDate = parseRecordDate(fromEl.value);
+  const tDate = parseRecordDate(toEl.value);
+  if (!fDate || !tDate) return [];
+  fDate.setHours(0, 0, 0, 0);
+  tDate.setHours(23, 59, 59, 999);
+  return (records || []).filter((rec) => recordInDateRange(rec, fDate, tDate, dateCols));
+}
+
+function recordInDateRange(rec, fDate, tDate, dateCols = ["Date", "Transaction Date"]) {
+  const rDate = parseRecordDate(getCol(rec, dateCols));
+  if (!rDate) return false;
+  return rDate >= fDate && rDate <= tDate;
+}
+
 function getRemarks(rec) {
   const val = getCol(rec, [
     "Remarks / Vouchers", "Remarks", "Remarks / Reference",
@@ -906,14 +950,14 @@ function getSupplierDueBalance(supplierRec, txns) {
 
 function getHrDueBalance(hrRec, txns) {
   if (!hrRec) return 0;
-  const name = String(getCol(hrRec, ["Employee Name"]) || "").trim();
+  const name = getCol(hrRec, ["Employee Name", "Employee", "Name"]);
   return getHrDueFromTxns(name, txns);
 }
 
 function getHrTxnCategory(rec) {
-  const cat = String(getCol(rec, ["Category"]) || "").trim();
+  const cat = String(getCol(rec, ["Category", "Category Classification", "Type"]) || "").trim();
   if (cat) return cat;
-  const rem = String(getCol(rec, ["Remarks"]) || "").toLowerCase();
+  const rem = String(getCol(rec, ["Remarks", "Remarks / Reference"]) || "").toLowerCase();
   if (rem.includes("previous due") || rem.includes("opening balance")) return "Previous Due";
   if (rem.includes("increment")) return "Salary Increment";
   if (rem.includes("paid")) return "Salary Paid";
@@ -923,7 +967,7 @@ function getHrTxnCategory(rec) {
 function parseHrTxnAmounts(rec) {
   const category = getHrTxnCategory(rec);
   const catKey = category.toLowerCase();
-  const amt = parseFloat(getCol(rec, ["Amount"])) || 0;
+  const amt = parseFloat(getCol(rec, ["Amount", "Amt", "Transaction Amount"])) || 0;
   const isIncrement = catKey.includes("increment");
   const isPrev = catKey.includes("previous due") || catKey.includes("opening balance");
   const isPaid = catKey.includes("paid") && !isIncrement;
@@ -935,12 +979,12 @@ function parseHrTxnAmounts(rec) {
 }
 
 function rollupHrTxnTotals(txns, employeeName) {
-  const name = employeeName ? String(employeeName).trim() : "";
+  const nameKey = employeeName ? normalizeHrEmployeeName(employeeName) : "";
   let earned = 0, paid = 0, increment = 0;
   (txns || []).forEach((t) => {
-    if (name && String(getCol(t, ["Employee Name"]) || "").trim() !== name) return;
+    if (nameKey && normalizeHrEmployeeName(getCol(t, ["Employee Name", "Employee", "Name"])) !== nameKey) return;
     const p = parseHrTxnAmounts(t);
-    if (p.isIncrement) increment += parseFloat(getCol(t, ["Amount"])) || 0;
+    if (p.isIncrement) increment += parseFloat(getCol(t, ["Amount", "Amt", "Transaction Amount"])) || 0;
     else {
       earned += p.earned;
       paid += p.paid;
@@ -1341,13 +1385,14 @@ async function loadHRTableRecords() {
       if (cachedHrRecords.length === 0) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hr.noEntries')}</td></tr>`; return; }
 
       const txns = txnRes.success ? txnRes.records : [];
+      cachedHrTxns = txns;
 
       container.innerHTML = cachedHrRecords.map(rec => {
         const canEdit = userCanEditModule(fetchSessionUser(), 'hr');
         const actionBtn = canEdit ? `<button class="btn-hr-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
         let badgeStyle = rec["Status"] === "Inactive" ? "bg-amber-100 text-amber-800" : (rec["Status"] === "Released" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800");
 
-        let empName = String(rec["Employee Name"] || "").trim();
+        let empName = String(getCol(rec, ["Employee Name", "Employee", "Name"]) || "").trim();
         let baseSalary = parseFloat(rec["Salary Start"]) || 0;
         const totals = rollupHrTxnTotals(txns, empName);
         let totalInc = totals.increment;
@@ -1395,9 +1440,9 @@ async function populateEmployeeDropdown(mode = 'all') {
         return;
       }
       dropdown.innerHTML = `<option value="">${t('dropdown.chooseEmployee')}</option>` + activeEmployees.map((emp) => {
-        const name = emp["Employee Name"];
+        const name = getCol(emp, ["Employee Name", "Employee", "Name"]);
         const due = getHrDueBalance(emp, cachedHrTxns);
-        return `<option value="${name}">${name} (${emp["Designation"] || '-'}) — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
+        return `<option value="${name}">${name} (${getCol(emp, ["Designation"]) || '-'}) — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
       }).join('');
     } else {
       dropdown.innerHTML = `<option value="">${t('dropdown.noEmployees')}</option>`;
@@ -1451,7 +1496,7 @@ function initTxnFormListeners() {
       dueCtrl.runCalculations();
       return;
     }
-    const rec = cachedHrRecords.find((r) => String(getCol(r, ["Employee Name"]) || "").trim() === name);
+    const rec = cachedHrRecords.find((r) => normalizeHrEmployeeName(getCol(r, ["Employee Name", "Employee", "Name"])) === normalizeHrEmployeeName(name));
     dueCtrl.showCurrentDue(getHrDueBalance(rec, cachedHrTxns));
   };
 
@@ -1494,6 +1539,7 @@ function initTxnFormListeners() {
         if (catSelect) catSelect.value = 'Salary Earn';
         dueCtrl.resetDueInfo();
         dueCtrl.runCalculations();
+        ensureLedgerDateInputs('filter-from-hr', 'filter-to-hr');
         await populateEmployeeDropdown();
         await loadTxnTableRecords(true);
         await loadHRTableRecords();
@@ -1507,21 +1553,25 @@ function initTxnFormListeners() {
 
 async function loadTxnTableRecords(isFilter = false) {
   const container = document.getElementById('table-txn-rows'); if (!container) return;
-  const fDateInput = document.getElementById('filter-from-hr');
-  const tDateInput = document.getElementById('filter-to-hr');
+  const { fromEl: fDateInput, toEl: tDateInput } = ensureLedgerDateInputs('filter-from-hr', 'filter-to-hr');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
-  if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
+  if (!isFilter) {
+    container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    return;
+  }
 
-  container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } });
     if (result.success) {
-      const fDate = new Date(fDateInput.value); fDate.setHours(0,0,0,0);
-      const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
-      let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
+      cachedHrTxns = result.records || [];
+      const filtered = filterRecordsByDateInputs(result.records, fDateInput, tDateInput);
+      if (filtered === null) {
+        alert(t('ledger.bothDatesRequired'));
+        return;
+      }
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noResultsInRange')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noResultsInRange')}</td></tr>`; return; }
       cacheTxnRecords("HR_Transactions", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
         const category = getHrTxnCategory(rec);
@@ -1529,9 +1579,16 @@ async function loadTxnTableRecords(isFilter = false) {
         if (category === "Salary Paid") catColor = "text-emerald-600 bg-emerald-50";
         if (category === "Salary Increment") catColor = "text-purple-600 bg-purple-50";
         if (category === "Previous Due") catColor = "text-slate-700 bg-slate-100";
-        const p = parseHrTxnAmounts(rec);
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${rec["Employee Name"]||''}</td><td class="font-mono font-bold">${Number(rec["Amount"]).toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${getCategoryLabel(category, t)}</span></td><td class="font-mono text-[10px] ${p.txnDelta >= 0 ? 'text-red-600' : 'text-emerald-600'}">${p.txnDelta >= 0 ? '+' : ''}${p.txnDelta.toFixed(2)}</td><td class="max-w-xs truncate" title="${rec["Remarks"]||''}">${rec["Remarks"]||'-'}</td><td>${rec["Username"]||''}</td><td class="text-gray-400 text-[10px] font-mono">${rec["Timestamp"]||''}</td>${renderTxnActions(rec, "HR_Transactions")}</tr>`;
+        const empName = getCol(rec, ["Employee Name", "Employee", "Name"]) || '';
+        const txnDate = getCol(rec, ["Date", "Transaction Date"]);
+        const remarks = getCol(rec, ["Remarks", "Remarks / Reference"]) || '-';
+        const user = getCol(rec, ["Username", "Logged By"]) || '';
+        const stamp = getCol(rec, ["Timestamp", "Stamp"]) || '';
+        const amount = parseFloat(getCol(rec, ["Amount", "Amt", "Transaction Amount"])) || 0;
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${txnDate ? (parseRecordDate(txnDate)?.toLocaleDateString() || '') : ''}</td><td class="font-bold text-gray-900">${empName}</td><td class="font-mono font-bold">${amount.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded ${catColor}">${getCategoryLabel(category, t)}</span></td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${user}</td><td class="text-gray-400 text-[10px] font-mono">${stamp}</td>${renderTxnActions(rec, "HR_Transactions")}</tr>`;
       }).join('');
+    } else {
+      container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracking')}</td></tr>`;
     }
   } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracking')}</td></tr>`; }
 }
@@ -3248,28 +3305,25 @@ async function loadAllTxnTableRecords(isFilter = false) {
        if(res.success && res.records) {
           const sheetFiltered = [];
           res.records.forEach(r => {
-             if(!r["Date"]) return;
-             const rDate = new Date(r["Date"]);
-             if (rDate >= fDate && rDate <= tDate) {
-                sheetFiltered.push(r);
-                const mapped = mapFn(r);
-                mapped.rawDate = rDate;
-                mapped.module = moduleName;
-                mapped.sheetName = sheetName;
-                mapped.rawRec = r;
-                allRecords.push(mapped);
-             }
+             if (!recordInDateRange(r, fDate, tDate)) return;
+             sheetFiltered.push(r);
+             const mapped = mapFn(r);
+             mapped.rawDate = parseRecordDate(getCol(r, ["Date", "Transaction Date"]));
+             mapped.module = moduleName;
+             mapped.sheetName = sheetName;
+             mapped.rawRec = r;
+             allRecords.push(mapped);
           });
           cacheTxnRecords(sheetName, sheetFiltered);
        }
     };
 
     addRecords(resHr, "HR", "HR_Transactions", r => ({
-       details: t('allTxn.detailsNamed', { name: getCol(r, ["Employee Name"]) || t('allTxn.noRemarks'), category: getCategoryLabel(getCol(r, ["Category"]) || '', t) || t('allTxn.noRemarks') }),
-       financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount"])||0).toFixed(2) }),
-       remarks: getCol(r, ["Remarks"]) || t('allTxn.noRemarks'),
+       details: t('allTxn.detailsNamed', { name: getCol(r, ["Employee Name", "Employee", "Name"]) || t('allTxn.noRemarks'), category: getCategoryLabel(getHrTxnCategory(r), t) || t('allTxn.noRemarks') }),
+       financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Amount", "Amt", "Transaction Amount"])||0).toFixed(2) }),
+       remarks: getCol(r, ["Remarks", "Remarks / Reference"]) || t('allTxn.noRemarks'),
        user: getCol(r, ["Username", "Logged By"]),
-       stamp: getCol(r, ["Timestamp"])
+       stamp: getCol(r, ["Timestamp", "Stamp"])
     }));
     
     addRecords(resSup, "Supplier", "Supplier_Transactions", r => {
