@@ -1,5 +1,22 @@
 import { apiRequest, fetchSessionUser, processLogout } from './auth.js';
 
+export const MODULE_LOAD_ORDER = [
+  'dashboard', 'hr', 'hr_transactions', 'customers', 'customer_transactions',
+  'internal_transfer', 'suppliers', 'supplier_transactions', 'expense_heads',
+  'expense_transactions', 'creditors', 'creditor_transactions', 'income_heads',
+  'income_transactions', 'all_transactions', 'reports', 'users'
+];
+
+export const SHEET_TO_MODULE = {
+  HR_Transactions: 'hr_transactions',
+  Supplier_Transactions: 'supplier_transactions',
+  Customer_Transactions: 'customer_transactions',
+  Internal_Transfers: 'internal_transfer',
+  Expense_Transactions: 'expense_transactions',
+  Creditor_Transactions: 'creditor_transactions',
+  Income_Transactions: 'income_transactions'
+};
+
 function getUserField(rec, names) {
   for (const name of names) {
     const normName = String(name).toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -10,28 +27,84 @@ function getUserField(rec, names) {
   return undefined;
 }
 
+export function permNameToModuleKey(name) {
+  return String(name || '').trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+/** @returns {Record<string, { view: boolean, edit: boolean }>} */
+export function parsePermissionMap(permissions) {
+  const map = {};
+  const list = Array.isArray(permissions) ? permissions : String(permissions || '').split(',');
+  for (const entry of list) {
+    const raw = String(entry).trim();
+    if (!raw) continue;
+    const colonIdx = raw.indexOf(':');
+    if (colonIdx === -1) {
+      const mod = permNameToModuleKey(raw);
+      if (!mod || mod === 'all') continue;
+      if (!map[mod]) map[mod] = { view: false, edit: false };
+      map[mod].view = true;
+      map[mod].edit = true;
+      continue;
+    }
+    const mod = permNameToModuleKey(raw.slice(0, colonIdx));
+    const level = raw.slice(colonIdx + 1).trim().toLowerCase();
+    if (!mod) continue;
+    if (!map[mod]) map[mod] = { view: false, edit: false };
+    if (level === 'view') map[mod].view = true;
+    else if (level === 'edit') map[mod].edit = true;
+  }
+  return map;
+}
+
 export function normalizeUserPermissions(permissions) {
-  if (!permissions) return [];
-  const list = Array.isArray(permissions) ? permissions : String(permissions).split(',');
-  return list.map((p) => String(p).trim().toLowerCase().replace(/\s+/g, '_')).filter(Boolean);
+  const map = parsePermissionMap(permissions);
+  const tokens = [];
+  for (const [mod, access] of Object.entries(map)) {
+    if (access.view) tokens.push(`${mod}:view`);
+    if (access.edit) tokens.push(`${mod}:edit`);
+  }
+  return tokens;
+}
+
+function isAdminUser(user) {
+  return !!(user && (user.role === 'Super Admin' || user.role === 'Admin'));
+}
+
+function getModuleAccess(user, moduleTarget) {
+  if (!user) return { view: false, edit: false };
+  if (isAdminUser(user)) return { view: true, edit: true };
+  const target = permNameToModuleKey(moduleTarget);
+  if (!target) return { view: false, edit: false };
+  const perms = parsePermissionMap(user.permissions);
+  if (String(user.permissions || '').toLowerCase().includes('all')) {
+    return { view: true, edit: true };
+  }
+  const access = perms[target] || { view: false, edit: false };
+  return {
+    view: access.view || access.edit,
+    edit: access.edit
+  };
+}
+
+export function userCanViewModule(user, moduleTarget) {
+  return getModuleAccess(user, moduleTarget).view;
+}
+
+export function userCanEditModule(user, moduleTarget) {
+  return getModuleAccess(user, moduleTarget).edit;
 }
 
 export function userCanAccessModule(user, moduleTarget) {
-  if (!user) return false;
-  if (user.role === 'Super Admin' || user.role === 'Admin') return true;
-  const target = String(moduleTarget || '').trim().toLowerCase();
-  if (!target) return false;
-  const perms = normalizeUserPermissions(user.permissions);
-  if (perms.includes('all')) return true;
-  return perms.includes(target);
+  return userCanViewModule(user, moduleTarget);
 }
 
-const MODULE_LOAD_ORDER = [
-  'dashboard', 'hr', 'hr_transactions', 'customers', 'customer_transactions',
-  'internal_transfer', 'suppliers', 'supplier_transactions', 'expense_heads',
-  'expense_transactions', 'creditors', 'creditor_transactions', 'income_heads',
-  'income_transactions', 'all_transactions', 'reports', 'users'
-];
+export function userCanEditTxnSheet(user, sheetName) {
+  if (!user) return false;
+  if (isAdminUser(user)) return true;
+  const mod = SHEET_TO_MODULE[sheetName];
+  return mod ? userCanEditModule(user, mod) : false;
+}
 
 export function getDefaultModuleForUser(user) {
   if (!user) return null;

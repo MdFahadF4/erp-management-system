@@ -2,9 +2,9 @@ import { processLogin, processLogout, fetchSessionUser, apiRequest } from './aut
 import { templates } from './views.js';
 import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './i18n.js';
 import { initTxnAdminSystem, renderTxnActions, cacheTxnRecords } from './txn-admin.js';
-import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, renderUserDirectoryRow } from './user-admin.js';
+import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, renderUserDirectoryRow, buildPermCheckboxes, readPermCheckboxes } from './user-admin.js';
 import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
-import { refreshSessionUser, userCanAccessModule, getDefaultModuleForUser, normalizeUserPermissions } from './user-session.js';
+import { refreshSessionUser, userCanAccessModule, userCanEditModule, getDefaultModuleForUser } from './user-session.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -398,14 +398,17 @@ async function syncSessionPermissions() {
   const user = await refreshSessionUser();
   if (!user) return null;
   applyMenuPermissions(user);
-  if (activeModuleTarget && !userCanAccessModule(user, activeModuleTarget)) {
-    const fallback = getDefaultModuleForUser(user);
-    if (fallback) {
-      await loadModulePage(fallback, { replaceHistory: true });
-    } else if (mainContent) {
-      mainContent.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl mt-10">${t('common.welcome', { name: user.username })}</div>`;
-      activeModuleTarget = null;
-      history.replaceState({ module: 'home' }, '', '#home');
+  if (activeModuleTarget) {
+    applyModuleEditMode(activeModuleTarget);
+    if (!userCanAccessModule(user, activeModuleTarget)) {
+      const fallback = getDefaultModuleForUser(user);
+      if (fallback) {
+        await loadModulePage(fallback, { replaceHistory: true });
+      } else if (mainContent) {
+        mainContent.innerHTML = `<div class="p-8 text-center text-gray-500 font-bold text-xl mt-10">${t('common.welcome', { name: user.username })}</div>`;
+        activeModuleTarget = null;
+        history.replaceState({ module: 'home' }, '', '#home');
+      }
     }
   }
   return user;
@@ -422,6 +425,44 @@ function bindSessionSyncOnce() {
   setInterval(() => {
     if (fetchSessionUser()) syncSessionPermissions();
   }, 120000);
+}
+
+function guardModuleEdit(moduleTarget) {
+  if (userCanEditModule(fetchSessionUser(), moduleTarget)) return true;
+  alert(t('alert.viewOnlyModule'));
+  return false;
+}
+
+function applyModuleEditMode(moduleTarget) {
+  const user = fetchSessionUser();
+  if (!user || user.role === 'Super Admin' || user.role === 'Admin') return;
+
+  const formContainer = document.getElementById('form-container');
+  if (!formContainer) return;
+
+  const canEdit = userCanEditModule(user, moduleTarget);
+  const pageRoot = formContainer.closest('.erp-module-page') || formContainer.parentElement;
+  document.getElementById('module-view-only-notice')?.remove();
+
+  if (!canEdit) {
+    formContainer.classList.add('hidden');
+    const ledgerContainer = document.getElementById('ledger-container');
+    if (ledgerContainer) {
+      ledgerContainer.classList.remove('hidden', 'xl:col-span-3');
+      ledgerContainer.classList.add('xl:col-span-4');
+    }
+    if (pageRoot) {
+      const notice = document.createElement('div');
+      notice.id = 'module-view-only-notice';
+      notice.className = 'bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold p-3 rounded-lg mb-4';
+      notice.setAttribute('data-i18n', 'users.viewOnlyMode');
+      notice.textContent = t('users.viewOnlyMode');
+      pageRoot.insertBefore(notice, pageRoot.firstChild?.nextSibling || pageRoot.firstChild);
+      applyTranslations(pageRoot);
+    }
+  } else {
+    formContainer.classList.remove('hidden');
+  }
 }
 
 async function loadModulePage(target, { pushHistory = false, replaceHistory = false } = {}) {
@@ -569,10 +610,13 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     initReportsSystem();
   } else if (target === 'users') {
     initUserManagementFormListener();
+    buildPermCheckboxes('create-user-perms', 'Dashboard:view,Dashboard:edit');
     setupPasswordToggle('toggle-new-password', 'new-password');
     setupPasswordToggle('toggle-edit-user-password', 'edit-user-password');
     await loadUserDirectories();
   }
+
+  applyModuleEditMode(target);
 
   setMobilePageMode(target);
   requestAnimationFrame(() => {
@@ -868,7 +912,9 @@ function initHRFormListeners() {
   runCalculations();
 
   creationForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser(); runCalculations();
+    e.preventDefault();
+    if (!guardModuleEdit('hr')) return;
+    const currentUser = fetchSessionUser(); runCalculations();
     const payloadRow = [ document.getElementById('hr-name').value.trim(), document.getElementById('hr-designation').value.trim(), document.getElementById('hr-joining').value, parseFloat(fStart.value) || 0, parseFloat(fInc.value) || 0, parseFloat(fCurrent.value) || 0, parseFloat(fEarn.value) || 0, parseFloat(fPaid.value) || 0, parseFloat(fDue.value) || 0, document.getElementById('hr-status').value, currentUser.username ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "HR", rowData: payloadRow } }); alert(res.message); if (res.success) { creationForm.reset(); runCalculations(); await loadHRTableRecords(); await updateLiveUserCashDrawerBalance(); }
@@ -921,7 +967,7 @@ async function loadHRTableRecords() {
       }
 
       container.innerHTML = cachedHrRecords.map(rec => {
-        const canEdit = (fetchSessionUser().role === "Super Admin" || fetchSessionUser().role === "Admin");
+        const canEdit = userCanEditModule(fetchSessionUser(), 'hr');
         const actionBtn = canEdit ? `<button class="btn-hr-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
         let badgeStyle = rec["Status"] === "Inactive" ? "bg-amber-100 text-amber-800" : (rec["Status"] === "Released" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800");
 
@@ -1024,7 +1070,9 @@ function initTxnFormListeners() {
   // ---------------------------------------------------------------------  // ---------------------------------------------------------------------
 
   form.onsubmit = async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser();
+    e.preventDefault();
+    if (!guardModuleEdit('hr_transactions')) return;
+    const currentUser = fetchSessionUser();
     const rowPayload = [ document.getElementById('txn-date').value, document.getElementById('txn-employee').value, parseFloat(document.getElementById('txn-amount').value) || 0, document.getElementById('txn-category').value, document.getElementById('txn-remarks').value.trim(), currentUser.username, new Date().toLocaleString() ];
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "HR_Transactions", rowData: rowPayload } }); alert(result.message); 
@@ -1076,7 +1124,9 @@ function initSupplierFormListeners() {
   runCalculations();
 
   creationForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser(); runCalculations();
+    e.preventDefault();
+    if (!guardModuleEdit('suppliers')) return;
+    const currentUser = fetchSessionUser(); runCalculations();
     const payloadRow = [ document.getElementById('sup-name').value.trim(), document.getElementById('sup-mobile').value.trim(), document.getElementById('sup-email').value.trim(), document.getElementById('sup-address').value.trim(), parseFloat(fPurchase.value) || 0, parseFloat(fPayments.value) || 0, parseFloat(fDue.value) || 0, document.getElementById('sup-status').value, currentUser.username, new Date().toLocaleString() ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Suppliers", rowData: payloadRow } }); alert(res.message); if (res.success) { creationForm.reset(); runCalculations(); await loadSupplierTableRecords(); await updateLiveUserCashDrawerBalance(); }
@@ -1123,7 +1173,7 @@ async function loadSupplierTableRecords() {
       }
 
       container.innerHTML = cachedSupplierRecords.map(rec => {
-        const canEdit = (fetchSessionUser().role === "Super Admin" || fetchSessionUser().role === "Admin");
+        const canEdit = userCanEditModule(fetchSessionUser(), 'suppliers');
         const actionBtn = canEdit ? `<button class="btn-sup-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
         const badgeStyle = rec["Status"] === "Inactive" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800";
 
@@ -1182,7 +1232,9 @@ function initSupplierTxnFormListeners() {
   // ----------------------------------------------------------------------------------
 
   form.onsubmit = async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser();
+    e.preventDefault();
+    if (!guardModuleEdit('supplier_transactions')) return;
+    const currentUser = fetchSessionUser();
     const rowPayload = [ document.getElementById('sup-txn-date').value, document.getElementById('sup-txn-supplier').value, parseFloat(document.getElementById('sup-txn-amount').value) || 0, document.getElementById('sup-txn-category').value, document.getElementById('sup-txn-remarks').value.trim(), currentUser.username, new Date().toLocaleString() ];
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Supplier_Transactions", rowData: rowPayload } }); alert(result.message); if (result.success) { form.reset(); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0]; await loadSupplierTxnTableRecords(true); await updateLiveUserCashDrawerBalance(); }
@@ -1241,7 +1293,9 @@ function initCustomerFormListeners() {
   runCalculations();
 
   creationForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); runCalculations();
+    e.preventDefault();
+    if (!guardModuleEdit('customers')) return;
+    runCalculations();
     const memoNum = document.getElementById('cust-memo').value.trim();
     const custName = document.getElementById('cust-name').value.trim();
     
@@ -1298,7 +1352,7 @@ async function loadCustomerTableRecords() {
         let received = cash + card;
         let due = sell - received - discount;
 
-        const canEdit = (fetchSessionUser().role === "Super Admin" || fetchSessionUser().role === "Admin");
+        const canEdit = userCanEditModule(fetchSessionUser(), 'customers');
         const actionBtn = canEdit ? `<button class="btn-cust-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
         
         return `
@@ -1380,6 +1434,7 @@ function initCustomerTxnFormListeners() {
 
   form.onsubmit = async (e) => {
     e.preventDefault();
+    if (!guardModuleEdit('customer_transactions')) return;
     const currentUser = fetchSessionUser();
     runTxnCalculations();
     const rowPayload = [
@@ -1504,7 +1559,9 @@ function initInternalTransferFormListeners() {
   const dateInput = document.getElementById('int-date'); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
   
   form.onsubmit = async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser();
+    e.preventDefault();
+    if (!guardModuleEdit('internal_transfer')) return;
+    const currentUser = fetchSessionUser();
     const amountVal = parseFloat(document.getElementById('int-amount').value) || 0;
     
     const rowPayload = [
@@ -1553,7 +1610,9 @@ async function loadInternalTransferTableRecords(isFilter = false) {
 function initExpenseHeadFormListeners() {
   const form = document.getElementById('form-exp-head-entry'); if (!form) return;
   form.addEventListener('submit', async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser();
+    e.preventDefault();
+    if (!guardModuleEdit('expense_heads')) return;
+    const currentUser = fetchSessionUser();
     const mainHead = document.getElementById('exp-head-main').value.trim();
     const subHead = document.getElementById('exp-head-sub').value.trim();
     const trackingUID = `EXP-${mainHead.substring(0,3).toUpperCase()}-${subHead.substring(0,3).toUpperCase()}`;
@@ -1683,7 +1742,9 @@ function initExpenseTxnFormListeners() {
   if (fPaid) fPaid.addEventListener('input', runExpCalculations);
 
   form.onsubmit = async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser(); runExpCalculations();
+    e.preventDefault();
+    if (!guardModuleEdit('expense_transactions')) return;
+    const currentUser = fetchSessionUser(); runExpCalculations();
     
     let remarksText = document.getElementById('exp-txn-remarks').value.trim();
     let mainValue = document.getElementById('exp-txn-main').value;
@@ -1785,7 +1846,9 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
 function initCreditorFormListeners() {
   const form = document.getElementById('form-cred-head-entry'); if (!form) return;
   form.addEventListener('submit', async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser();
+    e.preventDefault();
+    if (!guardModuleEdit('creditors')) return;
+    const currentUser = fetchSessionUser();
     const mainHead = document.getElementById('cred-head-main').value.trim();
     const subHead = document.getElementById('cred-head-sub').value.trim();
     const trackingUID = `CRD-${mainHead.substring(0,3).toUpperCase()}-${subHead.substring(0,3).toUpperCase()}`;
@@ -1916,7 +1979,9 @@ function initCreditorTxnFormListeners() {
   // --------------------------------------------------------------------------------
 
   form.onsubmit = async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser(); runCredCalculations();
+    e.preventDefault();
+    if (!guardModuleEdit('creditor_transactions')) return;
+    const currentUser = fetchSessionUser(); runCredCalculations();
     
     let remarksText = document.getElementById('cred-txn-remarks').value.trim();
     let subValue = document.getElementById('cred-txn-sub').value;
@@ -2014,7 +2079,9 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
 function initIncomeHeadFormListeners() {
   const form = document.getElementById('form-inc-head-entry'); if (!form) return;
   form.addEventListener('submit', async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser();
+    e.preventDefault();
+    if (!guardModuleEdit('income_heads')) return;
+    const currentUser = fetchSessionUser();
     const mainHead = document.getElementById('inc-head-main').value.trim();
     const subHead = document.getElementById('inc-head-sub').value.trim();
     const trackingUID = `INC-${mainHead.substring(0,3).toUpperCase()}-${subHead.substring(0,3).toUpperCase()}`;
@@ -2142,7 +2209,9 @@ function initIncomeTxnFormListeners() {
   // --------------------------------------------------------------------------------
 
   form.onsubmit = async (e) => {
-    e.preventDefault(); const currentUser = fetchSessionUser(); runIncCalculations();
+    e.preventDefault();
+    if (!guardModuleEdit('income_transactions')) return;
+    const currentUser = fetchSessionUser(); runIncCalculations();
     
     let remarksText = document.getElementById('inc-txn-remarks').value.trim();
     let mainValue = document.getElementById('inc-txn-main').value;
@@ -5341,8 +5410,7 @@ function initUserManagementFormListener() {
     const mobile = document.getElementById('new-mobile')?.value.trim() || '';
     const email = document.getElementById('new-email')?.value.trim() || '';
     if (!mobile && !email) { alert(t('users.contactRequired')); return; }
-    const checkedBoxes = document.querySelectorAll('input[name="perm"]:checked');
-    const permittedMenus = Array.from(checkedBoxes).map(cb => cb.value).join(',');
+    const permittedMenus = readPermCheckboxes('create-user-perms');
     const newUserPayload = {
       username: document.getElementById('new-username').value.trim(),
       password: document.getElementById('new-password').value,

@@ -1,7 +1,8 @@
 /**
- * Transaction Edit & Delete (Super Admin / Admin only)
+ * Transaction Edit & Delete (permission-aware)
  */
 import { apiRequest, fetchSessionUser } from './auth.js';
+import { userCanEditTxnSheet } from './user-session.js';
 import { t, applyTranslations } from './i18n.js';
 
 const txnCache = new Map();
@@ -20,9 +21,8 @@ function getCol(rec, possibleNames) {
   return undefined;
 }
 
-export function canAdminEdit() {
-  const u = fetchSessionUser();
-  return !!(u && (u.role === 'Super Admin' || u.role === 'Admin'));
+export function canAdminEdit(sheetName) {
+  return userCanEditTxnSheet(fetchSessionUser(), sheetName);
 }
 
 export function getRecordId(rec) {
@@ -38,7 +38,7 @@ export function findCachedTxn(sheetName, id) {
 }
 
 export function renderTxnActions(rec, sheetName) {
-  if (!canAdminEdit()) {
+  if (!canAdminEdit(sheetName)) {
     return `<td class="p-2.5"><span class="text-gray-300 italic text-[10px]">${t('common.locked')}</span></td>`;
   }
   const id = getRecordId(rec);
@@ -183,7 +183,7 @@ function buildRowData(sheetName, original) {
 
 async function mutateRecord(action, sheetName, recordId, rowData) {
   const user = fetchSessionUser();
-  if (!canAdminEdit()) {
+  if (!canAdminEdit(sheetName)) {
     alert(t('alert.unauthorized'));
     return { success: false };
   }
@@ -235,9 +235,8 @@ async function afterMutate(sheetName) {
 
 async function handleEditSubmit(e) {
   e.preventDefault();
-  if (!canAdminEdit()) return alert(t('alert.unauthorized'));
-
   const sheetName = document.getElementById('edit-txn-sheet').value;
+  if (!canAdminEdit(sheetName)) return alert(t('alert.viewOnlyModule'));
   const recordId = document.getElementById('edit-txn-id').value;
   const original = findCachedTxn(sheetName, recordId);
   if (!original) return alert(t('alert.errorLoad'));
@@ -257,7 +256,7 @@ async function handleEditSubmit(e) {
 }
 
 async function handleDelete(sheetName, recordId) {
-  if (!canAdminEdit()) return alert(t('alert.unauthorized'));
+  if (!canAdminEdit(sheetName)) return alert(t('alert.viewOnlyModule'));
   if (!confirm(t('common.confirmDelete'))) return;
 
   try {

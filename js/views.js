@@ -858,26 +858,7 @@ export const templates = {
             <div><label class="block text-xs font-bold uppercase text-gray-500 mb-1" data-i18n="field.accountRole">Account Assignment Role</label><select id="new-role" class="w-full border rounded p-2 bg-white outline-none"><option value="User" data-i18n="option.standardUser">Standard operational User</option><option value="Admin" data-i18n="option.admin">System Admin</option></select></div>
             <div>
               <label class="block text-xs font-bold uppercase text-gray-500 mb-2" data-i18n="users.menuScopes">Menu Execution Scopes</label>
-              <div class="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded border text-xs">
-                
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Dashboard" checked> <span data-i18n="users.permDashboard">Dashboard</span></label>
-                
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="HR"> <span data-i18n="users.permHR">HR Menu</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="HR_Transactions"> <span data-i18n="users.permHRTransactions">HR Transactions</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Suppliers"> <span data-i18n="users.permSuppliers">Suppliers</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Supplier_Transactions"> <span data-i18n="users.permSupplierTransactions">Supplier Transactions</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Customers"> <span data-i18n="users.permCustomers">Customers</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Customer_Transactions"> <span data-i18n="users.permCustomerTransactions">Customer Transactions</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Internal_Transfer"> <span data-i18n="users.permInternalTransfer">Internal Transfer</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Expense_Heads"> <span data-i18n="users.permExpenseHeads">Expense Heads</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Expense_Transactions"> <span data-i18n="users.permExpenseLedger">Expense Ledger</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Creditors"> <span class="text-orange-600 font-bold" data-i18n="users.permCreditors">Creditors</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Creditor_Transactions"> <span class="text-orange-600 font-bold" data-i18n="users.permCreditorTxns">Creditor Txns</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Income_Heads"> <span class="text-blue-600 font-bold" data-i18n="users.permIncomeHeads">Income Heads</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Income_Transactions"> <span class="text-blue-600 font-bold" data-i18n="users.permIncomeTxns">Income Txns</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="All_Transactions"> <span class="text-slate-800 font-bold" data-i18n="users.permAllTransactions">All Transactions</span></label>
-                <label class="flex items-center space-x-2"><input type="checkbox" name="perm" value="Reports"> <span class="text-purple-600 font-bold" data-i18n="users.permReports">Reports</span></label>
-              </div>
+              <div id="create-user-perms" class="bg-gray-50 p-3 rounded border text-xs max-h-64 overflow-y-auto"></div>
             </div>
             <button type="submit" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2.5 rounded transition" data-i18n="form.users.register">Register User</button>
           </form>
@@ -918,7 +899,7 @@ export const templates = {
               <button type="button" id="toggle-edit-user-password" class="absolute right-3 top-2.5 text-[10px] font-bold uppercase text-gray-400 hover:text-blue-600 transition tracking-wider focus:outline-none" data-i18n="common.show">Show</button>
             </div>
           </div>
-          <div><label class="block font-bold text-gray-600 mb-2" data-i18n="users.menuScopes">Menu Execution Scopes</label><div id="edit-user-perms" class="grid grid-cols-2 gap-2 bg-gray-50 p-3 rounded border max-h-40 overflow-y-auto"></div></div>
+          <div><label class="block font-bold text-gray-600 mb-2" data-i18n="users.menuScopes">Menu Execution Scopes</label><div id="edit-user-perms" class="bg-gray-50 p-3 rounded border max-h-52 overflow-y-auto"></div></div>
           <div class="flex justify-end gap-2 pt-3 border-t">
             <button type="button" id="btn-cancel-user-edit" class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold rounded text-sm" data-i18n="common.cancel">Cancel</button>
             <button type="submit" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded text-sm" data-i18n="common.save">Save</button>

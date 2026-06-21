@@ -4,12 +4,25 @@
 import { apiRequest, fetchSessionUser } from './auth.js';
 import { t, applyTranslations } from './i18n.js';
 import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
+import { parsePermissionMap, permNameToModuleKey } from './user-session.js';
 
-const USER_PERM_VALUES = [
-  'Dashboard', 'HR', 'HR_Transactions', 'Suppliers', 'Supplier_Transactions',
-  'Customers', 'Customer_Transactions', 'Internal_Transfer', 'Expense_Heads',
-  'Expense_Transactions', 'Creditors', 'Creditor_Transactions', 'Income_Heads',
-  'Income_Transactions', 'All_Transactions', 'Reports'
+export const USER_PERM_MODULES = [
+  { perm: 'Dashboard', labelKey: 'users.permDashboard' },
+  { perm: 'HR', labelKey: 'users.permHR' },
+  { perm: 'HR_Transactions', labelKey: 'users.permHRTransactions' },
+  { perm: 'Suppliers', labelKey: 'users.permSuppliers' },
+  { perm: 'Supplier_Transactions', labelKey: 'users.permSupplierTransactions' },
+  { perm: 'Customers', labelKey: 'users.permCustomers' },
+  { perm: 'Customer_Transactions', labelKey: 'users.permCustomerTransactions' },
+  { perm: 'Internal_Transfer', labelKey: 'users.permInternalTransfer' },
+  { perm: 'Expense_Heads', labelKey: 'users.permExpenseHeads' },
+  { perm: 'Expense_Transactions', labelKey: 'users.permExpenseLedger' },
+  { perm: 'Creditors', labelKey: 'users.permCreditors' },
+  { perm: 'Creditor_Transactions', labelKey: 'users.permCreditorTxns' },
+  { perm: 'Income_Heads', labelKey: 'users.permIncomeHeads' },
+  { perm: 'Income_Transactions', labelKey: 'users.permIncomeTxns' },
+  { perm: 'All_Transactions', labelKey: 'users.permAllTransactions' },
+  { perm: 'Reports', labelKey: 'users.permReports' }
 ];
 
 let cachedUserRecords = [];
@@ -101,18 +114,35 @@ export function renderUserDirectoryRow(rec) {
   </tr>`;
 }
 
-function buildPermCheckboxes(containerId, selectedCsv) {
+export function buildPermCheckboxes(containerId, selectedCsv) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  const selected = new Set(String(selectedCsv || '').split(',').map((p) => p.trim()).filter(Boolean));
-  container.innerHTML = USER_PERM_VALUES.map((val) => {
-    const checked = selected.has(val) ? 'checked' : '';
-    return `<label class="flex items-center space-x-2"><input type="checkbox" name="${containerId}-perm" value="${val}" ${checked}> <span>${val.replace(/_/g, ' ')}</span></label>`;
+  const selected = parsePermissionMap(selectedCsv);
+  const header = `
+    <div class="grid grid-cols-[1fr_auto_auto] gap-2 text-[10px] font-bold uppercase text-gray-500 border-b border-gray-200 pb-1 mb-1">
+      <span data-i18n="users.menuScopes">Menu</span>
+      <span class="text-center w-12" data-i18n="users.permView">View</span>
+      <span class="text-center w-12" data-i18n="users.permEdit">Edit</span>
+    </div>`;
+  const rows = USER_PERM_MODULES.map(({ perm, labelKey }) => {
+    const mod = permNameToModuleKey(perm);
+    const access = selected[mod] || { view: false, edit: false };
+    return `<div class="grid grid-cols-[1fr_auto_auto] gap-2 items-center py-0.5">
+      <span class="leading-tight" data-i18n="${labelKey}">${t(labelKey)}</span>
+      <label class="flex justify-center w-12"><input type="checkbox" name="${containerId}-view" value="${perm}" ${access.view ? 'checked' : ''}></label>
+      <label class="flex justify-center w-12"><input type="checkbox" name="${containerId}-edit" value="${perm}" ${access.edit ? 'checked' : ''}></label>
+    </div>`;
   }).join('');
+  container.innerHTML = header + rows;
+  applyTranslations(container);
 }
 
-function readPermCheckboxes(containerId) {
-  return Array.from(document.querySelectorAll(`#${containerId} input[name="${containerId}-perm"]:checked`)).map((cb) => cb.value).join(',');
+export function readPermCheckboxes(containerId) {
+  const views = Array.from(document.querySelectorAll(`#${containerId} input[name="${containerId}-view"]:checked`))
+    .map((cb) => `${cb.value}:view`);
+  const edits = Array.from(document.querySelectorAll(`#${containerId} input[name="${containerId}-edit"]:checked`))
+    .map((cb) => `${cb.value}:edit`);
+  return [...views, ...edits].join(',');
 }
 
 function openEditUserModal(rec) {
