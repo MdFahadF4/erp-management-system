@@ -87,10 +87,12 @@ const TXN_FORMS = {
     ].join('');
   },
   Supplier_Transactions(rec) {
-    const p = typeof parseSupplierTxnAmounts === 'function' ? parseSupplierTxnAmounts(rec) : { bill: getCol(rec, ['Amount']), discount: 0, pay: 0, txnDue: getCol(rec, ['Amount']) };
+    const p = typeof window.parseSupplierTxnAmounts === 'function' ? window.parseSupplierTxnAmounts(rec) : { bill: getCol(rec, ['Amount']), discount: 0, pay: 0, txnDue: getCol(rec, ['Amount']) };
+    const category = typeof window.getSupplierTxnCategory === 'function' ? window.getSupplierTxnCategory(rec) : (getCol(rec, ['Category']) || 'Purchase');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
       fieldHtml('supplier', 'field.supplierName', 'text', getCol(rec, ['Supplier Name'])),
+      fieldHtml('category', 'field.categoryClassification', 'select-sup-cat', category),
       fieldHtml('purchase', 'field.purchaseAmount', 'number', p.bill),
       fieldHtml('discount', 'field.discountAllowed', 'number', p.discount),
       fieldHtml('paid', 'field.paymentPaidAmount', 'number', p.pay),
@@ -183,7 +185,8 @@ function buildRowData(sheetName, original) {
       const purchase = parseFloat(readField('purchase')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
       const paid = parseFloat(readField('paid')) || 0;
-      return [date, readField('supplier'), purchase, discount, paid, purchase - discount - paid, readField('remarks').trim(), loggedBy, stamp];
+      const category = readField('category') || 'Purchase';
+      return [date, readField('supplier'), purchase, discount, paid, purchase - discount - paid, category, readField('remarks').trim(), loggedBy, stamp];
     }
     case 'Customer_Transactions': {
       const sold = parseFloat(readField('sold')) || 0;

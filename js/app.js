@@ -798,24 +798,48 @@ function getCustomerDueBalance(rec) {
   return Math.max(0, due);
 }
 
+function getSupplierTxnCategory(rec) {
+  const cat = String(getCol(rec, ["Category"]) || "").trim();
+  if (cat) return cat;
+  const rem = String(getCol(rec, ["Remarks", "Remarks / Reference"]) || "").toLowerCase();
+  if (rem.includes("previous due") || rem.includes("opening balance")) return "Previous Due";
+  const pay = parseFloat(getCol(rec, ["Payment Paid", "Paid Amount", "Payment Paid Amt"]));
+  const bill = parseFloat(getCol(rec, ["Purchase Amount", "Purchase Amt", "Purchase", "Amount"]));
+  if (!isNaN(pay) && pay > 0 && (isNaN(bill) || bill === 0)) return "Payment Paid";
+  return "Purchase";
+}
+
 function parseSupplierTxnAmounts(rec) {
+  const category = getSupplierTxnCategory(rec);
+  const catKey = category.toLowerCase();
+  const isPrev = catKey.includes("previous due") || catKey.includes("opening balance");
+
   const purchaseRaw = getCol(rec, ["Purchase Amount", "Purchase Amt", "Purchase"]);
   if (purchaseRaw !== undefined && purchaseRaw !== null && purchaseRaw !== "") {
-    const bill = parseFloat(purchaseRaw) || 0;
-    const discount = parseFloat(getCol(rec, ["Discount", "Discount Allowed"])) || 0;
-    const pay = parseFloat(getCol(rec, ["Payment Paid", "Paid Amount", "Payment Paid Amt"])) || 0;
+    let bill = parseFloat(purchaseRaw) || 0;
+    let discount = parseFloat(getCol(rec, ["Discount", "Discount Allowed"])) || 0;
+    let pay = parseFloat(getCol(rec, ["Payment Paid", "Paid Amount", "Payment Paid Amt"])) || 0;
     const storedDue = parseFloat(getCol(rec, ["Transaction Due", "Txn Due"]));
+    if (isPrev) {
+      bill = bill || pay;
+      return { bill, discount: 0, pay: 0, txnDue: bill, category: "Previous Due" };
+    }
+    if (catKey.includes("payment paid") || catKey.includes("paid")) {
+      pay = pay || bill;
+      return { bill: 0, discount: 0, pay, txnDue: -pay, category: "Payment Paid" };
+    }
     const txnDue = !isNaN(storedDue) ? storedDue : bill - discount - pay;
-    return { bill, discount, pay, txnDue };
+    return { bill, discount, pay, txnDue, category: category || "Purchase" };
   }
   const amt = parseFloat(getCol(rec, ["Amount"])) || 0;
-  const cat = String(getCol(rec, ["Category"]) || "").toLowerCase();
-  const rem = String(getCol(rec, ["Remarks", "Remarks / Reference"]) || "").toLowerCase();
-  if (cat.includes("previous due") || rem.includes("previous due") || cat.includes("opening balance")) {
-    return { bill: amt, discount: 0, pay: 0, txnDue: amt };
-  }
-  if (cat.includes("paid")) return { bill: 0, discount: 0, pay: amt, txnDue: -amt };
-  return { bill: amt, discount: 0, pay: 0, txnDue: amt };
+  if (isPrev) return { bill: amt, discount: 0, pay: 0, txnDue: amt, category: "Previous Due" };
+  if (catKey.includes("paid")) return { bill: 0, discount: 0, pay: amt, txnDue: -amt, category: "Payment Paid" };
+  return { bill: amt, discount: 0, pay: 0, txnDue: amt, category: "Purchase" };
+}
+
+if (typeof window !== 'undefined') {
+  window.parseSupplierTxnAmounts = parseSupplierTxnAmounts;
+  window.getSupplierTxnCategory = getSupplierTxnCategory;
 }
 
 function getSupplierDueFromTxns(supplierName, txns) {
@@ -1388,7 +1412,7 @@ async function loadSupplierTableRecords() {
 /**
  * MODULE: SUPPLIER TRANSACTION LEDGER (WITH PREVIOUS DUE INJECTOR)
  */
-async function populateSupplierTxnDropdown() {
+async function populateSupplierTxnDropdown(mode = 'all') {
   const dropdown = document.getElementById('sup-txn-supplier'); if (!dropdown) return; dropdown.innerHTML = `<option value="">${t('dropdown.loadingSuppliers')}</option>`;
   try {
     const [supRes, txnRes] = await Promise.all([
@@ -1398,7 +1422,14 @@ async function populateSupplierTxnDropdown() {
     cachedSupplierTxns = txnRes.success ? txnRes.records : [];
     if (supRes.success && supRes.records.length > 0) {
       cachedSupplierRecords = supRes.records;
-      const activeSuppliers = supRes.records.filter(s => s["Status"] !== "Inactive");
+      let activeSuppliers = supRes.records.filter(s => s["Status"] !== "Inactive");
+      if (mode === 'with-due') {
+        activeSuppliers = activeSuppliers.filter((sup) => getSupplierDueBalance(sup, cachedSupplierTxns) > 0.009);
+      }
+      if (activeSuppliers.length === 0) {
+        dropdown.innerHTML = `<option value="">${mode === 'with-due' ? t('dropdown.noSuppliersWithDue') || 'No suppliers with due balance' : t('dropdown.noSuppliersRegistry')}</option>`;
+        return;
+      }
       dropdown.innerHTML = `<option value="">${t('dropdown.chooseSupplier')}</option>` + activeSuppliers.map(sup => {
         const name = sup["Supplier Name"];
         const due = getSupplierDueBalance(sup, cachedSupplierTxns);
@@ -1415,15 +1446,52 @@ function initSupplierTxnFormListeners() {
 
   const dateInput = document.getElementById('sup-txn-date'); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
   const supplierSelect = document.getElementById('sup-txn-supplier');
+  const catSelect = document.getElementById('sup-txn-category');
+  const purchaseInput = document.getElementById('sup-txn-purchase');
+  const discountInput = document.getElementById('sup-txn-discount');
+  const paidInput = document.getElementById('sup-txn-paid');
+  const remarksInput = document.getElementById('sup-txn-remarks');
+
+  if (catSelect && catSelect.tagName === 'SELECT') {
+    let hasPrevDue = Array.from(catSelect.options).some(o => o.value === 'Previous Due');
+    if (!hasPrevDue) {
+      catSelect.insertAdjacentHTML('beforeend', `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">${t('dropdown.previousDuePin')}</option>`);
+    }
+  }
+
   const dueCtrl = createDualTxnDueController({
-    billInput: document.getElementById('sup-txn-purchase'),
-    discountInput: document.getElementById('sup-txn-discount'),
-    payInput: document.getElementById('sup-txn-paid'),
+    billInput: purchaseInput,
+    discountInput,
+    payInput: paidInput,
     dueInput: document.getElementById('sup-txn-due'),
     dueInfoBox: document.getElementById('sup-txn-due-info'),
     currentDueEl: document.getElementById('sup-txn-current-due'),
     remainingDueEl: document.getElementById('sup-txn-remaining-due')
   });
+
+  const applyCategoryMode = async () => {
+    const cat = catSelect?.value || 'Purchase';
+    const isPrev = cat === 'Previous Due';
+    const isPay = cat === 'Payment Paid';
+
+    await populateSupplierTxnDropdown(isPay ? 'with-due' : 'all');
+    supplierSelect.value = '';
+    dueCtrl.resetDueInfo();
+
+    if (purchaseInput) purchaseInput.readOnly = isPay;
+    if (discountInput) discountInput.readOnly = isPrev || isPay;
+    if (paidInput) paidInput.readOnly = isPrev;
+
+    if (isPrev) {
+      if (discountInput) discountInput.value = '0';
+      if (paidInput) paidInput.value = '0';
+    } else if (isPay) {
+      if (purchaseInput) purchaseInput.value = '0';
+      if (discountInput) discountInput.value = '0';
+    }
+
+    dueCtrl.runCalculations();
+  };
 
   const onSupplierSelected = () => {
     const name = supplierSelect?.value || '';
@@ -1431,6 +1499,8 @@ function initSupplierTxnFormListeners() {
     const rec = cachedSupplierRecords.find((r) => String(getCol(r, ["Supplier Name"]) || "").trim() === name);
     dueCtrl.showCurrentDue(getSupplierDueBalance(rec, cachedSupplierTxns));
   };
+
+  catSelect?.addEventListener('change', applyCategoryMode);
   supplierSelect?.addEventListener('change', onSupplierSelected);
 
   form.onsubmit = async (e) => {
@@ -1438,10 +1508,25 @@ function initSupplierTxnFormListeners() {
     if (!guardModuleEdit('supplier_transactions')) return;
     const currentUser = fetchSessionUser();
     dueCtrl.runCalculations();
-    let remarksText = document.getElementById('sup-txn-remarks').value.trim();
-    const purchase = parseFloat(document.getElementById('sup-txn-purchase').value) || 0;
-    const discount = parseFloat(document.getElementById('sup-txn-discount').value) || 0;
-    const paid = parseFloat(document.getElementById('sup-txn-paid').value) || 0;
+
+    const category = catSelect?.value || 'Purchase';
+    let remarksText = remarksInput?.value.trim() || '';
+    let purchase = parseFloat(purchaseInput?.value) || 0;
+    let discount = parseFloat(discountInput?.value) || 0;
+    let paid = parseFloat(paidInput?.value) || 0;
+
+    if (category === 'Previous Due') {
+      discount = 0;
+      paid = 0;
+      if (!remarksText.toLowerCase().includes('previous due')) {
+        remarksText = remarksText ? `Previous Due - ${remarksText}` : 'Previous Due';
+      }
+    } else if (category === 'Payment Paid') {
+      purchase = 0;
+      discount = 0;
+      paid = paid || purchase;
+    }
+
     const txnDue = purchase - discount - paid;
     const rowPayload = [
       document.getElementById('sup-txn-date').value,
@@ -1450,6 +1535,7 @@ function initSupplierTxnFormListeners() {
       discount,
       paid,
       txnDue,
+      category,
       remarksText,
       currentUser.username,
       new Date().toLocaleString()
@@ -1459,7 +1545,11 @@ function initSupplierTxnFormListeners() {
       if (result.success) {
         form.reset();
         if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
-        document.getElementById('sup-txn-discount').value = '0';
+        if (discountInput) discountInput.value = '0';
+        if (purchaseInput) purchaseInput.readOnly = false;
+        if (discountInput) discountInput.readOnly = false;
+        if (paidInput) paidInput.readOnly = false;
+        if (catSelect) catSelect.value = 'Purchase';
         dueCtrl.resetDueInfo();
         dueCtrl.runCalculations();
         await populateSupplierTxnDropdown();
@@ -1494,9 +1584,11 @@ async function loadSupplierTxnTableRecords(isFilter = false) {
       container.innerHTML = filtered.reverse().map(rec => {
         const p = parseSupplierTxnAmounts(rec);
         const remarks = getCol(rec, ["Remarks", "Remarks / Reference"]) || '-';
-        const isPrev = isPrevDueCheck(rec, [["Category"]]);
-        const typeLabel = isPrev ? t('dropdown.previousDuePin') : (p.pay > 0 && p.bill === 0 ? t('category.paymentDecreases') : t('category.purchaseIncreases'));
-        const typeColor = isPrev ? "text-slate-700 bg-slate-200" : (p.pay > 0 && p.bill === 0 ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50");
+        const category = getSupplierTxnCategory(rec);
+        const isPrev = category.toLowerCase().includes('previous due');
+        const isPay = category.toLowerCase().includes('payment paid');
+        const typeLabel = isPrev ? t('dropdown.previousDuePin') : (isPay ? t('category.paymentDecreases') : t('category.purchaseIncreases'));
+        const typeColor = isPrev ? "text-slate-700 bg-slate-200" : (isPay ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50");
         return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold text-gray-900">${getCol(rec, ["Supplier Name"]) || ''}</td><td class="font-mono">${p.bill.toFixed(2)}</td><td class="font-mono text-purple-600">${p.discount.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${p.pay.toFixed(2)}</td><td class="font-mono font-bold text-red-600">${p.txnDue.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${typeColor}">${typeLabel}</span></td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Username", "Logged By"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Timestamp", "Stamp"]) || ''}</td>${renderTxnActions(rec, "Supplier_Transactions")}</tr>`;
       }).join('');
     }
@@ -3508,7 +3600,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         let tPurS=0, tPurP=0;
         if (rSupT.success) rSupT.records.forEach(r => {
             const p = parseSupplierTxnAmounts(r);
-            let check = cln(gV(r, ["category", "remarks", "type"]));
+            let check = cln(getSupplierTxnCategory(r) + " " + gV(r, ["remarks", "type"]));
             const d = gV(r, ["date", "timestamp"]);
             const usr = gV(r, ["username", "loggedby"]);
             const rem = gV(r, ["remarks"]) || "Supplier Txn";
@@ -6258,22 +6350,42 @@ async function loadDashboardData() {
        }
     });
 
-    // SUPPLIER LOGIC
-    if(rSup.success) rSup.records.forEach(r => {
-       let pur = gF(r, ["totalpurchase"]); let paid = gF(r, ["totalpayments"]);
-       purPur += pur; purPaid += paid; purDue += (pur - paid);
+    // SUPPLIER LOGIC — per-supplier max(sheet, txns) to avoid double counting
+    const supTotals = {};
+    if (rSup.success) rSup.records.forEach(r => {
+      const name = String(gV(r, ["suppliername", "name"]) || '').trim();
+      if (!name) return;
+      supTotals[name] = {
+        sheetPur: gF(r, ["totalpurchase", "purchase"]),
+        sheetPaid: gF(r, ["totalpayments", "paid"]),
+        txnBill: 0,
+        txnDisc: 0,
+        txnPay: 0
+      };
     });
-    if(rSupT.success) rSupT.records.forEach(r => {
-       const p = parseSupplierTxnAmounts(r);
-       let check = cln(gV(r, ["category", "remarks", "type"]));
-       if (check.includes("previousdue") || check.includes("openingbalance")) {
-           let prevAmt = Math.max(p.bill, p.pay);
-           purPur += prevAmt; purDue += prevAmt;
-       } else {
-           purPur += p.bill; purPaid += p.pay; purDue += p.txnDue;
-           let logger = gV(r, ["username", "loggedby"]);
-           if (logger && !isAdm(logger) && p.pay > 0) addCash(logger, -p.pay);
-       }
+    if (rSupT.success) rSupT.records.forEach(r => {
+      const name = String(gV(r, ["suppliername"]) || '').trim();
+      if (!name) return;
+      if (!supTotals[name]) supTotals[name] = { sheetPur: 0, sheetPaid: 0, txnBill: 0, txnDisc: 0, txnPay: 0 };
+      const p = parseSupplierTxnAmounts(r);
+      const category = cln(getSupplierTxnCategory(r));
+      if (category.includes("previousdue") || category.includes("openingbalance")) {
+        const prevAmt = Math.max(p.bill, p.pay);
+        supTotals[name].txnBill += prevAmt;
+      } else {
+        supTotals[name].txnBill += p.bill;
+        supTotals[name].txnDisc += p.discount;
+        supTotals[name].txnPay += p.pay;
+        const logger = gV(r, ["username", "loggedby"]);
+        if (logger && !isAdm(logger) && p.pay > 0) addCash(logger, -p.pay);
+      }
+    });
+    Object.values(supTotals).forEach((s) => {
+      const totalPur = Math.max(s.sheetPur, s.txnBill);
+      const totalPaid = Math.max(s.sheetPaid, s.txnPay);
+      purPur += totalPur;
+      purPaid += totalPaid;
+      purDue += Math.max(0, totalPur - s.txnDisc - totalPaid);
     });
 
     // EXPENSE LOGIC

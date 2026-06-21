@@ -47,7 +47,7 @@ export const FORM_EN = {
   'field.currentAccountDue': 'Current Due / Balance',
   'field.remainingDueAfterTxn': 'Remaining Due After This Transaction',
   'field.purchaseAmount': 'Purchase Amount (Bill)',
-  'field.purchaseAmountHint': 'Enter opening/previous due in Purchase with remarks "Previous Due", or leave 0 when paying only.',
+  'field.purchaseAmountHint': 'Choose Category (Purchase / Payment Paid / Previous Due). For opening balance, select Previous Due and enter the amount in Purchase.',
   'field.paymentPaidAmount': 'Payment Paid (Cash Out)',
   'field.outstandingBalanceDue': 'Outstanding Balance Due',
   'field.soldAmount': 'Sold Amount',

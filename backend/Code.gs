@@ -21,8 +21,9 @@
  * HR_Transactions — row order after ID: Date | Employee Name | Amount | Category | Remarks | Username | Timestamp
  * Updating Code.gs alone does not backfill the HR sheet; run SYNC_HR_MASTER (or open HR Management in the app) after deploy.
  *
- * SUPPLIER_TRANSACTIONS — new row order (legacy Amount+Category still supported):
- *   ID | Date | Supplier Name | Purchase Amount | Discount | Payment Paid | Transaction Due | Remarks | Logged By | Stamp
+ * SUPPLIER_TRANSACTIONS — row order (legacy Amount+Category still supported):
+ *   ID | Date | Supplier Name | Purchase Amount | Discount | Payment Paid | Transaction Due | Category | Remarks | Logged By | Stamp
+ * Category = Purchase | Payment Paid | Previous Due
  *
  * CREDITOR_TRANSACTIONS — add Discount + Transaction Due columns (legacy rows still supported):
  *   ID | Date | Creditor Parent Head | Sub Head | Received Amount | Discount | Return Amount | Transaction Due | Remarks | Logged By | Stamp
@@ -461,6 +462,13 @@ function syncHrMaster() {
   };
 }
 
+function inferSupplierTxnCategory_(purchase, discount, paymentPaid, remarks) {
+  var rem = String(remarks || '').trim().toLowerCase();
+  if (rem.indexOf('previous due') !== -1 || rem.indexOf('opening balance') !== -1) return 'Previous Due';
+  if (paymentPaid > 0 && purchase === 0 && discount === 0) return 'Payment Paid';
+  return 'Purchase';
+}
+
 function createGenericRecord(sheetName, rowData) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
@@ -478,16 +486,33 @@ function createGenericRecord(sheetName, rowData) {
     let purchase = 0;
     let discount = 0;
     let paymentPaid = 0;
+    let category = "";
 
-    if (rowData.length >= 9) {
+    if (rowData.length >= 10) {
       purchase = parseFloat(rowData[2]) || 0;
       discount = parseFloat(rowData[3]) || 0;
       paymentPaid = parseFloat(rowData[4]) || 0;
+      category = String(rowData[6] || "").trim();
+    } else if (rowData.length >= 9) {
+      purchase = parseFloat(rowData[2]) || 0;
+      discount = parseFloat(rowData[3]) || 0;
+      paymentPaid = parseFloat(rowData[4]) || 0;
+      category = inferSupplierTxnCategory_(purchase, discount, paymentPaid, rowData[6]);
     } else {
       const amount = parseFloat(rowData[2]) || 0;
-      const category = String(rowData[3] || "").trim();
+      category = String(rowData[3] || "").trim();
       if (category === "Purchase" || category === "Previous Due") purchase = amount;
       else if (category === "Payment Paid") paymentPaid = amount;
+    }
+
+    if (category === "Previous Due") {
+      purchase = purchase || paymentPaid;
+      discount = 0;
+      paymentPaid = 0;
+    } else if (category === "Payment Paid") {
+      paymentPaid = paymentPaid || purchase;
+      purchase = 0;
+      discount = 0;
     }
 
     const supSheet = ss.getSheetByName("Suppliers");
