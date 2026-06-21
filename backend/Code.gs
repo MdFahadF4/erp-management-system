@@ -24,6 +24,7 @@
  * SUPPLIER_TRANSACTIONS — row order (legacy Amount+Category still supported):
  *   ID | Date | Supplier Name | Purchase Amount | Discount | Payment Paid | Transaction Due | Category | Remarks | Logged By | Stamp
  * Category = Purchase | Payment Paid | Previous Due
+ * Suppliers master (Total Purchase / Total Payments / Due Balance) is recalculated from all transactions on create, update, delete, and SYNC_SUPPLIER_MASTER.
  *
  * CREDITOR_TRANSACTIONS — add Discount + Transaction Due columns (legacy rows still supported):
  *   ID | Transaction ID | Date | Creditor Parent Head | Sub Head | Received Amount | Discount | Return Amount | Transaction Due | Category | Remarks | Logged By | Stamp
@@ -136,6 +137,8 @@ function doPost(e) {
       response = syncDeliveryQueue();
     } else if (action === "SYNC_HR_MASTER") {
       response = syncHrMaster();
+    } else if (action === "SYNC_SUPPLIER_MASTER") {
+      response = syncSupplierMaster();
     }
   } catch (error) {
     response = { success: false, message: error.message };
@@ -479,6 +482,162 @@ function inferSupplierTxnCategory_(purchase, discount, paymentPaid, remarks) {
   return 'Purchase';
 }
 
+function normalizeSupplierName_(name) {
+  return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function normalizeSupplierTxnCategory_(category, purchase, discount, paymentPaid, remarks) {
+  var cat = String(category || "").trim();
+  if (!cat) cat = inferSupplierTxnCategory_(purchase, discount, paymentPaid, remarks);
+  var catKey = cat.toLowerCase();
+
+  if (catKey.indexOf("previous due") !== -1 || catKey.indexOf("opening balance") !== -1) {
+    purchase = purchase || paymentPaid;
+    discount = 0;
+    paymentPaid = 0;
+  } else if (catKey.indexOf("payment paid") !== -1 || catKey === "paid") {
+    paymentPaid = paymentPaid || purchase;
+    purchase = 0;
+    discount = 0;
+  }
+
+  return { purchase: purchase, discount: discount, paymentPaid: paymentPaid };
+}
+
+/** Parse Supplier_Transactions rowData payload (without ID column). */
+function parseSupplierTxnPayload_(rowData) {
+  var supplierName = String(rowData[1] || "").trim();
+  var purchase = 0;
+  var discount = 0;
+  var paymentPaid = 0;
+  var category = "";
+
+  if (rowData.length >= 10) {
+    purchase = parseFloat(rowData[2]) || 0;
+    discount = parseFloat(rowData[3]) || 0;
+    paymentPaid = parseFloat(rowData[4]) || 0;
+    category = String(rowData[6] || "").trim();
+  } else if (rowData.length >= 9) {
+    purchase = parseFloat(rowData[2]) || 0;
+    discount = parseFloat(rowData[3]) || 0;
+    paymentPaid = parseFloat(rowData[4]) || 0;
+    category = inferSupplierTxnCategory_(purchase, discount, paymentPaid, rowData[6]);
+  } else {
+    var amount = parseFloat(rowData[2]) || 0;
+    category = String(rowData[3] || "").trim();
+    if (category === "Purchase" || category === "Previous Due") purchase = amount;
+    else if (category === "Payment Paid") paymentPaid = amount;
+    else {
+      category = inferSupplierTxnCategory_(amount, 0, 0, rowData[4]);
+      if (category === "Payment Paid") paymentPaid = amount;
+      else purchase = amount;
+    }
+  }
+
+  var normalized = normalizeSupplierTxnCategory_(category, purchase, discount, paymentPaid, rowData[6] || rowData[4]);
+  normalized.supplierName = supplierName;
+  return normalized;
+}
+
+/** Parse Supplier_Transactions sheet row (includes ID in column A). */
+function parseSupplierTxnSheetRow_(row) {
+  var supplierName = String(row[2] || "").trim();
+  var purchase = 0;
+  var discount = 0;
+  var paymentPaid = 0;
+  var category = "";
+  var remarks = "";
+
+  var colCategory = String(row[7] || "").trim();
+  var colCategoryKey = colCategory.toLowerCase();
+  var looksNew = row.length >= 8 && (
+    colCategoryKey.indexOf("purchase") !== -1 ||
+    colCategoryKey.indexOf("payment paid") !== -1 ||
+    colCategoryKey.indexOf("previous due") !== -1 ||
+    colCategoryKey.indexOf("opening balance") !== -1
+  );
+
+  if (looksNew) {
+    purchase = parseFloat(row[3]) || 0;
+    discount = parseFloat(row[4]) || 0;
+    paymentPaid = parseFloat(row[5]) || 0;
+    category = colCategory;
+    remarks = row[8];
+  } else {
+    var amount = parseFloat(row[3]) || 0;
+    category = String(row[4] || "").trim();
+    remarks = row[5];
+    if (category === "Purchase" || category === "Previous Due") purchase = amount;
+    else if (category === "Payment Paid") paymentPaid = amount;
+    else {
+      category = inferSupplierTxnCategory_(amount, 0, 0, remarks);
+      if (category === "Payment Paid") paymentPaid = amount;
+      else purchase = amount;
+    }
+  }
+
+  var normalized = normalizeSupplierTxnCategory_(category, purchase, discount, paymentPaid, remarks);
+  normalized.supplierName = supplierName;
+  return normalized;
+}
+
+/** Recalculate Suppliers master row from all Supplier_Transactions for one supplier. */
+function syncSupplierMasterForSupplier_(ss, supplierName) {
+  var supSheet = ss.getSheetByName("Suppliers");
+  var txnSheet = ss.getSheetByName("Supplier_Transactions");
+  if (!supSheet || !txnSheet) return false;
+
+  var targetKey = normalizeSupplierName_(supplierName);
+  if (!targetKey) return false;
+
+  var txnData = txnSheet.getDataRange().getValues();
+  var totalPurchase = 0;
+  var totalPayments = 0;
+  var totalDiscount = 0;
+
+  for (var t = 1; t < txnData.length; t++) {
+    var parsed = parseSupplierTxnSheetRow_(txnData[t]);
+    if (normalizeSupplierName_(parsed.supplierName) !== targetKey) continue;
+    totalPurchase += parsed.purchase;
+    totalDiscount += parsed.discount;
+    totalPayments += parsed.paymentPaid;
+  }
+
+  var dueBalance = totalPurchase - totalPayments - totalDiscount;
+  if (dueBalance < 0) dueBalance = 0;
+
+  var supData = supSheet.getDataRange().getValues();
+  for (var i = 1; i < supData.length; i++) {
+    if (normalizeSupplierName_(supData[i][1]) === targetKey) {
+      var targetRow = i + 1;
+      supSheet.getRange(targetRow, 6).setValue(totalPurchase);
+      supSheet.getRange(targetRow, 7).setValue(totalPayments);
+      supSheet.getRange(targetRow, 8).setValue(dueBalance);
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Backfill every Suppliers master row from Supplier_Transactions. */
+function syncSupplierMaster() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var supSheet = ss.getSheetByName("Suppliers");
+  if (!supSheet) return { success: false, message: "Suppliers sheet not found." };
+
+  var supData = supSheet.getDataRange().getValues();
+  var synced = 0;
+  for (var i = 1; i < supData.length; i++) {
+    var supplierName = String(supData[i][1] || "").trim();
+    if (supplierName && syncSupplierMasterForSupplier_(ss, supplierName)) synced++;
+  }
+  return {
+    success: true,
+    message: synced > 0 ? (synced + " supplier row(s) synced from transactions.") : "No suppliers to sync.",
+    synced: synced
+  };
+}
+
 function createGenericRecord(sheetName, rowData) {
   const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
@@ -492,60 +651,8 @@ function createGenericRecord(sheetName, rowData) {
   }
 
   if (sheetName === "Supplier_Transactions") {
-    const supplierName = rowData[1];
-    let purchase = 0;
-    let discount = 0;
-    let paymentPaid = 0;
-    let category = "";
-
-    if (rowData.length >= 10) {
-      purchase = parseFloat(rowData[2]) || 0;
-      discount = parseFloat(rowData[3]) || 0;
-      paymentPaid = parseFloat(rowData[4]) || 0;
-      category = String(rowData[6] || "").trim();
-    } else if (rowData.length >= 9) {
-      purchase = parseFloat(rowData[2]) || 0;
-      discount = parseFloat(rowData[3]) || 0;
-      paymentPaid = parseFloat(rowData[4]) || 0;
-      category = inferSupplierTxnCategory_(purchase, discount, paymentPaid, rowData[6]);
-    } else {
-      const amount = parseFloat(rowData[2]) || 0;
-      category = String(rowData[3] || "").trim();
-      if (category === "Purchase" || category === "Previous Due") purchase = amount;
-      else if (category === "Payment Paid") paymentPaid = amount;
-    }
-
-    if (category === "Previous Due") {
-      purchase = purchase || paymentPaid;
-      discount = 0;
-      paymentPaid = 0;
-    } else if (category === "Payment Paid") {
-      paymentPaid = paymentPaid || purchase;
-      purchase = 0;
-      discount = 0;
-    }
-
-    const supSheet = ss.getSheetByName("Suppliers");
-    if (supSheet) {
-      const supData = supSheet.getDataRange().getValues();
-      for (let i = 1; i < supData.length; i++) {
-        if (supData[i][1] === supplierName) {
-          let totalPurchase = parseFloat(supData[i][5]) || 0;
-          let totalPayments = parseFloat(supData[i][6]) || 0;
-
-          totalPurchase += purchase;
-          totalPayments += paymentPaid;
-
-          let updatedDueBalance = totalPurchase - totalPayments - discount;
-          const targetRow = i + 1;
-
-          supSheet.getRange(targetRow, 6).setValue(totalPurchase);
-          supSheet.getRange(targetRow, 7).setValue(totalPayments);
-          supSheet.getRange(targetRow, 8).setValue(updatedDueBalance);
-          break;
-        }
-      }
-    }
+    var parsedSupplierTxn = parseSupplierTxnPayload_(rowData);
+    syncSupplierMasterForSupplier_(ss, parsedSupplierTxn.supplierName);
   }
 
   if (sheetName === "Customer_Transactions") {
@@ -644,8 +751,12 @@ function updateGenericRecord(sheetName, id, rowData) {
     if (String(data[i][0]) === targetId) {
       const targetRow = i + 1;
       let prevEmpName = null;
+      let prevSupplierName = null;
       if (sheetName === "HR_Transactions") {
         prevEmpName = String(data[i][2] || "").trim();
+      }
+      if (sheetName === "Supplier_Transactions") {
+        prevSupplierName = String(data[i][2] || "").trim();
       }
       sheet.getRange(targetRow, 2, 1, rowData.length).setValues([rowData]);
       if (sheetName === "HR_Transactions") {
@@ -653,6 +764,13 @@ function updateGenericRecord(sheetName, id, rowData) {
         const newEmpName = String(rowData[1] || "").trim();
         if (newEmpName && newEmpName !== prevEmpName) {
           syncHrMasterForEmployee_(ss, newEmpName);
+        }
+      }
+      if (sheetName === "Supplier_Transactions") {
+        syncSupplierMasterForSupplier_(ss, prevSupplierName);
+        var newSupplierName = String(rowData[1] || "").trim();
+        if (newSupplierName && newSupplierName !== prevSupplierName) {
+          syncSupplierMasterForSupplier_(ss, newSupplierName);
         }
       }
       return { success: true, message: 'Transaction updated successfully.' };
@@ -673,12 +791,19 @@ function deleteGenericRecord(sheetName, id) {
   for (let i = 1; i < data.length; i++) {
     if (String(data[i][0]) === targetId) {
       let empName = null;
+      let supplierName = null;
       if (sheetName === "HR_Transactions") {
         empName = String(data[i][2] || "").trim();
+      }
+      if (sheetName === "Supplier_Transactions") {
+        supplierName = String(data[i][2] || "").trim();
       }
       sheet.deleteRow(i + 1);
       if (sheetName === "HR_Transactions" && empName) {
         syncHrMasterForEmployee_(ss, empName);
+      }
+      if (sheetName === "Supplier_Transactions" && supplierName) {
+        syncSupplierMasterForSupplier_(ss, supplierName);
       }
       return { success: true, message: 'Transaction deleted successfully.' };
     }

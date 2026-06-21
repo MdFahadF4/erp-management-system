@@ -148,7 +148,11 @@ Date.prototype.toLocaleDateString = function() {
     initTxnAdminSystem({
       reloadHandlers: {
         HR_Transactions: () => loadTxnTableRecords(true),
-        Supplier_Transactions: () => loadSupplierTxnTableRecords(true),
+        Supplier_Transactions: async () => {
+          await loadSupplierTxnTableRecords(true);
+          await loadSupplierTableRecords();
+          await populateSupplierTxnDropdown();
+        },
         Customer_Transactions: () => loadCustomerTxnTableRecords(true),
         Internal_Transfers: () => loadInternalTransferTableRecords(true),
         Expense_Transactions: () => loadExpenseTxnTableRecords(true),
@@ -865,32 +869,34 @@ function parseSupplierTxnAmounts(rec) {
 
 if (typeof window !== 'undefined') {
   window.parseSupplierTxnAmounts = parseSupplierTxnAmounts;
+  window.rollupSupplierTxnTotals = rollupSupplierTxnTotals;
   window.getSupplierTxnCategory = getSupplierTxnCategory;
   window.getDualTxnCategory = getDualTxnCategory;
   window.parseTxnDualAmounts = parseTxnDualAmounts;
   window.buildModuleTxnTrackingId = buildModuleTxnTrackingId;
 }
 
-function getSupplierDueFromTxns(supplierName, txns) {
-  const name = String(supplierName || "").trim();
+function rollupSupplierTxnTotals(txns, supplierName) {
+  const name = supplierName ? String(supplierName).trim() : "";
   let bill = 0, discount = 0, pay = 0;
   (txns || []).forEach((t) => {
-    if (String(getCol(t, ["Supplier Name"]) || "").trim() !== name) return;
+    if (name && String(getCol(t, ["Supplier Name"]) || "").trim() !== name) return;
     const p = parseSupplierTxnAmounts(t);
-    bill += p.bill; discount += p.discount; pay += p.pay;
+    bill += p.bill;
+    discount += p.discount;
+    pay += p.pay;
   });
-  return Math.max(0, bill - discount - pay);
+  return { bill, discount, pay, due: Math.max(0, bill - discount - pay) };
+}
+
+function getSupplierDueFromTxns(supplierName, txns) {
+  return rollupSupplierTxnTotals(txns, supplierName).due;
 }
 
 function getSupplierDueBalance(supplierRec, txns) {
   if (!supplierRec) return 0;
   const name = String(getCol(supplierRec, ["Supplier Name"]) || "").trim();
-  const fromTxns = getSupplierDueFromTxns(name, txns);
-  const basePurchase = parseFloat(getCol(supplierRec, ["Total Purchase"])) || 0;
-  const basePaid = parseFloat(getCol(supplierRec, ["Total Payments"])) || 0;
-  const sheetDue = parseFloat(getCol(supplierRec, ["Due Balance", "Due"]));
-  const fromSheet = !isNaN(sheetDue) ? sheetDue : Math.max(0, basePurchase - basePaid);
-  return Math.max(fromTxns, fromSheet);
+  return getSupplierDueFromTxns(name, txns);
 }
 
 function getDualTxnCategory(rec, fieldMap) {
@@ -1434,9 +1440,28 @@ function initSupplierFormListeners() {
     e.preventDefault();
     if (!guardModuleEdit('suppliers')) return;
     const currentUser = fetchSessionUser(); runCalculations();
-    const payloadRow = [ document.getElementById('sup-name').value.trim(), document.getElementById('sup-mobile').value.trim(), document.getElementById('sup-email').value.trim(), document.getElementById('sup-address').value.trim(), parseFloat(fPurchase.value) || 0, parseFloat(fPayments.value) || 0, parseFloat(fDue.value) || 0, document.getElementById('sup-status').value, currentUser.username, new Date().toLocaleString() ];
+    const supName = document.getElementById('sup-name').value.trim();
+    const openingPurchase = parseFloat(fPurchase.value) || 0;
+    const openingPayments = parseFloat(fPayments.value) || 0;
+    const openingDue = Math.max(0, openingPurchase - openingPayments);
+    const payloadRow = [ supName, document.getElementById('sup-mobile').value.trim(), document.getElementById('sup-email').value.trim(), document.getElementById('sup-address').value.trim(), 0, 0, 0, document.getElementById('sup-status').value, currentUser.username, new Date().toLocaleString() ];
     try {
-      const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Suppliers", rowData: payloadRow } }); alert(res.message); if (res.success) { creationForm.reset(); runCalculations(); await loadSupplierTableRecords(); await updateLiveUserCashDrawerBalance(); }
+      const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Suppliers", rowData: payloadRow } });
+      if (res.success && openingDue > 0.009) {
+        await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Supplier_Transactions", rowData: [
+          new Date().toISOString().split('T')[0],
+          supName,
+          openingDue,
+          0,
+          0,
+          openingDue,
+          "Previous Due",
+          "Previous Due (opening balance)",
+          currentUser.username,
+          new Date().toLocaleString()
+        ] } });
+      }
+      alert(res.message); if (res.success) { creationForm.reset(); runCalculations(); await loadSupplierTableRecords(); await updateLiveUserCashDrawerBalance(); }
     } catch (err) { alert(t('alert.errorCommit')); }
   });
 }
@@ -1444,6 +1469,7 @@ function initSupplierFormListeners() {
 async function loadSupplierTableRecords() {
   const container = document.getElementById('table-sup-rows'); if (!container) return; container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-gray-400">${t('sup.queryingList')}</td></tr>`;
   try {
+    await apiRequest({ action: "SYNC_SUPPLIER_MASTER" }).catch(() => null);
     // Fetch BOTH the Supplier list and their Transactions simultaneously
     const [supRes, txnRes] = await Promise.all([
         apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Suppliers" } }),
@@ -1454,19 +1480,7 @@ async function loadSupplierTableRecords() {
       cachedSupplierRecords = supRes.records; 
       if (cachedSupplierRecords.length === 0) { container.innerHTML = `<tr><td colspan="9" class="p-3 text-center text-gray-400">${t('sup.noRegistered')}</td></tr>`; return; }
 
-      // --- MASTER INTERCEPTOR: Dynamic Math Engine for Supplier Totals ---
       const txns = txnRes.success ? txnRes.records : [];
-      let supplierTotals = {};
-
-      txns.forEach((txn) => {
-        const sup = String(getCol(txn, ["Supplier Name"]) || "").trim();
-        if (!sup) return;
-        if (!supplierTotals[sup]) supplierTotals[sup] = { bill: 0, discount: 0, pay: 0 };
-        const p = parseSupplierTxnAmounts(txn);
-        supplierTotals[sup].bill += p.bill;
-        supplierTotals[sup].discount += p.discount;
-        supplierTotals[sup].pay += p.pay;
-      });
 
       container.innerHTML = cachedSupplierRecords.map(rec => {
         const canEdit = userCanEditModule(fetchSessionUser(), 'suppliers');
@@ -1474,13 +1488,11 @@ async function loadSupplierTableRecords() {
         const badgeStyle = rec["Status"] === "Inactive" ? "bg-amber-100 text-amber-800" : "bg-green-100 text-green-800";
 
         let supName = String(rec["Supplier Name"] || "").trim();
-        const dyn = supplierTotals[supName] || { bill: 0, discount: 0, pay: 0 };
-        let basePurchase = parseFloat(rec["Total Purchase"]) || 0;
-        let totalPurchase = Math.max(basePurchase, dyn.bill);
-        let sheetPaid = parseFloat(rec["Total Payments"]) || 0;
-        let totalPaid = Math.max(sheetPaid, dyn.pay);
-        let totalDiscount = dyn.discount;
-        let dbDue = Math.max(0, totalPurchase - totalDiscount - totalPaid);
+        const totals = rollupSupplierTxnTotals(txns, supName);
+        let totalPurchase = totals.bill;
+        let totalPaid = totals.pay;
+        let totalDiscount = totals.discount;
+        let dbDue = totals.due;
 
         return `
           <tr class="hover:bg-gray-50 whitespace-nowrap border-b border-gray-100">
@@ -3756,14 +3768,6 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 if (p.pay > 0) { tPurP += p.pay; addD('purchase', d, 0, p.pay, rem, usr); }
             }
         });
-        if (rSup.success) rSup.records.forEach(r => {
-            let sheetS = gF(r, ["totalpurchase", "purchase"]);
-            let sheetP = gF(r, ["totalpayments", "paid"]);
-            let initS = sheetS - tPurS; initS = initS > 0 ? initS : 0;
-            let initP = sheetP - tPurP; initP = initP > 0 ? initP : 0;
-            if (initS > 0 || initP > 0) addD('purchase', gV(r, ["date", "timestamp"]), initS, initP, "Base Master Record", gV(r, ["username", "loggedby"]));
-        });
-
         // --- EXPENSES LOGIC ---
         let tExpS=0, tExpP=0;
         if (rExp.success) rExp.records.forEach(r => {
@@ -5275,33 +5279,10 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         
         let allSupTxns = rSupT.success ? rSupT.records.filter(r => getCol(r, ["Supplier Name"]) === secVal) : [];
         
-        // 1. Global Totals (Dynamic Interceptor Math)
-        let sheetPur = 0; let sheetPay = 0;
-        if(rSup.success) {
-           let supMaster = rSup.records.find(r => getCol(r, ["Supplier Name"]) === secVal);
-           if(supMaster) {
-              sheetPur = parseFloat(getCol(supMaster, ["Total Purchase"])) || 0;
-              sheetPay = parseFloat(getCol(supMaster, ["Total Payments"])) || 0;
-           }
-        }
-
-        let dynPrevDue = 0; let dynPaid = 0;
-        allSupTxns.forEach(r => {
-            let cat = String(getCol(r, ["Category"])).trim().toUpperCase();
-            let rem = String(getCol(r, ["Remarks / Reference", "Remarks", "Reference Info"])).trim().toUpperCase();
-            let amt = parseFloat(getCol(r, ["Amount"])) || 0;
-
-            if (cat.includes("PREVIOUS DUE") || rem.includes("PREVIOUS DUE") || cat.includes("OPENING BALANCE")) {
-                dynPrevDue += amt;
-            } else if (cat.includes("PAID")) {
-                dynPaid += amt;
-            }
-        });
-
-        // Combine Sheet Base with Dynamic Interceptor
-        let globalPur = sheetPur + dynPrevDue;
-        let globalPay = Math.max(sheetPay, dynPaid);
-        let globalDue = globalPur - globalPay;
+        const lifetimeTotals = rollupSupplierTxnTotals(allSupTxns);
+        let globalPur = lifetimeTotals.bill;
+        let globalPay = lifetimeTotals.pay;
+        let globalDue = lifetimeTotals.due;
 
         // 2. Filtered Range Transactions
         let sdPurchases = [];
@@ -5312,22 +5293,20 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         let sdFilteredTxns = filterByDate(allSupTxns, ["Date"]);
 
         sdFilteredTxns.forEach(r => {
-           let cat = String(getCol(r, ["Category"])).trim().toUpperCase();
-           let amt = parseFloat(getCol(r, ["Amount"])) || 0;
+           const p = parseSupplierTxnAmounts(r);
+           const category = getSupplierTxnCategory(r);
            let d = getCol(r, ["Date"]);
            let rem = String(getCol(r, ["Remarks / Reference", "Remarks", "Reference Info"]) || '-');
            let usr = getCol(r, ["Username", "Logged By"]) || '';
 
-           let checkStr = cat + " " + rem.toUpperCase();
-
-           // INTERCEPTOR: Catch Previous Due and route to Purchases safely!
-           if (checkStr.includes("PURCHASE") || checkStr.includes("PREVIOUS DUE") || checkStr.includes("OPENING BALANCE")) {
-              sdRangePur += amt;
-              let displayType = checkStr.includes("PREVIOUS DUE") ? "Previous Due" : "Purchase";
-              sdPurchases.push({ d, amt, rem, usr, type: displayType });
-           } else if (checkStr.includes("PAID")) {
-              sdRangePay += amt;
-              sdPayments.push({ d, amt, rem, usr });
+           if (p.bill > 0) {
+              sdRangePur += p.bill;
+              const displayType = category === "Previous Due" ? "Previous Due" : "Purchase";
+              sdPurchases.push({ d, amt: p.bill, rem, usr, type: displayType });
+           }
+           if (p.pay > 0) {
+              sdRangePay += p.pay;
+              sdPayments.push({ d, amt: p.pay, rem, usr });
            }
         });
 
@@ -6480,42 +6459,23 @@ async function loadDashboardData() {
        }
     });
 
-    // SUPPLIER LOGIC — per-supplier max(sheet, txns) to avoid double counting
+    // SUPPLIER LOGIC — transaction totals only (master sheet columns are backend cache, not display source)
     const supTotals = {};
-    if (rSup.success) rSup.records.forEach(r => {
-      const name = String(gV(r, ["suppliername", "name"]) || '').trim();
-      if (!name) return;
-      supTotals[name] = {
-        sheetPur: gF(r, ["totalpurchase", "purchase"]),
-        sheetPaid: gF(r, ["totalpayments", "paid"]),
-        txnBill: 0,
-        txnDisc: 0,
-        txnPay: 0
-      };
-    });
     if (rSupT.success) rSupT.records.forEach(r => {
       const name = String(gV(r, ["suppliername"]) || '').trim();
       if (!name) return;
-      if (!supTotals[name]) supTotals[name] = { sheetPur: 0, sheetPaid: 0, txnBill: 0, txnDisc: 0, txnPay: 0 };
+      if (!supTotals[name]) supTotals[name] = { bill: 0, discount: 0, pay: 0 };
       const p = parseSupplierTxnAmounts(r);
-      const category = cln(getSupplierTxnCategory(r));
-      if (category.includes("previousdue") || category.includes("openingbalance")) {
-        const prevAmt = Math.max(p.bill, p.pay);
-        supTotals[name].txnBill += prevAmt;
-      } else {
-        supTotals[name].txnBill += p.bill;
-        supTotals[name].txnDisc += p.discount;
-        supTotals[name].txnPay += p.pay;
-        const logger = gV(r, ["username", "loggedby"]);
-        if (logger && !isAdm(logger) && p.pay > 0) addCash(logger, -p.pay);
-      }
+      supTotals[name].bill += p.bill;
+      supTotals[name].discount += p.discount;
+      supTotals[name].pay += p.pay;
+      const logger = gV(r, ["username", "loggedby"]);
+      if (logger && !isAdm(logger) && p.pay > 0) addCash(logger, -p.pay);
     });
     Object.values(supTotals).forEach((s) => {
-      const totalPur = Math.max(s.sheetPur, s.txnBill);
-      const totalPaid = Math.max(s.sheetPaid, s.txnPay);
-      purPur += totalPur;
-      purPaid += totalPaid;
-      purDue += Math.max(0, totalPur - s.txnDisc - totalPaid);
+      purPur += s.bill;
+      purPaid += s.pay;
+      purDue += Math.max(0, s.bill - s.discount - s.pay);
     });
 
     // EXPENSE LOGIC
