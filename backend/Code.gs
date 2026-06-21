@@ -12,6 +12,9 @@
  * DELIVERY_QUEUE — create sheet with row 1 headers:
  *   ID | System Unique ID | Remarks | Issued Date | Username | Status | Delivery Date | Delivered Remarks | Stamp
  * Status = Pending or Delivered. New customers auto-queue as Pending; run SYNC_DELIVERY_QUEUE for existing customers.
+ *
+ * HR_Transactions — row order after ID: Date | Employee Name | Amount | Category | Remarks | Username | Timestamp
+ * Updating Code.gs alone does not backfill the HR sheet; run SYNC_HR_MASTER (or open HR Management in the app) after deploy.
  */
 const SPREADSHEET_ID = '1psluXui-l3VtYL-P-Z7bRtWop4KA9JO5UahnAgmaHwM';
 
@@ -100,6 +103,8 @@ function doPost(e) {
       response = updateUserAdmin(payload);
     } else if (action === "SYNC_DELIVERY_QUEUE") {
       response = syncDeliveryQueue();
+    } else if (action === "SYNC_HR_MASTER") {
+      response = syncHrMaster();
     }
   } catch (error) {
     response = { success: false, message: error.message };
@@ -349,14 +354,18 @@ function syncDeliveryQueue() {
   return { success: true, message: added > 0 ? (added + ' delivery record(s) synced.') : 'Delivery queue is up to date.', added: added };
 }
 
+function normalizeHrName_(name) {
+  return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 /** Recalculate HR master row (increment, current salary, earn, paid, due) from all HR_Transactions. */
 function syncHrMasterForEmployee_(ss, empName) {
   var hrSheet = ss.getSheetByName("HR");
   var txnSheet = ss.getSheetByName("HR_Transactions");
-  if (!hrSheet || !txnSheet) return;
+  if (!hrSheet || !txnSheet) return false;
 
-  var targetName = String(empName || "").trim();
-  if (!targetName) return;
+  var targetKey = normalizeHrName_(empName);
+  if (!targetKey) return false;
 
   var hrData = hrSheet.getDataRange().getValues();
   var txnData = txnSheet.getDataRange().getValues();
@@ -365,8 +374,7 @@ function syncHrMasterForEmployee_(ss, empName) {
   var totalPaid = 0;
 
   for (var t = 1; t < txnData.length; t++) {
-    var txnEmp = String(txnData[t][2] || "").trim();
-    if (txnEmp !== targetName) continue;
+    if (normalizeHrName_(txnData[t][2]) !== targetKey) continue;
     var amt = parseFloat(txnData[t][3]) || 0;
     var cat = String(txnData[t][4] || "").trim().toLowerCase();
 
@@ -379,7 +387,7 @@ function syncHrMasterForEmployee_(ss, empName) {
   }
 
   for (var i = 1; i < hrData.length; i++) {
-    if (String(hrData[i][1] || "").trim() === targetName) {
+    if (normalizeHrName_(hrData[i][1]) === targetKey) {
       var baseSalary = parseFloat(hrData[i][4]) || 0;
       var targetRow = i + 1;
       hrSheet.getRange(targetRow, 6).setValue(totalInc);
@@ -387,9 +395,29 @@ function syncHrMasterForEmployee_(ss, empName) {
       hrSheet.getRange(targetRow, 8).setValue(totalEarn);
       hrSheet.getRange(targetRow, 9).setValue(totalPaid);
       hrSheet.getRange(targetRow, 10).setValue(totalEarn - totalPaid);
-      break;
+      return true;
     }
   }
+  return false;
+}
+
+/** Backfill every HR master row from HR_Transactions (for records logged before deploy). */
+function syncHrMaster() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var hrSheet = ss.getSheetByName("HR");
+  if (!hrSheet) return { success: false, message: "HR sheet not found." };
+
+  var hrData = hrSheet.getDataRange().getValues();
+  var synced = 0;
+  for (var i = 1; i < hrData.length; i++) {
+    var empName = String(hrData[i][1] || "").trim();
+    if (empName && syncHrMasterForEmployee_(ss, empName)) synced++;
+  }
+  return {
+    success: true,
+    message: synced > 0 ? (synced + " employee HR row(s) synced from transactions.") : "No HR employees to sync.",
+    synced: synced
+  };
 }
 
 function createGenericRecord(sheetName, rowData) {

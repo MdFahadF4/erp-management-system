@@ -949,6 +949,7 @@ async function loadHRTableRecords() {
   const container = document.getElementById('table-hr-rows'); if (!container) return;
   container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hr.queryingLedger')}</td></tr>`;
   try {
+    await apiRequest({ action: "SYNC_HR_MASTER" }).catch(() => null);
     const [hrRes, txnRes] = await Promise.all([
         apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR" } }),
         apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } })
