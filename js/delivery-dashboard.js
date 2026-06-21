@@ -3,7 +3,6 @@ import { userCanEditModule } from './user-session.js';
 import { t, applyTranslations } from './i18n.js';
 
 let cachedDeliveryRecords = [];
-let allowedCustomerUids = null;
 let txnRemarksByUid = {};
 let customerMemoByUid = {};
 
@@ -26,41 +25,6 @@ function formatDisplayDate(val) {
   const d = new Date(val);
   if (isNaN(d.getTime())) return String(val);
   return d.toLocaleDateString();
-}
-
-function canViewAllCustomers() {
-  const u = fetchSessionUser();
-  return !!(u && (u.role === 'Super Admin' || u.role === 'Admin'));
-}
-
-async function loadAllowedCustomerUids() {
-  if (canViewAllCustomers()) {
-    allowedCustomerUids = null;
-    return;
-  }
-  const user = fetchSessionUser();
-  if (!user) {
-    allowedCustomerUids = new Set();
-    return;
-  }
-  const res = await apiRequest({ action: 'FETCH_RECORDS', payload: { sheetName: 'Customers' } });
-  const cln = (s) => String(s || '').trim().toLowerCase();
-  const uids = new Set();
-  if (res.success && Array.isArray(res.records)) {
-    res.records.forEach((rec) => {
-      if (cln(getCol(rec, ['Username', 'Logged By', 'Created By'])) === cln(user.username)) {
-        const uid = String(getCol(rec, ['System Unique ID', 'Sys UID']) || '').trim();
-        if (uid) uids.add(uid);
-      }
-    });
-  }
-  allowedCustomerUids = uids;
-}
-
-function isDeliveryVisible(rec) {
-  if (allowedCustomerUids === null) return true;
-  const uid = String(getCol(rec, ['System Unique ID']) || '').trim();
-  return allowedCustomerUids.has(uid);
 }
 
 function buildTxnRemarksMap(txnRecords) {
@@ -217,7 +181,7 @@ export async function loadDeliveryDashboard(skipSync = false) {
     if (!skipSync) {
       await apiRequest({ action: 'SYNC_DELIVERY_QUEUE' });
     }
-    await Promise.all([loadAllowedCustomerUids(), loadRemarkContext()]);
+    await loadRemarkContext();
 
     const result = await apiRequest({ action: 'FETCH_RECORDS', payload: { sheetName: 'Delivery_Queue' } });
     if (!result.success) {
@@ -226,7 +190,7 @@ export async function loadDeliveryDashboard(skipSync = false) {
       return;
     }
 
-    cachedDeliveryRecords = (result.records || []).filter(isDeliveryVisible);
+    cachedDeliveryRecords = result.records || [];
     const pending = sortByDateAsc(
       cachedDeliveryRecords.filter((r) => String(getCol(r, ['Status']) || 'Pending').trim() === 'Pending'),
       ['Issued Date', 'Stamp']
