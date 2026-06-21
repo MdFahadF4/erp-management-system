@@ -4,6 +4,8 @@ import { t, applyTranslations } from './i18n.js';
 
 let cachedDeliveryRecords = [];
 let allowedCustomerUids = null;
+let txnRemarksByUid = {};
+let customerMemoByUid = {};
 
 function getCol(rec, names) {
   for (const name of names) {
@@ -61,7 +63,40 @@ function isDeliveryVisible(rec) {
   return allowedCustomerUids.has(uid);
 }
 
-function sortByDateDesc(records, fieldNames) {
+function buildTxnRemarksMap(txnRecords) {
+  const map = {};
+  (txnRecords || []).forEach((txn) => {
+    const uid = String(getCol(txn, ['System Unique ID', 'Sys UID']) || '').trim();
+    const remarks = String(getCol(txn, ['Remarks']) || '').trim();
+    if (!uid || !remarks) return;
+    const ts = new Date(getCol(txn, ['Date']) || 0).getTime() || 0;
+    if (!map[uid] || ts >= map[uid].ts) map[uid] = { remarks, ts };
+  });
+  return map;
+}
+
+function buildCustomerMemoMap(customerRecords) {
+  const map = {};
+  (customerRecords || []).forEach((rec) => {
+    const uid = String(getCol(rec, ['System Unique ID', 'Sys UID']) || '').trim();
+    const memo = String(getCol(rec, ['Memo', 'Memo #', 'Invoice / Memo Number', 'Invoice Memo Number']) || '').trim();
+    if (uid && memo) map[uid] = memo;
+  });
+  return map;
+}
+
+function resolveRemarks(rec) {
+  const uid = String(getCol(rec, ['System Unique ID']) || '').trim();
+  const fromTxn = txnRemarksByUid[uid]?.remarks;
+  if (fromTxn) return fromTxn;
+
+  const stored = String(getCol(rec, ['Remarks']) || '').trim();
+  if (stored && customerMemoByUid[uid] && stored === customerMemoByUid[uid]) return '-';
+  if (stored) return stored;
+  return '-';
+}
+
+function sortByDateAsc(records, fieldNames) {
   return [...records].sort((a, b) => {
     let da = 0;
     let db = 0;
@@ -71,17 +106,17 @@ function sortByDateDesc(records, fieldNames) {
       if (va) da = Math.max(da, new Date(va).getTime() || 0);
       if (vb) db = Math.max(db, new Date(vb).getTime() || 0);
     }
-    if (da !== db) return db - da;
+    if (da !== db) return da - db;
     const sa = String(getCol(a, ['Stamp']) || '');
     const sb = String(getCol(b, ['Stamp']) || '');
-    return sb.localeCompare(sa);
+    return sa.localeCompare(sb);
   });
 }
 
 function renderPendingRow(rec) {
   const id = getRecordId(rec);
   const uid = getCol(rec, ['System Unique ID']) || '-';
-  const remarks = getCol(rec, ['Remarks']) || '-';
+  const remarks = resolveRemarks(rec);
   const issued = formatDisplayDate(getCol(rec, ['Issued Date']));
   const username = getCol(rec, ['Username', 'Logged By']) || '-';
   const canEdit = userCanEditModule(fetchSessionUser(), 'delivery_dashboard');
@@ -113,7 +148,7 @@ function renderPendingRow(rec) {
 
 function renderDeliveredRow(rec) {
   const uid = getCol(rec, ['System Unique ID']) || '-';
-  const remarks = getCol(rec, ['Remarks']) || '-';
+  const remarks = resolveRemarks(rec);
   const username = getCol(rec, ['Username', 'Logged By']) || '-';
   const deliveryDate = formatDisplayDate(getCol(rec, ['Delivery Date']));
   const deliveredRemarks = getCol(rec, ['Delivered Remarks']) || '-';
@@ -135,9 +170,11 @@ async function markDelivered(recordId, deliveredRemarks) {
   const rec = findCachedDelivery(recordId);
   if (!rec) return alert(t('alert.errorLoad'));
 
+  const resolvedRemarks = resolveRemarks(rec);
+
   const rowData = [
     String(getCol(rec, ['System Unique ID']) || ''),
-    String(getCol(rec, ['Remarks']) || ''),
+    resolvedRemarks === '-' ? '' : resolvedRemarks,
     getCol(rec, ['Issued Date']) || new Date(),
     String(getCol(rec, ['Username', 'Logged By']) || ''),
     'Delivered',
@@ -159,6 +196,15 @@ async function markDelivered(recordId, deliveredRemarks) {
   }
 }
 
+async function loadRemarkContext() {
+  const [txnRes, custRes] = await Promise.all([
+    apiRequest({ action: 'FETCH_RECORDS', payload: { sheetName: 'Customer_Transactions' } }),
+    apiRequest({ action: 'FETCH_RECORDS', payload: { sheetName: 'Customers' } })
+  ]);
+  txnRemarksByUid = buildTxnRemarksMap(txnRes.success ? txnRes.records : []);
+  customerMemoByUid = buildCustomerMemoMap(custRes.success ? custRes.records : []);
+}
+
 export async function loadDeliveryDashboard(skipSync = false) {
   const pendingBody = document.getElementById('table-delivery-pending');
   const deliveredBody = document.getElementById('table-delivery-delivered');
@@ -171,7 +217,7 @@ export async function loadDeliveryDashboard(skipSync = false) {
     if (!skipSync) {
       await apiRequest({ action: 'SYNC_DELIVERY_QUEUE' });
     }
-    await loadAllowedCustomerUids();
+    await Promise.all([loadAllowedCustomerUids(), loadRemarkContext()]);
 
     const result = await apiRequest({ action: 'FETCH_RECORDS', payload: { sheetName: 'Delivery_Queue' } });
     if (!result.success) {
@@ -181,11 +227,11 @@ export async function loadDeliveryDashboard(skipSync = false) {
     }
 
     cachedDeliveryRecords = (result.records || []).filter(isDeliveryVisible);
-    const pending = sortByDateDesc(
+    const pending = sortByDateAsc(
       cachedDeliveryRecords.filter((r) => String(getCol(r, ['Status']) || 'Pending').trim() === 'Pending'),
       ['Issued Date', 'Stamp']
     );
-    const delivered = sortByDateDesc(
+    const delivered = sortByDateAsc(
       cachedDeliveryRecords.filter((r) => String(getCol(r, ['Status']) || '').trim() === 'Delivered'),
       ['Delivery Date', 'Stamp']
     );
@@ -236,7 +282,6 @@ function bindDeliveryDashboardOnce() {
     const remarks = wrap?.querySelector('.delivery-delivered-remarks')?.value || '';
     await markDelivered(id, remarks);
   });
-
 }
 
 export async function initDeliveryDashboard() {

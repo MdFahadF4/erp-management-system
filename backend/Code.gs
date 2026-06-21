@@ -269,7 +269,28 @@ function updateUserAdmin(payload) {
   return { success: true, message: 'User account updated successfully.' };
 }
 
-function ensureDeliveryQueueEntry_(ss, systemUID, remarks, username, issuedDate) {
+function getLatestCustomerTxnRemarks_(ss, systemUID) {
+  var txnSheet = ss.getSheetByName('Customer_Transactions');
+  if (!txnSheet) return '';
+  var data = txnSheet.getDataRange().getValues();
+  var target = String(systemUID || '').trim();
+  if (!target) return '';
+  var latest = '';
+  var latestTime = 0;
+  for (var i = 1; i < data.length; i++) {
+    if (String(data[i][2] || '').trim() !== target) continue;
+    var remarks = String(data[i][8] || '').trim();
+    var stamp = new Date(data[i][0] || 0).getTime();
+    if (!remarks) continue;
+    if (stamp >= latestTime) {
+      latestTime = stamp;
+      latest = remarks;
+    }
+  }
+  return latest;
+}
+
+function ensureDeliveryQueueEntry_(ss, systemUID, username, issuedDate) {
   var delSheet = ss.getSheetByName('Delivery_Queue');
   if (!delSheet || !systemUID) return;
   var uid = String(systemUID).trim();
@@ -281,7 +302,7 @@ function ensureDeliveryQueueEntry_(ss, systemUID, remarks, username, issuedDate)
   delSheet.appendRow([
     Utilities.getUuid(),
     uid,
-    String(remarks || ''),
+    getLatestCustomerTxnRemarks_(ss, uid),
     issuedDate || new Date(),
     String(username || ''),
     'Pending',
@@ -309,13 +330,12 @@ function syncDeliveryQueue() {
   for (var j = 1; j < custData.length; j++) {
     var systemUID = String(custData[j][1] || '').trim();
     if (!systemUID || existing[systemUID]) continue;
-    var memo = String(custData[j][6] || '');
     var loggedBy = String(custData[j][13] || custData[j][12] || '');
     var issued = custData[j][14] || custData[j][13] || new Date();
     delSheet.appendRow([
       Utilities.getUuid(),
       systemUID,
-      memo,
+      getLatestCustomerTxnRemarks_(ss, systemUID),
       issued,
       loggedBy,
       'Pending',
@@ -451,7 +471,7 @@ function createGenericRecord(sheetName, rowData) {
   }
 
   if (sheetName === "Customers") {
-    ensureDeliveryQueueEntry_(ss, rowData[0], rowData[5] || '', rowData[12], rowData[13] || new Date());
+    ensureDeliveryQueueEntry_(ss, rowData[0], rowData[12], rowData[13] || new Date());
   }
 
   return { success: true, message: "Record saved successfully!" };

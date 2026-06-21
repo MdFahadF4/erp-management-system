@@ -439,7 +439,7 @@ export const templates = {
         <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.deliveryDashboard.title">Delivery Dashboard</h2>
         <button type="button" id="btn-refresh-delivery" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.refresh">Refresh</button>
       </div>
-      <p class="text-xs text-gray-500" data-i18n="delivery.hint">Customer unique IDs queue as Pending (newest first). Users with edit access can mark items Delivered with delivery remarks.</p>
+      <p class="text-xs text-gray-500" data-i18n="delivery.hint">Customer unique IDs queue as Pending (oldest first, newest last). Remarks come from customer transaction notes, not invoice numbers.</p>
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <div class="bg-white p-4 md:p-5 rounded-xl shadow border border-amber-200 flex flex-col min-h-[420px]">
           <h3 class="text-md font-bold text-amber-800 mb-3 uppercase tracking-wider flex items-center gap-2">
