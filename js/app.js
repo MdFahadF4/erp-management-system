@@ -3867,11 +3867,13 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         // --- CUSTOMER SALES LOGIC ---
         const sellCols = ["soldamount", "soldamt", "totalsell", "sellamount", "grosssell", "sell"];
         const recvCols = ["receivedamount", "receivedamt", "received", "cashreceived", "cashamt", "cashamount", "paidamount", "amountpaid"];
-        let tSold=0, tPaid=0, tDisc=0;
+        let tSold=0, tPaid=0;
+        const custTxnDisc = {};
         
         if (rCustT.success) rCustT.records.forEach(r => {
             let s = gF(r, sellCols); let p = gF(r, recvCols);
             let check = cln(gV(r, ["remarks", "category", "method", "type", "paymentmethod"])); 
+            let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
             
             if (check.includes("previousdue") || check.includes("openingbalance")) { 
                 let prevAmt = Math.max(s, p);
@@ -3879,7 +3881,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 addD('sales', gV(r, ["date", "timestamp"]), prevAmt, 0, "📌 Previous Due", gV(r, ["username", "loggedby"]));
             } else {
                 let disc = gF(r, ["discount", "discountallowed", "txndiscount", "discountamount"]);
-                tSold += s; tPaid += p; tDisc += disc;
+                tSold += s; tPaid += p;
+                if (uid) custTxnDisc[uid] = (custTxnDisc[uid] || 0) + disc;
                 addD('sales', gV(r, ["date", "timestamp"]), s, p, gV(r, ["remarks"])||"Sale Txn", gV(r, ["username", "loggedby"]), disc);
             }
         });
@@ -3887,9 +3890,10 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             let sheetS = gF(r, sellCols);
             let sheetP = gF(r, ["cashamt", "cashamount", "cash", "totalpayments"]) + gF(r, ["cardamt", "cardamount", "card"]);
             let sheetDisc = gF(r, ["discount", "discountallowed"]);
+            let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
             let initS = sheetS - tSold; initS = initS > 0 ? initS : 0; 
             let initP = sheetP - tPaid; initP = initP > 0 ? initP : 0;
-            let initDisc = sheetDisc - tDisc; initDisc = initDisc > 0 ? initDisc : 0;
+            let initDisc = Math.max(0, sheetDisc - (custTxnDisc[uid] || 0));
             if (initS > 0 || initP > 0 || initDisc > 0) addD('sales', gV(r, ["date", "timestamp", "creationstamp"]), initS, initP, "Base Master Record", gV(r, ["username", "loggedby", "createdby"]), initDisc);
         });
 
@@ -4192,11 +4196,6 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         filterByDate(rCust.records, ["Creation Stamp", "Timestamp", "Date", "Created By"]).forEach(r => {
           revSales += parseFloat(getCol(r, ["Total Sell", "Sell Amount"])) || 0;
           revSalesDisc += parseFloat(getCol(r, ["Discount", "Discount Allowed"])) || 0;
-        });
-        filterByDate(rCustT.records, ["Date"]).forEach(r => {
-          const check = String(getCol(r, ["Remarks", "Category", "Method", "Type", "Payment Method"]) || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-          if (check.includes('previousdue') || check.includes('openingbalance')) return;
-          revSalesDisc += parseFloat(getCol(r, ["Discount", "Discount Allowed", "Txn Discount", "Discount Amount"])) || 0;
         });
         filterByDate(rIncT.records, ["Date"]).forEach(r => {
           const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
@@ -5138,9 +5137,6 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 tSold += sell;
                 tDisc += disc;
                 if(method.includes("cash")) tCash += recv; else tCard += recv;
-                if (!check.includes("previousdue") && !check.includes("openingbalance")) {
-                  lifeDiscount += disc;
-                }
 
                 let dStr = gV(t, ["date", "timestamp"]);
                 let d = dStr ? new Date(dStr) : new Date();
@@ -5214,6 +5210,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         
         rngPaid = rngCash + rngCard;
         let lifeDue = lifeSold - lifePaid - lifeDiscount;
+        lifeDiscount = Math.max(0, lifeSold - lifePaid - lifeDue);
 
         // 6. Dynamic UI Rendering
         cardsEl.innerHTML = `
@@ -6717,7 +6714,7 @@ async function loadDashboardData() {
        let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
        let sell = gF(r, sellCols); let cash = gF(r, ["cashamt", "cashamount", "cash"]); let card = gF(r, ["cardamt", "cardamount", "card"]); let discount = gF(r, ["discount", "discountallowed"]);
        let recv = cash + card; let due = sell - recv - discount;
-       saleSold += sell; saleCash += cash; saleCard += card; saleRecv += recv; saleDue += due; saleDiscount += discount;
+       saleSold += sell; saleCash += cash; saleCard += card; saleRecv += recv; saleDue += due;
        let initCash = cash - (txnTotals[uid] ? txnTotals[uid].cash : 0);
        let creator = gV(r, ["username", "loggedby", "createdby"]);
        if (creator) addCash(creator, initCash);
@@ -6728,12 +6725,13 @@ async function loadDashboardData() {
        if (check.includes("previousdue") || check.includes("openingbalance")) {
            saleSold += amt; saleDue += amt;
        } else {
-           saleDiscount += gF(t, ["discount", "discountallowed", "txndiscount", "discountamount"]);
            let method = cln(gV(t, methCols)); if (method === "") method = "cash";
            let logger = gV(t, ["username", "loggedby"]);
            if (method.includes("cash") && logger) addCash(logger, amt);
        }
     });
+    // Derive total discount from master-backed totals (avoids double-counting master + txn discount)
+    saleDiscount = Math.max(0, saleSold - saleRecv - saleDue);
 
     // INCOME LOGIC
     if(rIncT.success) rIncT.records.forEach(r => {
