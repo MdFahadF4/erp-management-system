@@ -26,15 +26,18 @@
  * Category = Purchase | Payment Paid | Previous Due
  *
  * CREDITOR_TRANSACTIONS — add Discount + Transaction Due columns (legacy rows still supported):
- *   ID | Date | Creditor Parent Head | Sub Head | Received Amount | Discount | Return Amount | Transaction Due | Remarks | Logged By | Stamp
+ *   ID | Date | Creditor Parent Head | Sub Head | Received Amount | Discount | Return Amount | Transaction Due | Category | Remarks | Logged By | Stamp
+ * Category = Received | Return | Previous Due
  *
  * INCOME_TRANSACTIONS — add Discount + Transaction Due columns:
- *   ID | Date | Income Parent Head | Sub Head | Receivable Amount | Discount | Received Amount | Transaction Due | Remarks | Logged By | Stamp
+ *   ID | Date | Income Parent Head | Sub Head | Receivable Amount | Discount | Received Amount | Transaction Due | Category | Remarks | Logged By | Stamp
+ * Category = Receivable | Received | Previous Due
  *
  * CAPITAL_HEADS — create sheet with row 1 headers:
  *   ID | Tracking ID | Capital Parent Head | Sub Head Name | Authorized By | Creation Stamp
  * CAPITAL_TRANSACTIONS — add Discount + Transaction Due columns:
- *   ID | Date | Capital Parent Head | Sub Head | Capital In Amount | Discount | Capital Out Amount | Transaction Due | Remarks | Logged By | Stamp
+ *   ID | Date | Capital Parent Head | Sub Head | Capital In Amount | Discount | Capital Out Amount | Transaction Due | Category | Remarks | Logged By | Stamp
+ * Category = Capital In | Capital Out | Previous Due
  */
 const SPREADSHEET_ID = '1psluXui-l3VtYL-P-Z7bRtWop4KA9JO5UahnAgmaHwM';
 

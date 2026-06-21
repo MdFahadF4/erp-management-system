@@ -38,7 +38,8 @@ const CREDITOR_TXN_FIELDS = {
   discount: ["Discount", "Discount Allowed"],
   pay: ["Return Amount", "Return Amt"],
   due: ["Transaction Due", "Txn Due"],
-  remarks: ["Remarks", "Remarks / Reference", "Description"]
+  remarks: ["Remarks", "Remarks / Reference", "Description"],
+  categories: { bill: "Received", pay: "Return", prev: "Previous Due" }
 };
 const INCOME_TXN_FIELDS = {
   main: ["Income Parent Head", "Parent Head", "Main Head"],
@@ -47,7 +48,8 @@ const INCOME_TXN_FIELDS = {
   discount: ["Discount", "Discount Allowed"],
   pay: ["Received Amount", "Received Amt"],
   due: ["Transaction Due", "Txn Due"],
-  remarks: ["Remarks", "Remarks / Reference", "Description"]
+  remarks: ["Remarks", "Remarks / Reference", "Description"],
+  categories: { bill: "Receivable", pay: "Received", prev: "Previous Due" }
 };
 const CAPITAL_TXN_FIELDS = {
   main: ["Capital Parent Head", "Parent Head", "Main Head"],
@@ -56,7 +58,8 @@ const CAPITAL_TXN_FIELDS = {
   discount: ["Discount", "Discount Allowed"],
   pay: ["Capital Out Amount", "Capital Out Amt", "Capital Out"],
   due: ["Transaction Due", "Txn Due", "Transaction Net"],
-  remarks: ["Remarks", "Remarks / Reference", "Description"]
+  remarks: ["Remarks", "Remarks / Reference", "Description"],
+  categories: { bill: "Capital In", pay: "Capital Out", prev: "Previous Due" }
 };
 
 setupPasswordToggle('toggle-password', 'login-password');
@@ -840,6 +843,8 @@ function parseSupplierTxnAmounts(rec) {
 if (typeof window !== 'undefined') {
   window.parseSupplierTxnAmounts = parseSupplierTxnAmounts;
   window.getSupplierTxnCategory = getSupplierTxnCategory;
+  window.getDualTxnCategory = getDualTxnCategory;
+  window.parseTxnDualAmounts = parseTxnDualAmounts;
 }
 
 function getSupplierDueFromTxns(supplierName, txns) {
@@ -864,14 +869,104 @@ function getSupplierDueBalance(supplierRec, txns) {
   return Math.max(fromTxns, fromSheet);
 }
 
-function parseTxnDualAmounts(rec, fieldMap) {
+function getDualTxnCategory(rec, fieldMap) {
+  const cats = fieldMap.categories || {};
+  const cat = String(getCol(rec, ["Category"]) || "").trim();
+  if (cat) return cat;
+  const rem = String(getCol(rec, fieldMap.remarks)).toLowerCase();
+  const sub = String(getCol(rec, fieldMap.sub)).toUpperCase();
+  const main = String(getCol(rec, fieldMap.main)).toUpperCase();
+  if (rem.includes("previous due") || rem.includes("opening balance") || sub.includes("PREVIOUS DUE") || main.includes("PREVIOUS DUE")) {
+    return cats.prev || "Previous Due";
+  }
+  const pay = parseFloat(getCol(rec, fieldMap.pay)) || 0;
   const bill = parseFloat(getCol(rec, fieldMap.bill)) || 0;
   const discount = parseFloat(getCol(rec, fieldMap.discount)) || 0;
-  const pay = parseFloat(getCol(rec, fieldMap.pay)) || 0;
+  if (pay > 0 && bill === 0 && discount === 0) return cats.pay || "Payment";
+  return cats.bill || "Bill";
+}
+
+function isDualTxnPrevDue(rec, fieldMap) {
+  const cat = getDualTxnCategory(rec, fieldMap).toLowerCase();
+  return cat.includes("previous due") || cat.includes("opening balance");
+}
+
+function normalizeDualTxnAmountsByCategory(category, bill, discount, pay, fieldMap) {
+  const catKey = String(category || "").trim().toLowerCase();
+  const cats = fieldMap.categories || {};
+  const payKey = String(cats.pay || "").toLowerCase();
+  if (catKey.includes("previous due") || catKey.includes("opening balance")) {
+    const amt = bill || pay;
+    return { bill: amt, discount: 0, pay: 0, txnDue: amt };
+  }
+  if (payKey && catKey === payKey) {
+    const amt = pay || bill;
+    return { bill: 0, discount: 0, pay: amt, txnDue: -amt };
+  }
+  return { bill, discount, pay, txnDue: bill - discount - pay };
+}
+
+function initDualTxnCategoryHandlers(cfg) {
+  const { catSelect, billInput, discountInput, payInput, remarksInput, subSelect, fieldMap, dueCtrl, refreshSubDropdown } = cfg;
+  if (catSelect && !Array.from(catSelect.options).some((o) => o.value === "Previous Due")) {
+    catSelect.insertAdjacentHTML("beforeend", `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">${t("dropdown.previousDuePin")}</option>`);
+  }
+  const applyCategoryMode = async () => {
+    const category = catSelect?.value || fieldMap.categories?.bill || "";
+    const isPrev = category === "Previous Due";
+    const isPay = category === fieldMap.categories?.pay;
+    if (refreshSubDropdown) await refreshSubDropdown(isPay ? "with-due" : "all");
+    if (subSelect) subSelect.value = "";
+    dueCtrl?.resetDueInfo();
+    if (billInput) billInput.readOnly = !!isPay;
+    if (discountInput) discountInput.readOnly = isPrev || !!isPay;
+    if (payInput) payInput.readOnly = isPrev;
+    if (isPrev) {
+      if (discountInput) discountInput.value = "0";
+      if (payInput) payInput.value = "0";
+    } else if (isPay) {
+      if (billInput) billInput.value = "0";
+      if (discountInput) discountInput.value = "0";
+    }
+    dueCtrl?.runCalculations();
+  };
+  catSelect?.addEventListener("change", applyCategoryMode);
+  return {
+    applyCategoryMode,
+    prepareSubmit() {
+      const category = catSelect?.value || fieldMap.categories?.bill || "";
+      let remarksText = remarksInput?.value.trim() || "";
+      const bill = parseFloat(billInput?.value) || 0;
+      const discount = parseFloat(discountInput?.value) || 0;
+      const pay = parseFloat(payInput?.value) || 0;
+      const amounts = normalizeDualTxnAmountsByCategory(category, bill, discount, pay, fieldMap);
+      if (category === "Previous Due" && !remarksText.toLowerCase().includes("previous due")) {
+        remarksText = remarksText ? `Previous Due - ${remarksText}` : "Previous Due";
+      }
+      return { category, remarksText, ...amounts };
+    },
+    resetInputs() {
+      if (billInput) billInput.readOnly = false;
+      if (discountInput) discountInput.readOnly = false;
+      if (payInput) payInput.readOnly = false;
+      if (catSelect) catSelect.value = fieldMap.categories?.bill || "";
+    }
+  };
+}
+
+function parseTxnDualAmounts(rec, fieldMap) {
+  const category = getDualTxnCategory(rec, fieldMap);
+  let bill = parseFloat(getCol(rec, fieldMap.bill)) || 0;
+  let discount = parseFloat(getCol(rec, fieldMap.discount)) || 0;
+  let pay = parseFloat(getCol(rec, fieldMap.pay)) || 0;
   const storedDue = parseFloat(getCol(rec, fieldMap.due));
-  let txnDue = bill - discount - pay;
+  const normalized = normalizeDualTxnAmountsByCategory(category, bill, discount, pay, fieldMap);
+  bill = normalized.bill;
+  discount = normalized.discount;
+  pay = normalized.pay;
+  let txnDue = normalized.txnDue;
   if (Math.abs(txnDue) < 0.009 && !isNaN(storedDue)) txnDue = storedDue;
-  return { bill, discount, pay, txnDue };
+  return { bill, discount, pay, txnDue, category };
 }
 
 function computeHeadPairDueBalance(main, sub, txns, fieldMap) {
@@ -881,11 +976,10 @@ function computeHeadPairDueBalance(main, sub, txns, fieldMap) {
   (txns || []).forEach((t) => {
     const tM = String(getCol(t, fieldMap.main)).trim().toUpperCase();
     const tS = String(getCol(t, fieldMap.sub)).trim().toUpperCase();
-    const rem = String(getCol(t, fieldMap.remarks)).trim().toUpperCase();
     const amounts = parseTxnDualAmounts(t, fieldMap);
-    const isPrev = tS.includes("PREVIOUS DUE") || rem.includes("PREVIOUS DUE") || rem.includes("OPENING BALANCE");
+    const isPrev = isDualTxnPrevDue(t, fieldMap);
     if (tM !== m) return;
-    if (isPrev && (tS === s || s.includes("PREVIOUS DUE") || tS.includes("PREVIOUS DUE"))) {
+    if (isPrev && tS === s) {
       prevDue += Math.max(amounts.bill, amounts.pay);
     } else if (!isPrev && tS === s) {
       bill += amounts.bill; discount += amounts.discount; pay += amounts.pay;
@@ -2255,7 +2349,38 @@ async function loadCreditorTableRecords() {
   } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('heads.loadFailed')}</td></tr>`; }
 }
 
-async function populateCreditorDropdowns() {
+function renderHeadSubSelect(subSelect, parent, heads, mainCol, subCol, txns, fieldMap, mode = "all") {
+  if (!subSelect) return;
+  if (!parent) {
+    subSelect.innerHTML = `<option value="">${t("dropdown.chooseParentFirst")}</option>`;
+    return;
+  }
+  let subs = heads.filter((r) => getCol(r, mainCol) === parent).map((s) => {
+    const sName = getCol(s, subCol);
+    const due = computeHeadPairDueBalance(parent, sName, txns, fieldMap);
+    return { sName, due };
+  });
+  if (mode === "with-due") subs = subs.filter((s) => s.due > 0.009);
+  if (subs.length === 0) {
+    subSelect.innerHTML = `<option value="">${mode === "with-due" ? (t("dropdown.noSubHeadWithDue") || "No sub heads with due balance") : t("dropdown.chooseSubHead")}</option>`;
+    return;
+  }
+  subSelect.innerHTML = `<option value="">${t("dropdown.chooseSubHead")}</option>` + subs.map((s) =>
+    `<option value="${s.sName}">${s.sName} — ${t("col.dueBalance")}: ${s.due.toFixed(2)}</option>`
+  ).join("");
+}
+
+function renderDualTxnTypeCell(category, fieldMap) {
+  const cat = String(category || "");
+  const catKey = cat.toLowerCase();
+  const isPrev = catKey.includes("previous due");
+  const isPay = catKey === String(fieldMap.categories?.pay || "").toLowerCase();
+  const typeLabel = isPrev ? t("dropdown.previousDuePin") : (isPay ? t("category.paymentDecreases") : (cat || fieldMap.categories?.bill || "-"));
+  const typeColor = isPrev ? "text-slate-700 bg-slate-200" : (isPay ? "text-emerald-600 bg-emerald-50" : "text-blue-600 bg-blue-50");
+  return `<td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${typeColor}">${typeLabel}</span></td>`;
+}
+
+async function populateCreditorDropdowns(mode = "all") {
   const mainSelect = document.getElementById('cred-txn-main'); if (!mainSelect) return;
   const subSelect = document.getElementById('cred-txn-sub');
   mainSelect.innerHTML = `<option value="">${t('dropdown.loadingStructures')}</option>`;
@@ -2273,20 +2398,16 @@ async function populateCreditorDropdowns() {
         const main = mainSelect.value;
         const sub = subSelect?.value || '';
         if (!main || !sub) return;
-        const due = computeHeadPairDueBalance(main, sub, cachedCreditorTxns, CREDITOR_TXN_FIELDS);
-        if (typeof window._credDueCtrl?.showCurrentDue === 'function') window._credDueCtrl.showCurrentDue(due);
+        if (typeof window._credDueCtrl?.showCurrentDue === 'function') {
+          window._credDueCtrl.showCurrentDue(computeHeadPairDueBalance(main, sub, cachedCreditorTxns, CREDITOR_TXN_FIELDS));
+        }
       };
       mainSelect.onchange = () => {
-         const selectedParent = mainSelect.value;
-         if(!selectedParent) { subSelect.innerHTML = `<option value="">${t('dropdown.chooseParentFirst')}</option>`; return; }
-         const filteredSubs = cachedCreditors.filter(r => getCol(r, ["Creditor Parent Head", "Parent Head", "Main Head"]) === selectedParent);
-         subSelect.innerHTML = `<option value="">${t('dropdown.chooseSubHead')}</option>` + filteredSubs.map(s => {
-            let sName = getCol(s, ["Sub Head Name", "Sub Head"]);
-            const due = computeHeadPairDueBalance(selectedParent, sName, cachedCreditorTxns, CREDITOR_TXN_FIELDS);
-            return `<option value="${sName}">${sName} — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
-         }).join('') + `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">${t('dropdown.previousDuePin')}</option>`;
-         subSelect.onchange = refreshSubDue;
+        renderHeadSubSelect(subSelect, mainSelect.value, cachedCreditors, ["Creditor Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedCreditorTxns, CREDITOR_TXN_FIELDS, mode);
+        if (typeof window._credDueCtrl?.resetDueInfo === 'function') window._credDueCtrl.resetDueInfo();
+        subSelect.onchange = refreshSubDue;
       };
+      if (mainSelect.value) renderHeadSubSelect(subSelect, mainSelect.value, cachedCreditors, ["Creditor Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedCreditorTxns, CREDITOR_TXN_FIELDS, mode);
     } else { mainSelect.innerHTML = `<option value="">${t('dropdown.setupCreditorFirst')}</option>`; }
   } catch (err) { mainSelect.innerHTML = `<option value="">Error compiling data</option>`; }
 }
@@ -2296,18 +2417,29 @@ function initCreditorTxnFormListeners() {
   if (form.dataset.bound === 'true') return;
   form.dataset.bound = 'true';
 
+  const dateInput = document.getElementById('cred-txn-date'); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
   const mainSelect = document.getElementById('cred-txn-main');
   const subSelect = document.getElementById('cred-txn-sub');
+  const catSelect = document.getElementById('cred-txn-category');
+  const billInput = document.getElementById('cred-txn-received');
+  const discountInput = document.getElementById('cred-txn-discount');
+  const payInput = document.getElementById('cred-txn-return');
+  const remarksInput = document.getElementById('cred-txn-remarks');
   const dueCtrl = createDualTxnDueController({
-    billInput: document.getElementById('cred-txn-received'),
-    discountInput: document.getElementById('cred-txn-discount'),
-    payInput: document.getElementById('cred-txn-return'),
+    billInput,
+    discountInput,
+    payInput,
     dueInput: document.getElementById('cred-txn-due'),
     dueInfoBox: document.getElementById('cred-txn-due-info'),
     currentDueEl: document.getElementById('cred-txn-current-due'),
     remainingDueEl: document.getElementById('cred-txn-remaining-due')
   });
   window._credDueCtrl = dueCtrl;
+
+  const categoryHandlers = initDualTxnCategoryHandlers({
+    catSelect, billInput, discountInput, payInput, remarksInput, subSelect, fieldMap: CREDITOR_TXN_FIELDS, dueCtrl,
+    refreshSubDropdown: (mode) => renderHeadSubSelect(subSelect, mainSelect?.value, cachedCreditors, ["Creditor Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedCreditorTxns, CREDITOR_TXN_FIELDS, mode)
+  });
 
   const refreshDueInfo = () => {
     const main = mainSelect?.value || '';
@@ -2322,43 +2454,33 @@ function initCreditorTxnFormListeners() {
     e.preventDefault();
     if (!guardModuleEdit('creditor_transactions')) return;
     const currentUser = fetchSessionUser(); dueCtrl.runCalculations();
-    
-    let remarksText = document.getElementById('cred-txn-remarks').value.trim();
-    let subValue = subSelect.value;
-    const received = parseFloat(document.getElementById('cred-txn-received').value) || 0;
-    const discount = parseFloat(document.getElementById('cred-txn-discount').value) || 0;
-    const returned = parseFloat(document.getElementById('cred-txn-return').value) || 0;
-    const txnDue = received - discount - returned;
-    
-    if (subValue === 'Previous Due' && !remarksText.toLowerCase().includes('previous due')) {
-        remarksText = remarksText ? "Previous Due - " + remarksText : "Previous Due";
-    }
-    
-    const rowPayload = [ 
-      document.getElementById('cred-txn-date').value, 
-      mainSelect.value, 
-      subValue, 
-      received,
+    const { category, remarksText, bill, discount, pay, txnDue } = categoryHandlers.prepareSubmit();
+    const rowPayload = [
+      document.getElementById('cred-txn-date').value,
+      mainSelect.value,
+      subSelect.value,
+      bill,
       discount,
-      returned,
+      pay,
       txnDue,
-      remarksText, 
-      currentUser.username, 
-      new Date().toLocaleString() 
+      category,
+      remarksText,
+      currentUser.username,
+      new Date().toLocaleString()
     ];
-    
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Creditor_Transactions", rowData: rowPayload } }); alert(result.message);
-      if (result.success) { 
-        form.reset(); 
-        document.getElementById('cred-txn-date').value = new Date().toISOString().split('T')[0]; 
-        document.getElementById('cred-txn-discount').value = '0';
+      if (result.success) {
+        form.reset();
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        if (discountInput) discountInput.value = '0';
+        categoryHandlers.resetInputs();
         dueCtrl.resetDueInfo();
         dueCtrl.runCalculations();
         await populateCreditorDropdowns();
         await loadCreditorTxnTableRecords(true);
         await loadCreditorTableRecords();
-        await updateLiveUserCashDrawerBalance(); 
+        await updateLiveUserCashDrawerBalance();
       }
     } catch (err) { alert(t('alert.errorLog')); }
   };
@@ -2374,13 +2496,13 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-cred');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    container.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (recSumBox) recSumBox.textContent = "0.00"; if (retSumBox) retSumBox.textContent = "0.00";
     return;
   }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-orange-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-orange-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } });
     if (result.success) {
@@ -2391,7 +2513,7 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
       let totalRecAcc = 0; let totalRetAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
         if (recSumBox) recSumBox.textContent = "0.00"; if (retSumBox) retSumBox.textContent = "0.00"; 
         return; 
       }
@@ -2409,6 +2531,7 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
           <td class="font-mono text-purple-600">${amounts.discount.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">${amounts.pay.toFixed(2)}</td>
           <td class="font-mono font-bold text-red-600">${amounts.txnDue.toFixed(2)}</td>
+          ${renderDualTxnTypeCell(amounts.category, CREDITOR_TXN_FIELDS)}
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
           <td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Timestamp"]) || ''}</td>
@@ -2419,7 +2542,7 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
       if (recSumBox) recSumBox.textContent = totalRecAcc.toFixed(2);
       if (retSumBox) retSumBox.textContent = totalRetAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="12" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 /**
@@ -2505,7 +2628,7 @@ async function loadIncomeHeadTableRecords() {
   } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('heads.loadFailed')}</td></tr>`; }
 }
 
-async function populateIncomeHeadDropdowns() {
+async function populateIncomeHeadDropdowns(mode = "all") {
   const mainSelect = document.getElementById('inc-txn-main'); if (!mainSelect) return;
   const subSelect = document.getElementById('inc-txn-sub');
   mainSelect.innerHTML = `<option value="">${t('dropdown.loadingStructures')}</option>`;
@@ -2518,7 +2641,7 @@ async function populateIncomeHeadDropdowns() {
     if (headRes.success && headRes.records.length > 0) {
       cachedIncomeHeads = headRes.records;
       const uniqueParents = [...new Set(cachedIncomeHeads.map(r => getCol(r, ["Income Parent Head", "Parent Head", "Main Head"])))];
-      mainSelect.innerHTML = `<option value="">-- Choose Income Category --</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('') + `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">${t('dropdown.previousDuePin')}</option>`;
+      mainSelect.innerHTML = `<option value="">-- Choose Income Category --</option>` + uniqueParents.map(h => `<option value="${h}">${h}</option>`).join('');
       const refreshSubDue = () => {
         const main = mainSelect.value;
         const sub = subSelect?.value || '';
@@ -2528,16 +2651,11 @@ async function populateIncomeHeadDropdowns() {
         }
       };
       mainSelect.onchange = () => {
-         const selectedParent = mainSelect.value;
-         if(!selectedParent) { subSelect.innerHTML = `<option value="">${t('dropdown.chooseParentFirst')}</option>`; return; }
-         const filteredSubs = cachedIncomeHeads.filter(r => getCol(r, ["Income Parent Head", "Parent Head", "Main Head"]) === selectedParent);
-         subSelect.innerHTML = `<option value="">${t('dropdown.chooseSubHead')}</option>` + filteredSubs.map(s => {
-            let sName = getCol(s, ["Sub Head Name", "Sub Head"]);
-            const due = computeHeadPairDueBalance(selectedParent, sName, cachedIncomeTxns, INCOME_TXN_FIELDS);
-            return `<option value="${sName}">${sName} — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
-         }).join('');
-         subSelect.onchange = refreshSubDue;
+        renderHeadSubSelect(subSelect, mainSelect.value, cachedIncomeHeads, ["Income Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedIncomeTxns, INCOME_TXN_FIELDS, mode);
+        if (typeof window._incDueCtrl?.resetDueInfo === 'function') window._incDueCtrl.resetDueInfo();
+        subSelect.onchange = refreshSubDue;
       };
+      if (mainSelect.value) renderHeadSubSelect(subSelect, mainSelect.value, cachedIncomeHeads, ["Income Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedIncomeTxns, INCOME_TXN_FIELDS, mode);
     } else { mainSelect.innerHTML = `<option value="">${t('dropdown.setupIncomeFirst')}</option>`; }
   } catch (err) { mainSelect.innerHTML = `<option value="">Error compiling data</option>`; }
 }
@@ -2547,18 +2665,29 @@ function initIncomeTxnFormListeners() {
   if (form.dataset.bound === 'true') return;
   form.dataset.bound = 'true';
 
+  const dateInput = document.getElementById('inc-txn-date'); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
   const mainSelect = document.getElementById('inc-txn-main');
   const subSelect = document.getElementById('inc-txn-sub');
+  const catSelect = document.getElementById('inc-txn-category');
+  const billInput = document.getElementById('inc-txn-receivable');
+  const discountInput = document.getElementById('inc-txn-discount');
+  const payInput = document.getElementById('inc-txn-received');
+  const remarksInput = document.getElementById('inc-txn-remarks');
   const dueCtrl = createDualTxnDueController({
-    billInput: document.getElementById('inc-txn-receivable'),
-    discountInput: document.getElementById('inc-txn-discount'),
-    payInput: document.getElementById('inc-txn-received'),
+    billInput,
+    discountInput,
+    payInput,
     dueInput: document.getElementById('inc-txn-due'),
     dueInfoBox: document.getElementById('inc-txn-due-info'),
     currentDueEl: document.getElementById('inc-txn-current-due'),
     remainingDueEl: document.getElementById('inc-txn-remaining-due')
   });
   window._incDueCtrl = dueCtrl;
+
+  const categoryHandlers = initDualTxnCategoryHandlers({
+    catSelect, billInput, discountInput, payInput, remarksInput, subSelect, fieldMap: INCOME_TXN_FIELDS, dueCtrl,
+    refreshSubDropdown: (mode) => renderHeadSubSelect(subSelect, mainSelect?.value, cachedIncomeHeads, ["Income Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedIncomeTxns, INCOME_TXN_FIELDS, mode)
+  });
 
   const refreshDueInfo = () => {
     const main = mainSelect?.value || '';
@@ -2573,43 +2702,33 @@ function initIncomeTxnFormListeners() {
     e.preventDefault();
     if (!guardModuleEdit('income_transactions')) return;
     const currentUser = fetchSessionUser(); dueCtrl.runCalculations();
-    
-    let remarksText = document.getElementById('inc-txn-remarks').value.trim();
-    let mainValue = mainSelect.value;
-    const receivable = parseFloat(document.getElementById('inc-txn-receivable').value) || 0;
-    const discount = parseFloat(document.getElementById('inc-txn-discount').value) || 0;
-    const received = parseFloat(document.getElementById('inc-txn-received').value) || 0;
-    const txnDue = receivable - discount - received;
-    
-    if (mainValue === 'Previous Due' && !remarksText.toLowerCase().includes('previous due')) {
-        remarksText = remarksText ? "Previous Due - " + remarksText : "Previous Due";
-    }
-    
-    const rowPayload = [ 
-      document.getElementById('inc-txn-date').value, 
-      mainValue, 
-      subSelect.value, 
-      receivable,
+    const { category, remarksText, bill, discount, pay, txnDue } = categoryHandlers.prepareSubmit();
+    const rowPayload = [
+      document.getElementById('inc-txn-date').value,
+      mainSelect.value,
+      subSelect.value,
+      bill,
       discount,
-      received,
+      pay,
       txnDue,
-      remarksText, 
-      currentUser.username, 
-      new Date().toLocaleString() 
+      category,
+      remarksText,
+      currentUser.username,
+      new Date().toLocaleString()
     ];
-    
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Income_Transactions", rowData: rowPayload } }); alert(result.message);
-      if (result.success) { 
-        form.reset(); 
-        document.getElementById('inc-txn-date').value = new Date().toISOString().split('T')[0]; 
-        document.getElementById('inc-txn-discount').value = '0';
+      if (result.success) {
+        form.reset();
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        if (discountInput) discountInput.value = '0';
+        categoryHandlers.resetInputs();
         dueCtrl.resetDueInfo();
         dueCtrl.runCalculations();
         await populateIncomeHeadDropdowns();
         await loadIncomeTxnTableRecords(true);
         await loadIncomeHeadTableRecords();
-        await updateLiveUserCashDrawerBalance(); 
+        await updateLiveUserCashDrawerBalance();
       }
     } catch (err) { alert(t('alert.errorLog')); }
   };
@@ -2625,13 +2744,13 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-inc');
 
   if (!isFilter) { 
-    container.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    container.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (recSumBox) recSumBox.textContent = "0.00"; if (dueSumBox) dueSumBox.textContent = "0.00";
     return;
   }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Income_Transactions" } });
     if (result.success) {
@@ -2642,7 +2761,7 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
       let totalRecAcc = 0; let totalDueAcc = 0;
       
       if (filtered.length === 0) { 
-        container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
+        container.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`; 
         if (recSumBox) recSumBox.textContent = "0.00"; if (dueSumBox) dueSumBox.textContent = "0.00"; 
         return; 
       }
@@ -2660,6 +2779,7 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
           <td class="font-mono text-purple-600">${amounts.discount.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">${amounts.pay.toFixed(2)}</td>
           <td class="font-mono font-bold text-red-600">${amounts.txnDue.toFixed(2)}</td>
+          ${renderDualTxnTypeCell(amounts.category, INCOME_TXN_FIELDS)}
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
           <td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Timestamp"]) || ''}</td>
@@ -2670,7 +2790,7 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
       if (recSumBox) recSumBox.textContent = totalRecAcc.toFixed(2);
       if (dueSumBox) dueSumBox.textContent = totalDueAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="12" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 /**
@@ -2757,7 +2877,7 @@ async function loadCapitalHeadTableRecords() {
   } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('heads.loadFailed')}</td></tr>`; }
 }
 
-async function populateCapitalHeadDropdowns() {
+async function populateCapitalHeadDropdowns(mode = "all") {
   const mainSelect = document.getElementById('cap-txn-main'); if (!mainSelect) return;
   const subSelect = document.getElementById('cap-txn-sub');
   mainSelect.innerHTML = `<option value="">${t('dropdown.loadingStructures')}</option>`;
@@ -2780,16 +2900,11 @@ async function populateCapitalHeadDropdowns() {
         }
       };
       mainSelect.onchange = () => {
-         const selectedParent = mainSelect.value;
-         if(!selectedParent) { subSelect.innerHTML = `<option value="">${t('dropdown.chooseParentFirst')}</option>`; return; }
-         const filteredSubs = cachedCapitalHeads.filter(r => getCol(r, ["Capital Parent Head", "Parent Head", "Main Head"]) === selectedParent);
-         subSelect.innerHTML = `<option value="">${t('dropdown.chooseSubHead')}</option>` + filteredSubs.map(s => {
-            let sName = getCol(s, ["Sub Head Name", "Sub Head"]);
-            const due = computeHeadPairDueBalance(selectedParent, sName, cachedCapitalTxns, CAPITAL_TXN_FIELDS);
-            return `<option value="${sName}">${sName} — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
-         }).join('') + `<option value="Previous Due" class="font-bold text-slate-700 bg-slate-100">${t('dropdown.previousDuePin')}</option>`;
-         subSelect.onchange = refreshSubDue;
+        renderHeadSubSelect(subSelect, mainSelect.value, cachedCapitalHeads, ["Capital Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedCapitalTxns, CAPITAL_TXN_FIELDS, mode);
+        if (typeof window._capDueCtrl?.resetDueInfo === 'function') window._capDueCtrl.resetDueInfo();
+        subSelect.onchange = refreshSubDue;
       };
+      if (mainSelect.value) renderHeadSubSelect(subSelect, mainSelect.value, cachedCapitalHeads, ["Capital Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedCapitalTxns, CAPITAL_TXN_FIELDS, mode);
     } else { mainSelect.innerHTML = `<option value="">${t('dropdown.setupCapitalFirst')}</option>`; }
   } catch (err) { mainSelect.innerHTML = `<option value="">Error compiling data</option>`; }
 }
@@ -2799,18 +2914,29 @@ function initCapitalTxnFormListeners() {
   if (form.dataset.bound === 'true') return;
   form.dataset.bound = 'true';
 
+  const dateInput = document.getElementById('cap-txn-date'); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
   const mainSelect = document.getElementById('cap-txn-main');
   const subSelect = document.getElementById('cap-txn-sub');
+  const catSelect = document.getElementById('cap-txn-category');
+  const billInput = document.getElementById('cap-txn-in');
+  const discountInput = document.getElementById('cap-txn-discount');
+  const payInput = document.getElementById('cap-txn-out');
+  const remarksInput = document.getElementById('cap-txn-remarks');
   const dueCtrl = createDualTxnDueController({
-    billInput: document.getElementById('cap-txn-in'),
-    discountInput: document.getElementById('cap-txn-discount'),
-    payInput: document.getElementById('cap-txn-out'),
+    billInput,
+    discountInput,
+    payInput,
     dueInput: document.getElementById('cap-txn-due'),
     dueInfoBox: document.getElementById('cap-txn-due-info'),
     currentDueEl: document.getElementById('cap-txn-current-due'),
     remainingDueEl: document.getElementById('cap-txn-remaining-due')
   });
   window._capDueCtrl = dueCtrl;
+
+  const categoryHandlers = initDualTxnCategoryHandlers({
+    catSelect, billInput, discountInput, payInput, remarksInput, subSelect, fieldMap: CAPITAL_TXN_FIELDS, dueCtrl,
+    refreshSubDropdown: (mode) => renderHeadSubSelect(subSelect, mainSelect?.value, cachedCapitalHeads, ["Capital Parent Head", "Parent Head", "Main Head"], ["Sub Head Name", "Sub Head"], cachedCapitalTxns, CAPITAL_TXN_FIELDS, mode)
+  });
 
   const refreshDueInfo = () => {
     const main = mainSelect?.value || '';
@@ -2825,37 +2951,27 @@ function initCapitalTxnFormListeners() {
     e.preventDefault();
     if (!guardModuleEdit('capital_transactions')) return;
     const currentUser = fetchSessionUser(); dueCtrl.runCalculations();
-
-    let remarksText = document.getElementById('cap-txn-remarks').value.trim();
-    let subValue = subSelect.value;
-    const capIn = parseFloat(document.getElementById('cap-txn-in').value) || 0;
-    const discount = parseFloat(document.getElementById('cap-txn-discount').value) || 0;
-    const capOut = parseFloat(document.getElementById('cap-txn-out').value) || 0;
-    const txnDue = capIn - discount - capOut;
-
-    if (subValue === 'Previous Due' && !remarksText.toLowerCase().includes('previous due')) {
-        remarksText = remarksText ? "Previous Due - " + remarksText : "Previous Due";
-    }
-
+    const { category, remarksText, bill, discount, pay, txnDue } = categoryHandlers.prepareSubmit();
     const rowPayload = [
       document.getElementById('cap-txn-date').value,
       mainSelect.value,
-      subValue,
-      capIn,
+      subSelect.value,
+      bill,
       discount,
-      capOut,
+      pay,
       txnDue,
+      category,
       remarksText,
       currentUser.username,
       new Date().toLocaleString()
     ];
-
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Capital_Transactions", rowData: rowPayload } }); alert(result.message);
       if (result.success) {
         form.reset();
-        document.getElementById('cap-txn-date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('cap-txn-discount').value = '0';
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        if (discountInput) discountInput.value = '0';
+        categoryHandlers.resetInputs();
         dueCtrl.resetDueInfo();
         dueCtrl.runCalculations();
         await populateCapitalHeadDropdowns();
@@ -2877,13 +2993,13 @@ async function loadCapitalTxnTableRecords(isFilter = false) {
   const tDateInput = document.getElementById('filter-to-cap');
 
   if (!isFilter) {
-    container.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
+    container.innerHTML = `<tr><td colspan="12" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`;
     if (inSumBox) inSumBox.textContent = "0.00"; if (outSumBox) outSumBox.textContent = "0.00";
     return;
   }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-violet-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-violet-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Capital_Transactions" } });
     if (result.success) {
@@ -2894,7 +3010,7 @@ async function loadCapitalTxnTableRecords(isFilter = false) {
       let totalInAcc = 0; let totalOutAcc = 0;
 
       if (filtered.length === 0) {
-        container.innerHTML = `<tr><td colspan="11" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`;
+        container.innerHTML = `<tr><td colspan="12" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noRecordsInRange')}</td></tr>`;
         if (inSumBox) inSumBox.textContent = "0.00"; if (outSumBox) outSumBox.textContent = "0.00";
         return;
       }
@@ -2912,6 +3028,7 @@ async function loadCapitalTxnTableRecords(isFilter = false) {
           <td class="font-mono text-purple-600">${amounts.discount.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">${amounts.pay.toFixed(2)}</td>
           <td class="font-mono font-bold text-violet-600">${amounts.txnDue.toFixed(2)}</td>
+          ${renderDualTxnTypeCell(amounts.category, CAPITAL_TXN_FIELDS)}
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
           <td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Timestamp"]) || ''}</td>
@@ -2922,7 +3039,7 @@ async function loadCapitalTxnTableRecords(isFilter = false) {
       if (inSumBox) inSumBox.textContent = totalInAcc.toFixed(2);
       if (outSumBox) outSumBox.textContent = totalOutAcc.toFixed(2);
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="12" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }
 }
 
 /**
@@ -3576,16 +3693,16 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         // --- INCOME LOGIC ---
         let tIncS=0, tIncP=0;
         if (rIncT.success) rIncT.records.forEach(r => {
-            let s = gF(r, ["receivableamount", "receivable"]); let p = gF(r, recvCols);
-            let check = cln(gV(r, ["remarks", "category", "parenthead", "subhead"])); 
+            const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
+            let check = cln(getDualTxnCategory(r, INCOME_TXN_FIELDS) + " " + gV(r, ["remarks", "parenthead", "subhead"])); 
             
             if (check.includes("previousdue") || check.includes("openingbalance")) { 
-                let prevAmt = Math.max(s, p);
+                let prevAmt = Math.max(amounts.bill, amounts.pay);
                 tIncS += prevAmt;
                 addD('income', gV(r, ["date", "timestamp"]), prevAmt, 0, "📌 Previous Due", gV(r, ["username", "loggedby"]));
             } else {
-                tIncS += s; tIncP += p;
-                addD('income', gV(r, ["date", "timestamp"]), s, p, gV(r, ["remarks", "details"])||"Income", gV(r, ["username", "loggedby"]));
+                tIncS += amounts.bill; tIncP += amounts.pay;
+                addD('income', gV(r, ["date", "timestamp"]), amounts.bill, amounts.pay, gV(r, ["remarks", "details"])||"Income", gV(r, ["username", "loggedby"]));
             }
         });
         if (typeof rInc !== 'undefined' && rInc && rInc.success) rInc.records.forEach(r => {
@@ -6341,7 +6458,7 @@ async function loadDashboardData() {
     // INCOME LOGIC
     if(rIncT.success) rIncT.records.forEach(r => {
        const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
-       let check = cln(gV(r, ["remarks", "category", "parenthead", "subhead"]));
+       let check = cln(getDualTxnCategory(r, INCOME_TXN_FIELDS) + " " + gV(r, ["remarks", "parenthead", "subhead"]));
        if (check.includes("previousdue") || check.includes("openingbalance")) {
            let prevAmt = Math.max(amounts.bill, amounts.pay);
            incBilled += prevAmt; incDue += prevAmt;
@@ -6413,7 +6530,7 @@ async function loadDashboardData() {
     // CREDITOR LOGIC
     if(rCrdT.success) rCrdT.records.forEach(r => {
        const amounts = parseTxnDualAmounts(r, CREDITOR_TXN_FIELDS);
-       let check = cln(gV(r, ["remarks", "category", "method", "type"]));
+       let check = cln(getDualTxnCategory(r, CREDITOR_TXN_FIELDS) + " " + gV(r, ["remarks", "method", "type"]));
        if (check.includes("previousdue") || check.includes("openingbalance")) {
            let prevAmt = Math.max(amounts.bill, amounts.pay);
            crdRecv += prevAmt; crdDue += prevAmt;
@@ -6427,7 +6544,7 @@ async function loadDashboardData() {
     // CAPITAL LOGIC
     if(rCapT.success) rCapT.records.forEach(r => {
        const amounts = parseTxnDualAmounts(r, CAPITAL_TXN_FIELDS);
-       let check = cln(gV(r, ["remarks", "category", "subhead"]));
+       let check = cln(getDualTxnCategory(r, CAPITAL_TXN_FIELDS) + " " + gV(r, ["remarks", "subhead"]));
        if (check.includes("previousdue") || check.includes("openingbalance")) {
            let prevAmt = Math.max(amounts.bill, amounts.pay);
            capIn += prevAmt; capNet += prevAmt;

@@ -70,6 +70,18 @@ function fieldHtml(key, labelKey, type, value, extra = '') {
     const opts = ['Purchase', 'Payment Paid', 'Previous Due'];
     return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none">${opts.map((o) => `<option value="${o}" ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
   }
+  if (type === 'select-cred-cat') {
+    const opts = ['Received', 'Return', 'Previous Due'];
+    return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none">${opts.map((o) => `<option value="${o}" ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+  }
+  if (type === 'select-inc-cat') {
+    const opts = ['Receivable', 'Received', 'Previous Due'];
+    return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none">${opts.map((o) => `<option value="${o}" ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+  }
+  if (type === 'select-cap-cat') {
+    const opts = ['Capital In', 'Capital Out', 'Previous Due'];
+    return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none">${opts.map((o) => `<option value="${o}" ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select></div>`;
+  }
   if (type === 'select-pay') {
     return `<div><label class="block font-bold text-gray-600 mb-1" data-i18n="${labelKey}">${t(labelKey)}</label><select data-field="${key}" class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Cash" ${v === 'Cash' ? 'selected' : ''}>Cash</option><option value="Card" ${v === 'Card' ? 'selected' : ''}>Card</option></select></div>`;
   }
@@ -130,38 +142,47 @@ const TXN_FORMS = {
     ].join('');
   },
   Creditor_Transactions(rec) {
+    const p = typeof window.parseTxnDualAmounts === 'function' ? window.parseTxnDualAmounts(rec, { bill: ['Received Amount', 'Received Amt'], discount: ['Discount', 'Discount Allowed'], pay: ['Return Amount', 'Return Amt'], due: ['Transaction Due', 'Txn Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Creditor Parent Head'], sub: ['Sub Head'], categories: { bill: 'Received', pay: 'Return', prev: 'Previous Due' } }) : { bill: getCol(rec, ['Received Amount']), discount: 0, pay: getCol(rec, ['Return Amount']), txnDue: getCol(rec, ['Transaction Due', 'Txn Due']) };
+    const category = typeof window.getDualTxnCategory === 'function' ? window.getDualTxnCategory(rec, { bill: ['Received Amount'], discount: ['Discount'], pay: ['Return Amount'], due: ['Transaction Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Creditor Parent Head'], sub: ['Sub Head'], categories: { bill: 'Received', pay: 'Return', prev: 'Previous Due' } }) : (getCol(rec, ['Category']) || 'Received');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
       fieldHtml('main', 'field.creditorParentHead', 'text', getCol(rec, ['Creditor Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
-      fieldHtml('received', 'field.receivedAmountCashIn', 'number', getCol(rec, ['Received Amount', 'Received Amt'])),
-      fieldHtml('discount', 'field.discountAllowed', 'number', getCol(rec, ['Discount', 'Discount Allowed'])),
-      fieldHtml('returned', 'field.returnAmountCashOut', 'number', getCol(rec, ['Return Amount', 'Return Amt'])),
-      fieldHtml('due', 'field.transactionDueBalance', 'number', getCol(rec, ['Transaction Due', 'Txn Due']), 'readonly'),
+      fieldHtml('category', 'field.categoryClassification', 'select-cred-cat', category),
+      fieldHtml('received', 'field.receivedAmountCashIn', 'number', p.bill),
+      fieldHtml('discount', 'field.discountAllowed', 'number', p.discount),
+      fieldHtml('returned', 'field.returnAmountCashOut', 'number', p.pay),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', p.txnDue, 'readonly'),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
   },
   Income_Transactions(rec) {
+    const p = typeof window.parseTxnDualAmounts === 'function' ? window.parseTxnDualAmounts(rec, { bill: ['Receivable Amount', 'Receivable'], discount: ['Discount', 'Discount Allowed'], pay: ['Received Amount', 'Received Amt'], due: ['Transaction Due', 'Txn Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Income Parent Head'], sub: ['Sub Head'], categories: { bill: 'Receivable', pay: 'Received', prev: 'Previous Due' } }) : { bill: getCol(rec, ['Receivable Amount']), discount: 0, pay: getCol(rec, ['Received Amount']), txnDue: getCol(rec, ['Transaction Due', 'Txn Due']) };
+    const category = typeof window.getDualTxnCategory === 'function' ? window.getDualTxnCategory(rec, { bill: ['Receivable Amount'], discount: ['Discount'], pay: ['Received Amount'], due: ['Transaction Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Income Parent Head'], sub: ['Sub Head'], categories: { bill: 'Receivable', pay: 'Received', prev: 'Previous Due' } }) : (getCol(rec, ['Category']) || 'Receivable');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
       fieldHtml('main', 'field.incomeParentHead', 'text', getCol(rec, ['Income Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
-      fieldHtml('receivable', 'field.receivableAmountBilled', 'number', getCol(rec, ['Receivable Amount', 'Receivable'])),
-      fieldHtml('discount', 'field.discountAllowed', 'number', getCol(rec, ['Discount', 'Discount Allowed'])),
-      fieldHtml('received', 'field.actuallyReceivedCashIn', 'number', getCol(rec, ['Received Amount', 'Received Amt'])),
-      fieldHtml('due', 'field.transactionDueBalance', 'number', getCol(rec, ['Transaction Due', 'Txn Due']), 'readonly'),
+      fieldHtml('category', 'field.categoryClassification', 'select-inc-cat', category),
+      fieldHtml('receivable', 'field.receivableAmountBilled', 'number', p.bill),
+      fieldHtml('discount', 'field.discountAllowed', 'number', p.discount),
+      fieldHtml('received', 'field.actuallyReceivedCashIn', 'number', p.pay),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', p.txnDue, 'readonly'),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
   },
   Capital_Transactions(rec) {
+    const p = typeof window.parseTxnDualAmounts === 'function' ? window.parseTxnDualAmounts(rec, { bill: ['Capital In Amount', 'Capital In'], discount: ['Discount', 'Discount Allowed'], pay: ['Capital Out Amount', 'Capital Out'], due: ['Transaction Due', 'Txn Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Capital Parent Head'], sub: ['Sub Head'], categories: { bill: 'Capital In', pay: 'Capital Out', prev: 'Previous Due' } }) : { bill: getCol(rec, ['Capital In Amount']), discount: 0, pay: getCol(rec, ['Capital Out Amount']), txnDue: getCol(rec, ['Transaction Due', 'Txn Due']) };
+    const category = typeof window.getDualTxnCategory === 'function' ? window.getDualTxnCategory(rec, { bill: ['Capital In Amount'], discount: ['Discount'], pay: ['Capital Out Amount'], due: ['Transaction Due'], remarks: ['Remarks', 'Remarks / Reference'], main: ['Capital Parent Head'], sub: ['Sub Head'], categories: { bill: 'Capital In', pay: 'Capital Out', prev: 'Previous Due' } }) : (getCol(rec, ['Category']) || 'Capital In');
     return [
       fieldHtml('date', 'field.transactionDate', 'date', formatDateInput(getCol(rec, ['Date']))),
       fieldHtml('main', 'field.capitalParentHead', 'text', getCol(rec, ['Capital Parent Head', 'Parent Head', 'Main Head'])),
       fieldHtml('sub', 'field.subHeadMapping', 'text', getCol(rec, ['Sub Head', 'SubCategory'])),
-      fieldHtml('capin', 'field.capitalInAmount', 'number', getCol(rec, ['Capital In Amount', 'Capital In Amt', 'Capital In'])),
-      fieldHtml('discount', 'field.discountAllowed', 'number', getCol(rec, ['Discount', 'Discount Allowed'])),
-      fieldHtml('capout', 'field.capitalOutAmount', 'number', getCol(rec, ['Capital Out Amount', 'Capital Out Amt', 'Capital Out'])),
-      fieldHtml('due', 'field.transactionDueBalance', 'number', getCol(rec, ['Transaction Due', 'Txn Due', 'Transaction Net']), 'readonly'),
+      fieldHtml('category', 'field.categoryClassification', 'select-cap-cat', category),
+      fieldHtml('capin', 'field.capitalInAmount', 'number', p.bill),
+      fieldHtml('discount', 'field.discountAllowed', 'number', p.discount),
+      fieldHtml('capout', 'field.capitalOutAmount', 'number', p.pay),
+      fieldHtml('due', 'field.transactionDueBalance', 'number', p.txnDue, 'readonly'),
       fieldHtml('remarks', 'field.remarksNarrative', 'textarea', getCol(rec, ['Remarks / Vouchers', 'Remarks']))
     ].join('');
   }
@@ -202,19 +223,22 @@ function buildRowData(sheetName, original) {
       const received = parseFloat(readField('received')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
       const returned = parseFloat(readField('returned')) || 0;
-      return [date, readField('main'), readField('sub'), received, discount, returned, received - discount - returned, readField('remarks').trim(), loggedBy, stamp];
+      const category = readField('category') || 'Received';
+      return [date, readField('main'), readField('sub'), received, discount, returned, received - discount - returned, category, readField('remarks').trim(), loggedBy, stamp];
     }
     case 'Income_Transactions': {
       const receivable = parseFloat(readField('receivable')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
       const received = parseFloat(readField('received')) || 0;
-      return [date, readField('main'), readField('sub'), receivable, discount, received, receivable - discount - received, readField('remarks').trim(), loggedBy, stamp];
+      const category = readField('category') || 'Receivable';
+      return [date, readField('main'), readField('sub'), receivable, discount, received, receivable - discount - received, category, readField('remarks').trim(), loggedBy, stamp];
     }
     case 'Capital_Transactions': {
       const capin = parseFloat(readField('capin')) || 0;
       const discount = parseFloat(readField('discount')) || 0;
       const capout = parseFloat(readField('capout')) || 0;
-      return [date, readField('main'), readField('sub'), capin, discount, capout, capin - discount - capout, readField('remarks').trim(), loggedBy, stamp];
+      const category = readField('category') || 'Capital In';
+      return [date, readField('main'), readField('sub'), capin, discount, capout, capin - discount - capout, category, readField('remarks').trim(), loggedBy, stamp];
     }
     default:
       return [];
