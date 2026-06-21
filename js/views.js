@@ -324,6 +324,7 @@ export const templates = {
         <div id="form-container" class="bg-white p-5 rounded-xl shadow border border-gray-200 xl:col-span-4 max-w-2xl mx-auto w-full max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5 transition-all duration-300">
           <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider" data-i18n="form.cust.newSalesEntry">New Customer Sales Entry</h3>
           <form id="form-cust-entry" class="space-y-2.5 text-xs">
+            <div><label class="block font-bold text-gray-600 mb-0.5" data-i18n="field.saleIssueDate">Sale / Issue Date</label><input type="date" id="cust-issue-date" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
             <div><label class="block font-bold text-gray-600 mb-0.5" data-i18n="field.invoiceMemoNumber">Invoice / Memo Number</label><input type="text" id="cust-memo" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm" placeholder="e.g. INV-5501" data-i18n-placeholder="placeholder.memoExample"></div>
             <div><label class="block font-bold text-gray-600 mb-0.5" data-i18n="field.customerName">Customer Name</label><input type="text" id="cust-name" required class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
             <div><label class="block font-bold text-gray-600 mb-0.5" data-i18n="field.mobileContact">Mobile Contact</label><input type="text" id="cust-mobile" class="w-full border rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></div>
@@ -434,20 +435,22 @@ export const templates = {
     </div>
   `,
   delivery_dashboard: `
-    <div id="delivery-dashboard-root" class="space-y-4 md:space-y-6 erp-module-page pb-6">
-      <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.deliveryDashboard.title">Delivery Dashboard</h2>
-        <button type="button" id="btn-refresh-delivery" class="bg-teal-600 hover:bg-teal-700 text-white font-bold px-4 py-2 rounded text-sm transition shadow-sm" data-i18n="common.refresh">Refresh</button>
+    <div id="delivery-dashboard-root" class="space-y-3 erp-module-page pb-4">
+      <div class="border-b border-gray-200 pb-2 flex flex-wrap items-start justify-between gap-x-3 gap-y-1">
+        <div class="min-w-0 flex-1">
+          <h2 class="text-lg font-bold text-gray-800 leading-tight" data-i18n="page.deliveryDashboard.title">Delivery Dashboard</h2>
+          <p class="text-[10px] text-gray-500 leading-snug mt-0.5" data-i18n="delivery.hint">Customer unique IDs queue as Pending (oldest first, newest last). Remarks come from customer transaction notes, not invoice numbers.</p>
+        </div>
+        <button type="button" id="btn-refresh-delivery" class="shrink-0 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-3 py-1.5 rounded text-xs transition shadow-sm" data-i18n="common.refresh">Refresh</button>
       </div>
-      <p class="text-xs text-gray-500" data-i18n="delivery.hint">Customer unique IDs queue as Pending (oldest first, newest last). Remarks come from customer transaction notes, not invoice numbers.</p>
-      <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <div class="bg-white p-4 md:p-5 rounded-xl shadow border border-amber-200 flex flex-col min-h-[420px]">
-          <h3 class="text-md font-bold text-amber-800 mb-3 uppercase tracking-wider flex items-center gap-2">
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div class="bg-white p-3 md:p-4 rounded-xl shadow border border-amber-200 flex flex-col min-h-[480px]">
+          <h3 class="text-sm font-bold text-amber-800 mb-2 uppercase tracking-wide flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-amber-500"></span>
             <span data-i18n="delivery.pendingList">Pending List</span>
-            <span class="text-[10px] font-normal normal-case text-gray-400" data-i18n="delivery.lifoHint">(LIFO — newest first)</span>
+            <span class="text-[10px] font-normal normal-case text-gray-400" data-i18n="delivery.lifoHint">(Oldest first — newest last)</span>
           </h3>
-          <div class="overflow-x-auto border rounded-lg flex-1 min-h-0 max-h-[calc(100vh-16rem)] overflow-y-auto">
+          <div class="overflow-x-auto border rounded-lg flex-1 min-h-0 max-h-[calc(100vh-11rem)] overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-amber-50 font-bold text-amber-900 uppercase border-b whitespace-nowrap sticky top-0 z-10">
                 <tr>
@@ -464,12 +467,12 @@ export const templates = {
             </table>
           </div>
         </div>
-        <div class="bg-white p-4 md:p-5 rounded-xl shadow border border-emerald-200 flex flex-col min-h-[420px]">
-          <h3 class="text-md font-bold text-emerald-800 mb-3 uppercase tracking-wider flex items-center gap-2">
+        <div class="bg-white p-3 md:p-4 rounded-xl shadow border border-emerald-200 flex flex-col min-h-[480px]">
+          <h3 class="text-sm font-bold text-emerald-800 mb-2 uppercase tracking-wide flex items-center gap-2">
             <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span data-i18n="delivery.deliveredList">Delivered List</span>
           </h3>
-          <div class="overflow-x-auto border rounded-lg flex-1 min-h-0 max-h-[calc(100vh-16rem)] overflow-y-auto">
+          <div class="overflow-x-auto border rounded-lg flex-1 min-h-0 max-h-[calc(100vh-11rem)] overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-emerald-50 font-bold text-emerald-900 uppercase border-b whitespace-nowrap sticky top-0 z-10">
                 <tr>

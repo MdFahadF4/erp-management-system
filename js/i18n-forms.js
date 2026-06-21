@@ -34,6 +34,7 @@ export const FORM_EN = {
   'field.remarksReferenceInfo': 'Remarks / Reference Info',
   'field.remarksNarrative': 'Remarks / Narrative',
   'field.invoiceMemoNumber': 'Invoice / Memo Number',
+  'field.saleIssueDate': 'Sale / Issue Date',
   'field.customerName': 'Customer Name',
   'field.totalGrossSell': 'Total Gross Sell Amount',
   'field.cashPaidAmt': 'Cash Paid Amt',

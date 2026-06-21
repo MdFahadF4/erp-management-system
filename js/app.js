@@ -380,10 +380,30 @@ function initMobileModuleSnapshot(target) {
 
 function applyMenuPermissions(user) {
   if (!user) return;
+
+  const canDash = userCanAccessModule(user, 'dashboard');
+  const canDelivery = userCanAccessModule(user, 'delivery_dashboard');
+  const dashGroup = document.getElementById('nav-dashboard-group');
+  const dashBtn = document.getElementById('nav-dashboard-main');
+  const deliveryBtn = document.getElementById('nav-delivery-dashboard');
+
+  if (dashBtn) {
+    if (canDash) dashBtn.classList.remove('hidden');
+    else dashBtn.classList.add('hidden');
+  }
+  if (deliveryBtn) {
+    if (canDelivery) deliveryBtn.classList.remove('hidden');
+    else deliveryBtn.classList.add('hidden');
+  }
+  if (dashGroup) {
+    if (canDash || canDelivery) dashGroup.classList.remove('hidden');
+    else dashGroup.classList.add('hidden');
+  }
+
   if (menuButtons) {
     menuButtons.forEach((btn) => {
       const target = btn.getAttribute('data-target');
-      if (!target) return;
+      if (!target || target === 'dashboard' || target === 'delivery_dashboard') return;
       if (userCanAccessModule(user, target)) btn.classList.remove('hidden');
       else btn.classList.add('hidden');
     });
@@ -1282,6 +1302,11 @@ function initCustomerFormListeners() {
   const creationForm = document.getElementById('form-cust-entry'); if (!creationForm) return;
   const currentUser = fetchSessionUser();
 
+  const issueDateInput = document.getElementById('cust-issue-date');
+  if (issueDateInput && !issueDateInput.value) {
+    issueDateInput.value = new Date().toISOString().split('T')[0];
+  }
+
   const fSell = document.getElementById('cust-sell'); const fCash = document.getElementById('cust-cash'); const fCard = document.getElementById('cust-card');
   const fReceived = document.getElementById('cust-received'); const fDiscount = document.getElementById('cust-discount'); const fDue = document.getElementById('cust-due');
 
@@ -1301,8 +1326,9 @@ function initCustomerFormListeners() {
     runCalculations();
     const memoNum = document.getElementById('cust-memo').value.trim();
     const custName = document.getElementById('cust-name').value.trim();
-    
-    const formattedDateString = formatCustomDateString(new Date());
+    const issueDateRaw = issueDateInput?.value;
+    const issueDate = issueDateRaw ? new Date(`${issueDateRaw}T12:00:00`) : new Date();
+    const formattedDateString = formatCustomDateString(issueDate);
     const initialsToken = extractUserInitials(currentUser.username);
     const generatedUniqueID = `${memoNum}-${custName}-${formattedDateString}-${initialsToken}`;
 
@@ -1321,6 +1347,7 @@ function initCustomerFormListeners() {
           "Customer Name": custName
         });
         creationForm.reset(); runCalculations();
+        if (issueDateInput) issueDateInput.value = new Date().toISOString().split('T')[0];
         await loadCustomerTableRecords();
         await populateCustomerTxnDropdown();
         await updateLiveUserCashDrawerBalance();

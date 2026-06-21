@@ -1,7 +1,7 @@
 import { apiRequest, fetchSessionUser, processLogout } from './auth.js';
 
 export const MODULE_LOAD_ORDER = [
-  'dashboard', 'hr', 'hr_transactions', 'customers', 'customer_transactions', 'delivery_dashboard',
+  'dashboard', 'delivery_dashboard', 'hr', 'hr_transactions', 'customers', 'customer_transactions',
   'internal_transfer', 'suppliers', 'supplier_transactions', 'expense_heads',
   'expense_transactions', 'creditors', 'creditor_transactions', 'income_heads',
   'income_transactions', 'all_transactions', 'reports', 'users'
