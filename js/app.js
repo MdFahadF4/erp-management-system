@@ -705,7 +705,8 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
       onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
     });
   } else if (target === 'all_transactions') {
-    await loadAllTxnTableRecords();
+    ensureLedgerDateInputs('filter-from-all', 'filter-to-all');
+    await loadAllTxnTableRecords(true);
     document.getElementById('btn-filter-all')?.addEventListener('click', async () => {
       await loadAllTxnTableRecords(true);
       mobileSnapshot?.collapse(t('mobile.collapseFilters'));
@@ -3259,29 +3260,22 @@ async function loadAllTxnTableRecords(isFilter = false) {
 
   container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-blue-500 font-bold animate-pulse">${t('allTxn.aggregating')}</td></tr>`;
 
-  const fDateInput = document.getElementById('filter-from-all');
-  const tDateInput = document.getElementById('filter-to-all');
+  const { fromEl: fDateInput, toEl: tDateInput } = ensureLedgerDateInputs('filter-from-all', 'filter-to-all');
   const moduleFilter = document.getElementById('filter-module-all');
 
-  let fDate, tDate;
-  
-  if (!isFilter) {
-     const now = new Date();
-     fDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-     tDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-     
-     const pad = n => (n < 10 ? '0'+n : n);
-     const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-     if (fDateInput) fDateInput.value = dateStr;
-     if (tDateInput) tDateInput.value = dateStr;
-  } else {
-     if (!fDateInput.value || !tDateInput.value) { 
-        container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500">${t('allTxn.selectDates')}</td></tr>`;
-        return; 
-     }
-     fDate = new Date(fDateInput.value); fDate.setHours(0,0,0,0);
-     tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
+  if (isFilter && (!fDateInput?.value || !tDateInput?.value)) {
+    container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500">${t('allTxn.selectDates')}</td></tr>`;
+    return;
   }
+
+  const fDate = parseRecordDate(fDateInput.value);
+  const tDate = parseRecordDate(tDateInput.value);
+  if (!fDate || !tDate) {
+    container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500">${t('allTxn.selectDates')}</td></tr>`;
+    return;
+  }
+  fDate.setHours(0, 0, 0, 0);
+  tDate.setHours(23, 59, 59, 999);
 
   try {
     const fetchSheet = async (sheetName) => {
@@ -3425,7 +3419,7 @@ async function loadAllTxnTableRecords(isFilter = false) {
 
        return `
          <tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
-           <td class="p-2.5">${rec.rawDate.toLocaleDateString()}</td>
+           <td class="p-2.5">${rec.rawDate ? rec.rawDate.toLocaleDateString() : ''}</td>
            <td><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${modColor}">${getAllTxnModuleLabel(rec.module)}</span></td>
            <td class="font-bold text-gray-800">${rec.details || t('allTxn.noRemarks')}</td>
            <td class="font-mono text-gray-700">${rec.financial}</td>

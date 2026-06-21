@@ -21,6 +21,7 @@
  * HR_Transactions — row 1 headers (ledger table matches these columns; do not add extra UI-only columns):
  *   ID | Date | Employee Name | Amount | Category | Remarks | Username | Timestamp
  * Category = Salary Earn | Salary Paid | Salary Increment | Previous Due
+ * Rows missing ID are auto-assigned a UUID when FETCH_RECORDS runs (required for Edit/Delete).
  * Updating Code.gs alone does not backfill the HR sheet; run SYNC_HR_MASTER (or open HR Management in the app) after deploy.
  *
  * SUPPLIER_TRANSACTIONS — row order (legacy Amount+Category still supported):
@@ -725,6 +726,7 @@ function createGenericRecord(sheetName, rowData) {
 function fetchGenericRecords(sheetName) {
   const sheet = SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(sheetName);
   if (!sheet) return { success: false, message: "Sheet not found" };
+  backfillMissingRecordIds_(sheet);
   const data = sheet.getDataRange().getValues();
   if (data.length <= 1) return { success: true, records: [] };
   const headers = data[0];
@@ -737,6 +739,27 @@ function fetchGenericRecords(sheetName) {
     records.push(record);
   }
   return { success: true, records: records };
+}
+
+/** Assign UUIDs to transaction rows missing an ID (column with header "ID"). */
+function backfillMissingRecordIds_(sheet) {
+  const data = sheet.getDataRange().getValues();
+  if (data.length < 2) return;
+  const headers = data[0];
+  let idCol = -1;
+  for (let c = 0; c < headers.length; c++) {
+    if (String(headers[c]).trim().toUpperCase() === "ID") {
+      idCol = c;
+      break;
+    }
+  }
+  if (idCol === -1) return;
+  for (let r = 1; r < data.length; r++) {
+    const val = data[r][idCol];
+    if (val === "" || val === null || val === undefined) {
+      sheet.getRange(r + 1, idCol + 1).setValue(Utilities.getUuid());
+    }
+  }
 }
 
 function updateGenericRecord(sheetName, id, rowData) {

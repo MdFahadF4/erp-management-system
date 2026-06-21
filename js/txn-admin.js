@@ -26,9 +26,18 @@ export function canAdminEdit(sheetName) {
 }
 
 export function getRecordId(rec) {
+  if (!rec || typeof rec !== 'object') return null;
   const id = getCol(rec, ['ID', 'Id', 'id', 'Record ID']);
-  if (id !== undefined && id !== null && String(id).trim() !== '') return id;
-  return rec?.ID ?? rec?.id ?? null;
+  if (id !== undefined && id !== null && String(id).trim() !== '') return String(id).trim();
+  for (const key of Object.keys(rec)) {
+    if (String(key).trim().toUpperCase() === 'ID') {
+      const v = rec[key];
+      if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+    }
+  }
+  const fallback = rec?.ID ?? rec?.id;
+  if (fallback !== undefined && fallback !== null && String(fallback).trim() !== '') return String(fallback).trim();
+  return null;
 }
 
 export function cacheTxnRecords(sheetName, records) {

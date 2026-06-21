@@ -68,8 +68,14 @@ export function normalizeUserPermissions(permissions) {
   return tokens;
 }
 
+function normalizeRole(role) {
+  return String(role || '').trim().toLowerCase();
+}
+
 function isAdminUser(user) {
-  return !!(user && (user.role === 'Super Admin' || user.role === 'Admin'));
+  if (!user) return false;
+  const r = normalizeRole(user.role);
+  return r === 'super admin' || r === 'admin';
 }
 
 function getModuleAccess(user, moduleTarget) {

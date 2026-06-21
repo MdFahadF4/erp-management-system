@@ -520,6 +520,12 @@
   }
 }
 
+/* border-collapse: collapse breaks position:sticky on table cells */
+.erp-ledger-wrap table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
 /* Keep Edit/Delete visible when ledger tables scroll horizontally */
 .erp-ledger-wrap table thead th:last-child,
 .erp-ledger-wrap table th.erp-col-actions,
@@ -527,6 +533,7 @@
   position: sticky;
   right: 0;
   z-index: 12;
+  min-width: 7.5rem;
   background: #fff;
   box-shadow: -6px 0 8px -4px rgba(15, 23, 42, 0.12);
 }
