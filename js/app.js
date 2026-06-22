@@ -5198,6 +5198,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                     rngSold += initialSold;
                     rngCash += initialCash;
                     rngCard += initialCard;
+                    let initialDiscount = Math.max(0, (parseFloat(getCol(masterRec, ["Discount", "Discount Allowed"])) || 0) - tDisc);
+                    rngDiscount += initialDiscount;
                 }
                 let remarks = getCol(masterRec, ["Invoice", "Memo", "Invoice / Memo Number"]) || gV(masterRec, ["invoice", "memo", "invoicememonumber"]) || 'Initial Invoice';
                 let usr = getCol(masterRec, ["Username", "Logged By", "Created By"]) || gV(masterRec, ["username", "loggedby", "createdby"]) || '-';
@@ -5211,6 +5213,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         rngPaid = rngCash + rngCard;
         let lifeDue = lifeSold - lifePaid - lifeDiscount;
         lifeDiscount = Math.max(0, lifeSold - lifePaid - lifeDue);
+        if (hasDates) {
+          if (Math.abs(rngSold - lifeSold) < 0.01 && Math.abs(rngPaid - lifePaid) < 0.01) {
+            rngDiscount = lifeDiscount;
+          } else if (lifeSold > 0.009) {
+            rngDiscount = Math.max(rngDiscount, (lifeDiscount * rngSold) / lifeSold);
+          }
+          rngDiscount = Math.min(rngDiscount, Math.max(0, rngSold - rngPaid));
+        }
 
         // 6. Dynamic UI Rendering
         cardsEl.innerHTML = `
