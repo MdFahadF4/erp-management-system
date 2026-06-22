@@ -4008,6 +4008,66 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             }
         });
 
+        const reconcileAggDiscount = (key, lifeDue) => {
+          const box = window.aggReportData[key];
+          if (!box) return;
+          box.lDisc = Math.max(0, box.lInc - box.lPaid - lifeDue);
+          if (hasDates) {
+            if (Math.abs(box.rInc - box.lInc) < 0.01 && Math.abs(box.rPaid - box.lPaid) < 0.01) {
+              box.rDisc = box.lDisc;
+            } else if (box.lInc > 0.009) {
+              box.rDisc = Math.max(0, (box.lDisc * box.rInc) / box.lInc);
+            } else {
+              box.rDisc = 0;
+            }
+            box.rDisc = Math.min(box.rDisc, Math.max(0, box.rInc - box.rPaid));
+          }
+        };
+
+        let aggSalesDue = 0;
+        if (rCust.success) rCust.records.forEach(r => { aggSalesDue += getCustomerDueBalance(r); });
+
+        let aggIncomeDue = 0;
+        if (rIncT.success) rIncT.records.forEach(r => {
+          const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
+          const check = cln(getDualTxnCategory(r, INCOME_TXN_FIELDS) + " " + gV(r, ["remarks", "parenthead", "subhead"]));
+          if (check.includes("previousdue") || check.includes("openingbalance")) {
+            aggIncomeDue += Math.max(amounts.bill, amounts.pay);
+          } else {
+            aggIncomeDue += amounts.txnDue;
+          }
+        });
+
+        let aggPurchaseDue = 0;
+        if (rSupT.success) {
+          const supNames = new Set();
+          if (rSup.success) rSup.records.forEach(r => {
+            const name = String(getCol(r, ["Supplier Name"]) || "").trim();
+            if (name) supNames.add(name);
+          });
+          rSupT.records.forEach(t => {
+            const name = String(getCol(t, ["Supplier Name"]) || "").trim();
+            if (name) supNames.add(name);
+          });
+          supNames.forEach((name) => { aggPurchaseDue += getSupplierDueFromTxns(name, rSupT.records); });
+        }
+
+        let aggExpenseDue = 0;
+        if (rExp.success) rExp.records.forEach(r => {
+          const amounts = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
+          const check = cln(getDualTxnCategory(r, EXPENSE_TXN_FIELDS) + " " + gV(r, ["remarks", "parenthead", "subhead"]));
+          if (check.includes("previousdue") || check.includes("openingbalance")) {
+            aggExpenseDue += Math.max(amounts.bill, amounts.pay);
+          } else {
+            aggExpenseDue += amounts.txnDue;
+          }
+        });
+
+        reconcileAggDiscount('sales', aggSalesDue);
+        reconcileAggDiscount('income', aggIncomeDue);
+        reconcileAggDiscount('purchase', aggPurchaseDue);
+        reconcileAggDiscount('expense', aggExpenseDue);
+
         let d = window.aggReportData;
         const netDue = (box, mode) => {
           const inc = mode === 'range' ? box.rInc : box.lInc;
