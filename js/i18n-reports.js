@@ -301,6 +301,13 @@ export const REPORT_EN = {
   'report.paymentsReceivedLedger': 'Payments Received Ledger',
   'report.noSalesGenerated': 'No sales generated.',
   'report.noPaymentsReceived': 'No payments received.',
+  'report.customerTxnAuditTrail': 'Transaction History (Audit Trail)',
+  'report.noCustomerTxnAuditTrail': 'No transactions recorded for this customer in the selected period.',
+  'report.txnTypeInitial': 'Initial Invoice',
+  'report.txnTypeSale': 'Sale',
+  'report.txnTypePayment': 'Payment',
+  'report.txnTypeRefund': 'Refund / Cancellation',
+  'report.txnTypeSalePayment': 'Sale & Payment',
   'report.lifetimeTotalPurchaseDue': 'Lifetime Total Purchase / Due',
   'report.lifetimePaymentsMade': 'Lifetime Payments Made',
   'report.currentDueBalance': 'Current Due / Balance',
@@ -615,7 +622,14 @@ export const REPORT_AR = translatePack(REPORT_EN, {
   'dash.globalBalance': 'الرصيد الإجمالي',
   'dash.drawerCount': '{count} درج',
   'dash.drawerCountPlural': '{count} أدراج',
-  'dash.balanceSummary': 'الرصيد SAR {amount}'
+  'dash.balanceSummary': 'الرصيد SAR {amount}',
+  'report.customerTxnAuditTrail': 'سجل المعاملات (مسار التدقيق)',
+  'report.noCustomerTxnAuditTrail': 'لا توجد معاملات مسجلة لهذا العميل في الفترة المحددة.',
+  'report.txnTypeInitial': 'فاتورة أولية',
+  'report.txnTypeSale': 'بيع',
+  'report.txnTypePayment': 'دفع',
+  'report.txnTypeRefund': 'استرداد / إلغاء',
+  'report.txnTypeSalePayment': 'بيع ودفع',
 });
 
 export const REPORT_BN = translatePack(REPORT_EN, {

@@ -5287,7 +5287,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
       case 'customer_details': {
         titleEl.textContent = t('report.titleCustomerStatement');
         
-        let cdSales = []; let cdPayments = [];
+        let cdSales = []; let cdPayments = []; let cdTxnHistory = [];
         
         // 1. Separate Buckets for Lifetime vs Date Range
         let lifeSold = 0, lifePaid = 0, lifeCash = 0, lifeCard = 0, lifeDiscount = 0;
@@ -5339,11 +5339,16 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                        if(method.includes("cash")) rngCash += recv; else rngCard += recv;
                        if (!check.includes("previousdue") && !check.includes("openingbalance")) rngDiscount += disc;
                     }
-                    let remarks = gV(t, ["remarks", "remarksreference"]) || '-';
-                    let usr = gV(t, ["username", "loggedby"]) || '-';
-                    
-                    if (sell !== 0) cdSales.push({ d, amt: sell, rem: remarks, usr });
-                    if (recv !== 0) cdPayments.push({ d, amt: recv, meth: method.includes("cash") ? "Cash" : "Card", rem: remarks, usr });
+                    let remarks = getCol(t, ["Remarks", "Remarks / Reference"]) || gV(t, ["remarks", "remarksreference"]) || '-';
+                    let usr = getCol(t, ["Username", "Logged By"]) || gV(t, ["username", "loggedby"]) || '-';
+                    const methLabel = method.includes("card") ? "Card" : (method.includes("previousdue") ? "Previous Due" : "Cash");
+                    const isRefund = String(remarks).toUpperCase().includes('[REFUND/CANCELLATION]') || sell < -0.001 || recv < -0.001 || disc < -0.001;
+                    const txnDue = sell - disc - recv;
+
+                    cdTxnHistory.push({ d, sell, disc, recv, meth: methLabel, txnDue, rem: remarks, usr, isRefund, isInitial: false });
+
+                    if (Math.abs(sell) > 0.001) cdSales.push({ d, amt: sell, rem: remarks, usr, isRefund });
+                    if (Math.abs(recv) > 0.001) cdPayments.push({ d, amt: recv, meth: methLabel, rem: remarks, usr, isRefund });
                 }
             });
         }
@@ -5392,10 +5397,20 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 }
                 let remarks = getCol(masterRec, ["Invoice", "Memo", "Invoice / Memo Number"]) || gV(masterRec, ["invoice", "memo", "invoicememonumber"]) || 'Initial Invoice';
                 let usr = getCol(masterRec, ["Username", "Logged By", "Created By"]) || gV(masterRec, ["username", "loggedby", "createdby"]) || '-';
+                let initialDiscount = Math.max(0, (parseFloat(getCol(masterRec, ["Discount", "Discount Allowed"])) || 0) - tDisc);
 
-                if (Math.abs(initialSold) > 0.01) cdSales.push({ d, amt: initialSold, rem: "Inv: " + remarks, usr });
-                if (Math.abs(initialCash) > 0.01) cdPayments.push({ d, amt: initialCash, meth: "Cash", rem: "Inv Deposit: " + remarks, usr });
-                if (Math.abs(initialCard) > 0.01) cdPayments.push({ d, amt: initialCard, meth: "Card", rem: "Inv Deposit: " + remarks, usr });
+                if (Math.abs(initialSold) > 0.001) {
+                    cdTxnHistory.push({ d, sell: initialSold, disc: initialDiscount, recv: 0, meth: '-', txnDue: initialSold - initialDiscount, rem: "Inv: " + remarks, usr, isRefund: false, isInitial: true });
+                    cdSales.push({ d, amt: initialSold, rem: "Inv: " + remarks, usr, isRefund: false });
+                }
+                if (Math.abs(initialCash) > 0.001) {
+                    cdTxnHistory.push({ d, sell: 0, disc: 0, recv: initialCash, meth: "Cash", txnDue: -initialCash, rem: "Inv Deposit: " + remarks, usr, isRefund: false, isInitial: true });
+                    cdPayments.push({ d, amt: initialCash, meth: "Cash", rem: "Inv Deposit: " + remarks, usr, isRefund: false });
+                }
+                if (Math.abs(initialCard) > 0.001) {
+                    cdTxnHistory.push({ d, sell: 0, disc: 0, recv: initialCard, meth: "Card", txnDue: -initialCard, rem: "Inv Deposit: " + remarks, usr, isRefund: false, isInitial: true });
+                    cdPayments.push({ d, amt: initialCard, meth: "Card", rem: "Inv Deposit: " + remarks, usr, isRefund: false });
+                }
             }
         }
         
@@ -5412,6 +5427,21 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         }
 
         // 6. Dynamic UI Rendering
+        const resolveCustTxnType = (row) => {
+          if (row.isInitial) return t('report.txnTypeInitial');
+          if (row.isRefund || row.sell < -0.001 || row.recv < -0.001 || row.disc < -0.001) return t('report.txnTypeRefund');
+          if (row.sell > 0.001 && row.recv > 0.001) return t('report.txnTypeSalePayment');
+          if (row.sell > 0.001) return t('report.txnTypeSale');
+          if (row.recv > 0.001) return t('report.txnTypePayment');
+          return '-';
+        };
+        const fmtAmtClass = (n, pos = 'text-blue-600', neg = 'text-amber-700') => {
+          if (n < -0.001) return neg;
+          if (n > 0.001) return pos;
+          return 'text-gray-400';
+        };
+        const sortedTxnHistory = cdTxnHistory.sort((a, b) => new Date(b.d) - new Date(a.d));
+
         cardsEl.innerHTML = `
           <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-4">
              <div class="flex flex-wrap justify-between border-gray-100 ${hasDates ? 'border-b pb-4' : ''}">
@@ -5450,6 +5480,46 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         cardsEl.className = "grid grid-cols-1 mb-6";
 
         tableContainer.innerHTML = `
+          <div class="space-y-6">
+             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+                <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs border-b border-slate-700 text-center">${t('report.customerTxnAuditTrail')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
+                <div class="erp-report-ledger-wrap overflow-x-auto">
+                  <table class="w-full text-left text-xs">
+                     <thead class="bg-gray-50 text-gray-500 border-b whitespace-nowrap">
+                        <tr>
+                          <th class="p-2.5 font-semibold">${t('col.date')}</th>
+                          <th class="p-2.5 font-semibold">${t('report.colType')}</th>
+                          <th class="p-2.5 font-semibold">${t('col.soldAmt')}</th>
+                          <th class="p-2.5 font-semibold">${t('col.discount')}</th>
+                          <th class="p-2.5 font-semibold">${t('col.receivedAmt')}</th>
+                          <th class="p-2.5 font-semibold">${t('col.method')}</th>
+                          <th class="p-2.5 font-semibold">${t('col.txnDue')}</th>
+                          <th class="p-2.5 font-semibold">${t('col.remarks')}</th>
+                          <th class="p-2.5 font-semibold">${t('report.colUser')}</th>
+                        </tr>
+                     </thead>
+                     <tbody class="divide-y divide-gray-100">
+                        ${sortedTxnHistory.length > 0 ? sortedTxnHistory.map((row) => {
+                          const rowClass = row.isRefund ? 'bg-amber-50/60 hover:bg-amber-50' : (row.isInitial ? 'bg-blue-50/40 hover:bg-blue-50' : 'hover:bg-gray-50');
+                          const typeLabel = resolveCustTxnType(row);
+                          const methKey = row.meth === 'Cash' ? t('option.cash') : row.meth === 'Card' ? t('option.card') : row.meth;
+                          return `
+                           <tr class="${rowClass}">
+                             <td class="p-2.5 whitespace-nowrap">${new Date(row.d).toLocaleDateString()}</td>
+                             <td class="p-2.5 font-bold ${row.isRefund ? 'text-amber-800' : 'text-gray-700'} whitespace-nowrap">${typeLabel}</td>
+                             <td class="p-2.5 font-mono font-bold ${fmtAmtClass(row.sell, 'text-blue-600', 'text-amber-700')} whitespace-nowrap">${Number(row.sell).toFixed(2)}</td>
+                             <td class="p-2.5 font-mono ${fmtAmtClass(row.disc, 'text-purple-600', 'text-amber-700')} whitespace-nowrap">${Number(row.disc).toFixed(2)}</td>
+                             <td class="p-2.5 font-mono font-bold ${fmtAmtClass(row.recv, 'text-emerald-600', 'text-amber-700')} whitespace-nowrap">${Number(row.recv).toFixed(2)}</td>
+                             <td class="p-2.5 whitespace-nowrap">${methKey}</td>
+                             <td class="p-2.5 font-mono font-bold ${fmtAmtClass(row.txnDue, 'text-red-600', 'text-amber-700')} whitespace-nowrap">${Number(row.txnDue).toFixed(2)}</td>
+                             <td class="p-2.5 truncate max-w-[160px]" title="${row.rem}">${row.rem}</td>
+                             <td class="p-2.5">${row.usr}</td>
+                           </tr>`;
+                        }).join('') : `<tr><td colspan="9" class="p-6 text-center text-gray-400">${t('report.noCustomerTxnAuditTrail')}</td></tr>`}
+                     </tbody>
+                  </table>
+                </div>
+             </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                 <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.salesBillingLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
@@ -5460,9 +5530,9 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdSales.length > 0 ? cdSales.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
-                           <tr class="hover:bg-gray-50">
+                           <tr class="hover:bg-gray-50 ${s.isRefund ? 'bg-amber-50/60' : ''}">
                              <td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td>
-                             <td class="p-2.5 font-mono font-bold ${s.amt < 0 ? 'text-red-500' : 'text-blue-600'} whitespace-nowrap">${Number(s.amt).toFixed(2)}</td>
+                             <td class="p-2.5 font-mono font-bold ${s.amt < 0 ? 'text-amber-700' : 'text-blue-600'} whitespace-nowrap">${Number(s.amt).toFixed(2)}</td>
                              <td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td>
                              <td class="p-2.5">${s.usr}</td>
                            </tr>
@@ -5480,9 +5550,9 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                      </thead>
                      <tbody class="divide-y divide-gray-100">
                         ${cdPayments.length > 0 ? cdPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
-                           <tr class="hover:bg-gray-50">
+                           <tr class="hover:bg-gray-50 ${p.isRefund ? 'bg-amber-50/60' : ''}">
                              <td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td>
-                             <td class="p-2.5 font-mono font-bold ${p.amt < 0 ? 'text-red-500' : 'text-emerald-600'} whitespace-nowrap">${Number(p.amt).toFixed(2)}</td>
+                             <td class="p-2.5 font-mono font-bold ${p.amt < 0 ? 'text-amber-700' : 'text-emerald-600'} whitespace-nowrap">${Number(p.amt).toFixed(2)}</td>
                              <td class="p-2.5 font-bold ${p.meth.toUpperCase() === 'CASH' ? 'text-emerald-600' : 'text-blue-600'}">${p.meth.toUpperCase() === 'CASH' ? t('option.cash') : p.meth.toUpperCase() === 'CARD' ? t('option.card') : p.meth}</td>
                              <td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td>
                              <td class="p-2.5">${p.usr}</td>
@@ -5492,6 +5562,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                   </table>
                 </div>
              </div>
+          </div>
           </div>
         `;
         break;
