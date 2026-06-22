@@ -72,6 +72,24 @@ export function renderTxnActions(rec, sheetName) {
   </td>`;
 }
 
+export function renderCustomerTxnActions(rec, sheetName) {
+  if (!canAdminEdit(sheetName)) {
+    return `<td class="p-2.5 erp-col-actions"><span class="text-gray-300 italic text-[10px]">${t('common.locked')}</span></td>`;
+  }
+  const id = getRecordId(rec);
+  if (!id) return `<td class="p-2.5 erp-col-actions text-gray-400">-</td>`;
+  const safeId = escapeAttr(id);
+  const safeSheet = escapeAttr(sheetName);
+  const remarks = String(getCol(rec, ['Remarks', 'Remarks / Reference']) || '');
+  const isRefund = remarks.toUpperCase().includes('[REFUND/CANCELLATION]');
+  const refundBtn = isRefund ? '' : `<button type="button" class="btn-cust-txn-refund bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1" data-id="${safeId}" data-sheet="${safeSheet}">${t('custTxn.refundFromLedger')}</button>`;
+  return `<td class="p-2.5 erp-col-actions whitespace-nowrap">
+    ${refundBtn}
+    <button type="button" class="btn-txn-edit bg-orange-500 hover:bg-orange-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1" data-id="${safeId}" data-sheet="${safeSheet}">${t('common.edit')}</button>
+    <button type="button" class="btn-txn-delete bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]" data-id="${safeId}" data-sheet="${safeSheet}">${t('common.delete')}</button>
+  </td>`;
+}
+
 function formatDateInput(val) {
   if (!val) return '';
   const d = new Date(val);

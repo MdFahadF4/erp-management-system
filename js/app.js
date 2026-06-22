@@ -1,7 +1,7 @@
 import { processLogin, processLogout, fetchSessionUser, apiRequest } from './auth.js';
 import { templates } from './views.js';
 import { t, applyTranslations, initLanguageSwitcher, translateReportSelect, getAllTxnModuleLabel, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './i18n.js';
-import { initTxnAdminSystem, renderTxnActions, cacheTxnRecords } from './txn-admin.js';
+import { initTxnAdminSystem, renderTxnActions, renderCustomerTxnActions, cacheTxnRecords, findCachedTxn } from './txn-admin.js';
 import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, renderUserDirectoryRow, buildPermCheckboxes, readPermCheckboxes } from './user-admin.js';
 import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
 import { refreshSessionUser, userCanAccessModule, userCanEditModule, getDefaultModuleForUser } from './user-session.js';
@@ -1981,8 +1981,20 @@ function initCustomerTxnFormListeners() {
   const dueInfo = document.getElementById('cust-txn-due-info');
   const currentDueEl = document.getElementById('cust-txn-current-due');
   const remainingDueEl = document.getElementById('cust-txn-remaining-due');
+  const modeNormalBtn = document.getElementById('cust-txn-mode-normal');
+  const modeRefundBtn = document.getElementById('cust-txn-mode-refund');
+  const refundBanner = document.getElementById('cust-txn-refund-banner');
+  const formTitle = document.getElementById('cust-txn-form-title');
+  const soldHint = document.getElementById('cust-txn-sold-hint');
+  const receivedLabel = document.getElementById('cust-txn-received-label');
+  const submitBtn = document.getElementById('cust-txn-submit-btn');
+  const methodWrap = document.getElementById('cust-txn-method-wrap');
+  const methodInput = document.getElementById('cust-txn-method');
+  const remarksInput = document.getElementById('cust-txn-remarks');
+  const dateInput = document.getElementById('cust-txn-date');
 
   let selectedCustomerDue = 0;
+  let refundMode = false;
 
   const resetDueInfo = () => {
     selectedCustomerDue = 0;
@@ -2000,8 +2012,12 @@ function initCustomerTxnFormListeners() {
     const received = parseFloat(tReceived?.value) || 0;
     const txnDue = sell - discount - received;
     if (tDue) tDue.value = txnDue.toFixed(2);
-    const remaining = Math.max(0, selectedCustomerDue + sell - discount - received);
-    if (remainingDueEl) remainingDueEl.textContent = remaining.toFixed(2);
+    if (refundMode) {
+      if (remainingDueEl) remainingDueEl.textContent = Math.max(0, selectedCustomerDue - sell + discount + received).toFixed(2);
+    } else {
+      const remaining = Math.max(0, selectedCustomerDue + sell - discount - received);
+      if (remainingDueEl) remainingDueEl.textContent = remaining.toFixed(2);
+    }
   };
 
   const onCustomerSelected = () => {
@@ -2017,10 +2033,82 @@ function initCustomerTxnFormListeners() {
     runTxnCalculations();
   };
 
+  const setRefundMode = (isRefund) => {
+    refundMode = isRefund;
+    form.dataset.refundMode = isRefund ? 'true' : 'false';
+    refundBanner?.classList.toggle('hidden', !isRefund);
+    soldHint?.classList.toggle('hidden', isRefund);
+    modeNormalBtn?.classList.toggle('bg-blue-600', !isRefund);
+    modeNormalBtn?.classList.toggle('text-white', !isRefund);
+    modeNormalBtn?.classList.toggle('bg-gray-100', isRefund);
+    modeNormalBtn?.classList.toggle('text-gray-600', isRefund);
+    modeRefundBtn?.classList.toggle('bg-amber-500', isRefund);
+    modeRefundBtn?.classList.toggle('text-white', isRefund);
+    modeRefundBtn?.classList.toggle('bg-gray-100', !isRefund);
+    modeRefundBtn?.classList.toggle('text-gray-600', !isRefund);
+    if (formTitle) formTitle.textContent = isRefund ? t('custTxn.modeRefund') : t('form.cust.logPayment');
+    if (receivedLabel) receivedLabel.textContent = isRefund ? t('custTxn.refundRecvLabel') : t('field.receivedAmount');
+    if (submitBtn) {
+      submitBtn.textContent = isRefund ? t('custTxn.postRefund') : t('form.postTransaction');
+      submitBtn.classList.toggle('bg-amber-500', isRefund);
+      submitBtn.classList.toggle('hover:bg-amber-600', isRefund);
+      submitBtn.classList.toggle('bg-blue-600', !isRefund);
+      submitBtn.classList.toggle('hover:bg-blue-700', !isRefund);
+    }
+    if (methodWrap) methodWrap.classList.toggle('hidden', false);
+    if (methodInput && methodInput.tagName === 'SELECT') {
+      const prevDueOpt = methodInput.querySelector('option[value="Previous Due"]');
+      if (isRefund) {
+        if (methodInput.value === 'Previous Due') methodInput.value = 'Cash';
+        prevDueOpt?.setAttribute('disabled', 'disabled');
+      } else {
+        prevDueOpt?.removeAttribute('disabled');
+      }
+    }
+    runTxnCalculations();
+  };
+
+  const prefillRefundFromRecord = (rec) => {
+    if (!rec) return;
+    setRefundMode(true);
+    const uid = getCol(rec, ["System Unique ID", "Sys UID", "UNIQUEID"]) || '';
+    const soldAmt = Math.abs(parseFloat(getCol(rec, ["Sold Amount", "Sold Amt", "SOLDAMT"])) || 0);
+    const discAmt = Math.abs(parseFloat(getCol(rec, ["Discount", "Discount Amount", "Txn Discount"])) || 0);
+    const recAmt = Math.abs(parseFloat(getCol(rec, ["Received Amount", "Received Amt", "RECEIVEDAMT"])) || 0);
+    let method = getCol(rec, ["Payment Method", "Method", "METHOD"]) || 'Cash';
+    if (method === 'Previous Due') method = recAmt > 0 ? 'Cash' : 'Cash';
+    const origDate = rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : '';
+    const origRemarks = getCol(rec, ["Remarks", "Remarks / Reference"]) || '';
+    if (uidSelect) uidSelect.value = uid;
+    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+    if (tSell) tSell.value = soldAmt.toFixed(2);
+    if (tDiscount) tDiscount.value = discAmt.toFixed(2);
+    if (tReceived) tReceived.value = recAmt.toFixed(2);
+    if (methodInput) methodInput.value = method === 'Card' ? 'Card' : 'Cash';
+    if (remarksInput) {
+      remarksInput.value = `Reversal of txn dated ${origDate}${origRemarks && origRemarks !== '-' ? ` — ${origRemarks}` : ''}`;
+    }
+    onCustomerSelected();
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   [tSell, tDiscount, tReceived].forEach((el) => el?.addEventListener('input', runTxnCalculations));
   uidSelect?.addEventListener('change', onCustomerSelected);
+  modeNormalBtn?.addEventListener('click', () => setRefundMode(false));
+  modeRefundBtn?.addEventListener('click', () => setRefundMode(true));
 
-  const methodInput = document.getElementById('cust-txn-method');
+  const refundHelpModal = document.getElementById('modal-cust-refund-help');
+  const openRefundHelp = () => {
+    if (!refundHelpModal) return;
+    refundHelpModal.classList.remove('hidden');
+    applyTranslations(refundHelpModal);
+  };
+  const closeRefundHelp = () => refundHelpModal?.classList.add('hidden');
+  document.getElementById('cust-txn-refund-help-btn')?.addEventListener('click', openRefundHelp);
+  document.getElementById('cust-txn-refund-help-close')?.addEventListener('click', closeRefundHelp);
+  document.getElementById('cust-txn-refund-help-ok')?.addEventListener('click', closeRefundHelp);
+  refundHelpModal?.addEventListener('click', (e) => { if (e.target === refundHelpModal) closeRefundHelp(); });
+
   if (methodInput && methodInput.tagName === 'SELECT') {
       let hasPrevDue = Array.from(methodInput.options).some(o => o.value === 'Previous Due');
       if (!hasPrevDue) {
@@ -2028,20 +2116,55 @@ function initCustomerTxnFormListeners() {
       }
   }
 
+  if (document.body.dataset.custRefundBound !== 'true') {
+    document.body.dataset.custRefundBound = 'true';
+    document.addEventListener('click', (e) => {
+      const refundBtn = e.target.closest('.btn-cust-txn-refund');
+      if (!refundBtn) return;
+      const rec = findCachedTxn('Customer_Transactions', refundBtn.dataset.id);
+      if (rec) prefillRefundFromRecord(rec);
+    });
+  }
+
   form.onsubmit = async (e) => {
     e.preventDefault();
     if (!guardModuleEdit('customer_transactions')) return;
     const currentUser = fetchSessionUser();
     runTxnCalculations();
+
+    let sell = parseFloat(tSell.value) || 0;
+    let discount = parseFloat(tDiscount?.value) || 0;
+    let received = parseFloat(tReceived.value) || 0;
+    const method = document.getElementById('cust-txn-method').value;
+    let remarks = document.getElementById('cust-txn-remarks').value.trim();
+
+    if (refundMode) {
+      if (sell <= 0 && discount <= 0 && received <= 0) {
+        alert(t('custTxn.fullCancelHint'));
+        return;
+      }
+      if (received > 0 && method !== 'Cash' && method !== 'Card') {
+        alert(t('custTxn.refundBanner'));
+        return;
+      }
+      sell = -Math.abs(sell);
+      discount = -Math.abs(discount);
+      received = -Math.abs(received);
+      if (!remarks.toUpperCase().includes('[REFUND/CANCELLATION]')) {
+        remarks = `[REFUND/CANCELLATION] ${remarks}`.trim();
+      }
+    }
+
+    const txnDue = sell - discount - received;
     const rowPayload = [
       document.getElementById('cust-txn-date').value,
       document.getElementById('cust-txn-uid').value,
-      parseFloat(tSell.value) || 0,
-      parseFloat(tDiscount?.value) || 0,
-      parseFloat(tReceived.value) || 0,
-      document.getElementById('cust-txn-method').value,
-      parseFloat(tDue.value) || 0,
-      document.getElementById('cust-txn-remarks').value.trim(),
+      sell,
+      discount,
+      received,
+      method,
+      txnDue,
+      remarks,
       currentUser.username,
       new Date().toLocaleString()
     ];
@@ -2052,6 +2175,7 @@ function initCustomerTxnFormListeners() {
         form.reset();
         document.getElementById('cust-txn-date').value = new Date().toISOString().split('T')[0];
         if (tDiscount) tDiscount.value = '0';
+        setRefundMode(false);
         resetDueInfo();
         runTxnCalculations();
         await populateCustomerTxnDropdown();
@@ -2061,6 +2185,7 @@ function initCustomerTxnFormListeners() {
     } catch (err) { alert(t('alert.errorLog')); }
   };
 
+  setRefundMode(false);
   runTxnCalculations();
 }
 
@@ -2090,8 +2215,12 @@ async function loadCustomerTxnTableRecords(isFilter = false) {
         const method = getCol(rec, ["Payment Method", "Method", "METHOD"]) || '';
         const dueAmt = parseFloat(getCol(rec, ["Transaction Due", "Txn Due", "TXNDUE", "Due"])) || 0;
         const remarks = getCol(rec, ["Remarks", "Remarks / Reference"]) || '-';
+        const isRefund = String(remarks).toUpperCase().includes('[REFUND/CANCELLATION]') || soldAmt < 0 || recAmt < 0;
+        const rowClass = isRefund ? 'bg-amber-50/70 hover:bg-amber-50 border-b border-amber-100' : 'hover:bg-gray-50 border-b border-gray-100';
+        const amtClass = (n) => (n < 0 ? 'text-amber-700' : '');
         const methodColor = method === "Cash" ? "text-emerald-600 bg-emerald-50" : (method === "Card" ? "text-blue-600 bg-blue-50" : "text-slate-600 bg-slate-50");
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono">${soldAmt.toFixed(2)}</td><td class="font-mono text-purple-600">${discAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${getCategoryLabel(method, t)}</span></td><td class="font-mono text-red-600 font-bold">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td>${renderTxnActions(rec, "Customer_Transactions")}</tr>`;
+        const refundBadge = isRefund ? `<span class="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-200 text-amber-900">${t('custTxn.refundBadge')}</span>` : '';
+        return `<tr class="${rowClass} whitespace-nowrap"><td>${rec["Date"] ? new Date(rec["Date"]).toLocaleDateString() : ''}${refundBadge}</td><td class="font-bold font-mono text-[11px]">${uid}</td><td class="font-mono ${amtClass(soldAmt)}">${soldAmt.toFixed(2)}</td><td class="font-mono text-purple-600 ${amtClass(discAmt)}">${discAmt.toFixed(2)}</td><td class="font-mono font-bold text-emerald-600 ${amtClass(recAmt)}">${recAmt.toFixed(2)}</td><td><span class="px-2 py-0.5 font-bold rounded text-[10px] ${methodColor}">${getCategoryLabel(method, t)}</span></td><td class="font-mono text-red-600 font-bold ${amtClass(dueAmt)}">${dueAmt.toFixed(2)}</td><td class="max-w-xs truncate" title="${remarks}">${remarks}</td><td>${getCol(rec, ["Logged By", "Username"]) || ''}</td><td class="text-gray-400 text-[10px] font-mono">${getCol(rec, ["Stamp", "Timestamp"]) || ''}</td>${renderCustomerTxnActions(rec, "Customer_Transactions")}</tr>`;
       }).join('');
     }
   } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTracker')}</td></tr>`; }

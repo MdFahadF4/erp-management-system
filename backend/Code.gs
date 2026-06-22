@@ -13,6 +13,8 @@
  *
  * CUSTOMER_TRANSACTIONS — add column D = Discount (after Sold Amount) if missing.
  * New row order: Date | System Unique ID | Sold | Discount | Received | Method | Txn Due | Remarks | Logged By | Stamp
+ * Customers master (Total Sell / Cash / Card / Received / Discount / Due) is recalculated from ALL transactions on create, update, delete, and SYNC_CUSTOMER_MASTER.
+ * Refund/Cancellation: post negative Sold / Discount / Received (Method = Cash or Card). Prefix remarks with [REFUND/CANCELLATION] for audit trail.
  *
  * DELIVERY_QUEUE — create sheet with row 1 headers:
  *   ID | System Unique ID | Remarks | Issued Date | Username | Status | Delivery Date | Delivered Remarks | Stamp
@@ -142,6 +144,8 @@ function doPost(e) {
       response = syncHrMaster();
     } else if (action === "SYNC_SUPPLIER_MASTER") {
       response = syncSupplierMaster();
+    } else if (action === "SYNC_CUSTOMER_MASTER") {
+      response = syncCustomerMaster();
     }
   } catch (error) {
     response = { success: false, message: error.message };
@@ -584,6 +588,85 @@ function parseSupplierTxnSheetRow_(row) {
   return normalized;
 }
 
+/** Parse Customer_Transactions sheet row (column A = ID). */
+function parseCustomerTxnSheetRow_(row) {
+  return {
+    uid: String(row[2] || "").trim(),
+    sold: parseFloat(row[3]) || 0,
+    discount: parseFloat(row[4]) || 0,
+    received: parseFloat(row[5]) || 0,
+    method: String(row[6] || "").trim()
+  };
+}
+
+/** Recalculate Customers master row from all Customer_Transactions for one System Unique ID. */
+function syncCustomerMasterForUid_(ss, systemUID) {
+  var custSheet = ss.getSheetByName("Customers");
+  var txnSheet = ss.getSheetByName("Customer_Transactions");
+  if (!custSheet || !txnSheet) return false;
+
+  var target = String(systemUID || "").trim();
+  if (!target) return false;
+
+  var txnData = txnSheet.getDataRange().getValues();
+  var totalSell = 0;
+  var totalCash = 0;
+  var totalCard = 0;
+  var totalReceived = 0;
+  var totalDiscount = 0;
+
+  for (var t = 1; t < txnData.length; t++) {
+    var p = parseCustomerTxnSheetRow_(txnData[t]);
+    if (p.uid !== target) continue;
+    totalSell += p.sold;
+    totalDiscount += p.discount;
+    if (p.method === "Cash") {
+      totalCash += p.received;
+      totalReceived += p.received;
+    } else if (p.method === "Card") {
+      totalCard += p.received;
+      totalReceived += p.received;
+    }
+  }
+
+  var dueBalance = totalSell - totalReceived - totalDiscount;
+  if (dueBalance < 0) dueBalance = 0;
+
+  var custData = custSheet.getDataRange().getValues();
+  for (var i = 1; i < custData.length; i++) {
+    if (String(custData[i][1] || "").trim() === target) {
+      var targetRow = i + 1;
+      custSheet.getRange(targetRow, 8).setValue(totalSell);
+      custSheet.getRange(targetRow, 9).setValue(totalCash);
+      custSheet.getRange(targetRow, 10).setValue(totalCard);
+      custSheet.getRange(targetRow, 11).setValue(totalReceived);
+      custSheet.getRange(targetRow, 12).setValue(totalDiscount);
+      custSheet.getRange(targetRow, 13).setValue(dueBalance);
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Backfill every Customers master row from Customer_Transactions. */
+function syncCustomerMaster() {
+  var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  var custSheet = ss.getSheetByName("Customers");
+  if (!custSheet) return { success: false, message: "Customers sheet not found." };
+
+  var custData = custSheet.getDataRange().getValues();
+  var synced = 0;
+  for (var i = 1; i < custData.length; i++) {
+    var systemUID = String(custData[i][1] || "").trim();
+    if (systemUID && syncCustomerMasterForUid_(ss, systemUID)) synced++;
+  }
+  return {
+    success: true,
+    message: synced > 0 ? (synced + " customer row(s) synced from transactions.") : "No customers to sync.",
+    synced: synced
+  };
+}
+
 /** Recalculate Suppliers master row from all Supplier_Transactions for one supplier. */
 function syncSupplierMasterForSupplier_(ss, supplierName) {
   var supSheet = ss.getSheetByName("Suppliers");
@@ -659,61 +742,7 @@ function createGenericRecord(sheetName, rowData) {
   }
 
   if (sheetName === "Customer_Transactions") {
-    const systemUID = rowData[1];
-    let soldAmount = 0;
-    let discountAmount = 0;
-    let receivedAmount = 0;
-    let paymentMethod = '';
-
-    // New format: Date, UID, Sold, Discount, Received, Method, TxnDue, Remarks, User, Stamp
-    if (rowData.length >= 10) {
-      soldAmount = parseFloat(rowData[2]) || 0;
-      discountAmount = parseFloat(rowData[3]) || 0;
-      receivedAmount = parseFloat(rowData[4]) || 0;
-      paymentMethod = rowData[5];
-    } else {
-      // Legacy format without discount column
-      soldAmount = parseFloat(rowData[2]) || 0;
-      receivedAmount = parseFloat(rowData[3]) || 0;
-      paymentMethod = rowData[4];
-    }
-
-    const custSheet = ss.getSheetByName("Customers");
-    if (custSheet) {
-      const custData = custSheet.getDataRange().getValues();
-      for (let i = 1; i < custData.length; i++) {
-        if (custData[i][1] === systemUID) {
-
-          let currentSell = parseFloat(custData[i][7]) || 0;
-          let currentCash = parseFloat(custData[i][8]) || 0;
-          let currentCard = parseFloat(custData[i][9]) || 0;
-          let currentReceived = parseFloat(custData[i][10]) || 0;
-          let currentDiscount = parseFloat(custData[i][11]) || 0;
-
-          currentSell += soldAmount;
-          currentDiscount += discountAmount;
-          if (paymentMethod === "Cash") {
-            currentCash += receivedAmount;
-          } else if (paymentMethod === "Card") {
-            currentCard += receivedAmount;
-          }
-          if (paymentMethod === "Cash" || paymentMethod === "Card") {
-            currentReceived += receivedAmount;
-          }
-
-          let updatedDueBalance = currentSell - currentReceived - currentDiscount;
-          const targetRow = i + 1;
-
-          custSheet.getRange(targetRow, 8).setValue(currentSell);
-          custSheet.getRange(targetRow, 9).setValue(currentCash);
-          custSheet.getRange(targetRow, 10).setValue(currentCard);
-          custSheet.getRange(targetRow, 11).setValue(currentReceived);
-          custSheet.getRange(targetRow, 12).setValue(currentDiscount);
-          custSheet.getRange(targetRow, 13).setValue(updatedDueBalance);
-          break;
-        }
-      }
-    }
+    syncCustomerMasterForUid_(ss, String(rowData[1] || "").trim());
   }
 
   if (sheetName === "Customers") {
@@ -813,11 +842,15 @@ function updateGenericRecord(sheetName, id, rowData) {
       const targetRow = i + 1;
       let prevEmpName = null;
       let prevSupplierName = null;
+      let prevCustUid = null;
       if (sheetName === "HR_Transactions") {
         prevEmpName = String(data[i][2] || "").trim();
       }
       if (sheetName === "Supplier_Transactions") {
         prevSupplierName = String(data[i][2] || "").trim();
+      }
+      if (sheetName === "Customer_Transactions") {
+        prevCustUid = String(data[i][2] || "").trim();
       }
       sheet.getRange(targetRow, 2, 1, rowData.length).setValues([rowData]);
       if (sheetName === "HR_Transactions") {
@@ -832,6 +865,13 @@ function updateGenericRecord(sheetName, id, rowData) {
         var newSupplierName = String(rowData[1] || "").trim();
         if (newSupplierName && newSupplierName !== prevSupplierName) {
           syncSupplierMasterForSupplier_(ss, newSupplierName);
+        }
+      }
+      if (sheetName === "Customer_Transactions") {
+        syncCustomerMasterForUid_(ss, prevCustUid);
+        var newCustUid = String(rowData[1] || "").trim();
+        if (newCustUid && newCustUid !== prevCustUid) {
+          syncCustomerMasterForUid_(ss, newCustUid);
         }
       }
       return { success: true, message: 'Transaction updated successfully.' };
@@ -853,11 +893,15 @@ function deleteGenericRecord(sheetName, id) {
     if (String(data[i][0]) === targetId) {
       let empName = null;
       let supplierName = null;
+      let custUid = null;
       if (sheetName === "HR_Transactions") {
         empName = String(data[i][2] || "").trim();
       }
       if (sheetName === "Supplier_Transactions") {
         supplierName = String(data[i][2] || "").trim();
+      }
+      if (sheetName === "Customer_Transactions") {
+        custUid = String(data[i][2] || "").trim();
       }
       sheet.deleteRow(i + 1);
       if (sheetName === "HR_Transactions" && empName) {
@@ -865,6 +909,9 @@ function deleteGenericRecord(sheetName, id) {
       }
       if (sheetName === "Supplier_Transactions" && supplierName) {
         syncSupplierMasterForSupplier_(ss, supplierName);
+      }
+      if (sheetName === "Customer_Transactions" && custUid) {
+        syncCustomerMasterForUid_(ss, custUid);
       }
       return { success: true, message: 'Transaction deleted successfully.' };
     }
