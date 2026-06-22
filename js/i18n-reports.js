@@ -302,7 +302,7 @@ export const REPORT_EN = {
   'report.noSalesGenerated': 'No sales generated.',
   'report.noPaymentsReceived': 'No payments received.',
   'report.customerTxnAuditTrail': 'Transaction History (Audit Trail)',
-  'report.noCustomerTxnAuditTrail': 'No transactions recorded for this customer in the selected period.',
+  'report.noCustomerTxnAuditTrail': 'No transactions recorded for this customer yet.',
   'report.txnTypeInitial': 'Initial Invoice',
   'report.txnTypeSale': 'Sale',
   'report.txnTypePayment': 'Payment',

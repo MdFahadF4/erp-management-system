@@ -3589,7 +3589,7 @@ function initReportsSystem() {
   const now = new Date();
   const pad = n => (n < 10 ? '0'+n : n);
   const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
-  if (fDateInput) fDateInput.value = dateStr;
+  if (fDateInput) fDateInput.value = '2020-01-01';
   if (tDateInput) tDateInput.value = dateStr;
 
   // --- MAGIC INJECTOR: Automatically adds the new reports to your dropdown ---
@@ -5298,57 +5298,70 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
         const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:v; };
         const custUid = (obj) => getCol(obj, ["System Unique ID", "Sys UID", "UNIQUEID"]) || gV(obj, ["systemuniqueid", "sysuid", "uniqueid"]);
-        const isC = (obj) => cln(custUid(obj)) === cln(secVal);
-
         const sellCols = ["soldamount", "soldamt", "totalsell", "sellamount", "grosssell", "sell"];
         const recvCols = ["receivedamount", "receivedamt", "received", "cashreceived", "cashamt", "cashamount", "paidamount", "paidamt", "amountpaid"];
         const methCols = ["paymentmethod", "method", "paymenttype", "type"];
+        const parseTxnDate = (rec) => parseRecordDate(getCol(rec, ["Date", "Transaction Date"]) || gV(rec, ["date"])) || new Date();
+        const readCustTxnAmounts = (rec) => ({
+          sell: parseFloat(getCol(rec, ["Sold Amount", "Sold Amt", "SOLDAMT"])) || gF(rec, sellCols),
+          recv: parseFloat(getCol(rec, ["Received Amount", "Received Amt", "RECEIVEDAMT"])) || gF(rec, recvCols),
+          disc: parseFloat(getCol(rec, ["Discount", "Discount Amount", "Txn Discount"])) || gF(rec, ["discount", "discountallowed", "txndiscount", "discountamount"])
+        });
 
-        // 2. Intelligent Date Checker
-        let hasDates = (typeof fDate !== 'undefined' && fDate && typeof tDate !== 'undefined' && tDate && !isNaN(new Date(fDate).getTime()));
+        const hasDates = useDateFilter;
+        const secUid = cln(secVal);
+        const secName = cln((secText || '').includes(' - ') ? secText.split(' - ').slice(1).join(' - ') : secText);
 
-        // 3. Locate Master Record (priority column match — same as customer table)
-        let masterRec = rCust.success ? rCust.records.find(isC) : null;
+        // 3. Locate Master Record (UID first, then customer name fallback)
+        let masterRec = null;
+        if (rCust.success) {
+          masterRec = rCust.records.find((r) => cln(custUid(r)) === secUid)
+            || (secName ? rCust.records.find((r) => cln(getCol(r, ["Customer Name", "Name"])) === secName) : null)
+            || rCust.records.find((r) => cln(custUid(r)) === secUid || cln(getCol(r, ["Customer Name", "Name"])) === secUid);
+        }
+        const selectedUid = cln(masterRec ? custUid(masterRec) : secVal);
+        const isC = (obj) => {
+          const uid = cln(custUid(obj));
+          return !!selectedUid && uid === selectedUid;
+        };
+
         let sheetSold = 0, sheetCash = 0, sheetCard = 0;
 
         // 4. Process Transactions & Populate Ledgers
         let tSold = 0, tCash = 0, tCard = 0, tDisc = 0;
         if (rCustT.success) {
             rCustT.records.filter(isC).forEach(t => {
-                let sell = gF(t, sellCols);
-                let recv = gF(t, recvCols);
-                let disc = gF(t, ["discount", "discountallowed", "txndiscount", "discountamount"]);
-                let method = cln(gV(t, methCols));
+                const amounts = readCustTxnAmounts(t);
+                let sell = amounts.sell;
+                let recv = amounts.recv;
+                let disc = amounts.disc;
+                let method = cln(getCol(t, ["Payment Method", "Method", "METHOD"]) || gV(t, methCols));
                 if(method === "") method = "cash";
-                let check = cln(gV(t, ["remarks", "category", "method", "type", "paymentmethod"]));
+                let check = cln(getCol(t, ["Remarks", "Remarks / Reference"]) || gV(t, ["remarks", "category", "method", "type", "paymentmethod"]));
 
                 // Sum up transactions to subtract from Master later
                 tSold += sell;
                 tDisc += disc;
                 if(method.includes("cash")) tCash += recv; else tCard += recv;
 
-                let dStr = gV(t, ["date", "timestamp"]);
-                let d = dStr ? new Date(dStr) : new Date();
-                
-                // If no dates are picked, inRange is ALWAYS true (shows all history)
+                let d = parseTxnDate(t);
                 let inRange = !hasDates || (d >= fDate && d <= tDate);
 
-                if (inRange) {
-                    if (hasDates) {
-                       rngSold += sell;
-                       if(method.includes("cash")) rngCash += recv; else rngCard += recv;
-                       if (!check.includes("previousdue") && !check.includes("openingbalance")) rngDiscount += disc;
-                    }
-                    let remarks = getCol(t, ["Remarks", "Remarks / Reference"]) || gV(t, ["remarks", "remarksreference"]) || '-';
-                    let usr = getCol(t, ["Username", "Logged By"]) || gV(t, ["username", "loggedby"]) || '-';
-                    const methLabel = method.includes("card") ? "Card" : (method.includes("previousdue") ? "Previous Due" : "Cash");
-                    const isRefund = String(remarks).toUpperCase().includes('[REFUND/CANCELLATION]') || sell < -0.001 || recv < -0.001 || disc < -0.001;
-                    const txnDue = sell - disc - recv;
+                let remarks = getCol(t, ["Remarks", "Remarks / Reference"]) || gV(t, ["remarks", "remarksreference"]) || '-';
+                let usr = getCol(t, ["Username", "Logged By"]) || gV(t, ["username", "loggedby"]) || '-';
+                const methLabel = method.includes("card") ? "Card" : (method.includes("previousdue") ? "Previous Due" : "Cash");
+                const isRefund = String(remarks).toUpperCase().includes('[REFUND/CANCELLATION]') || sell < -0.001 || recv < -0.001 || disc < -0.001;
+                const txnDue = sell - disc - recv;
 
-                    cdTxnHistory.push({ d, sell, disc, recv, meth: methLabel, txnDue, rem: remarks, usr, isRefund, isInitial: false });
+                // Always show every transaction for this customer in detail tables (audit trail)
+                cdTxnHistory.push({ d, sell, disc, recv, meth: methLabel, txnDue, rem: remarks, usr, isRefund, isInitial: false });
+                if (Math.abs(sell) > 0.001) cdSales.push({ d, amt: sell, rem: remarks, usr, isRefund });
+                if (Math.abs(recv) > 0.001) cdPayments.push({ d, amt: recv, meth: methLabel, rem: remarks, usr, isRefund });
 
-                    if (Math.abs(sell) > 0.001) cdSales.push({ d, amt: sell, rem: remarks, usr, isRefund });
-                    if (Math.abs(recv) > 0.001) cdPayments.push({ d, amt: recv, meth: methLabel, rem: remarks, usr, isRefund });
+                if (inRange && hasDates) {
+                    rngSold += sell;
+                    if(method.includes("cash")) rngCash += recv; else rngCard += recv;
+                    if (!check.includes("previousdue") && !check.includes("openingbalance")) rngDiscount += disc;
                 }
             });
         }
@@ -5384,33 +5397,30 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
             let initialCard = sheetCard - tCard;
 
             let dStr = getCol(masterRec, ["Creation Stamp", "Timestamp", "Date"]) || gV(masterRec, ["date", "creationstamp", "timestamp"]);
-            let d = dStr ? new Date(dStr) : new Date();
+            let d = parseRecordDate(dStr) || new Date();
             let inRange = !hasDates || (d >= fDate && d <= tDate);
+            let remarks = getCol(masterRec, ["Invoice", "Memo", "Invoice / Memo Number"]) || gV(masterRec, ["invoice", "memo", "invoicememonumber"]) || 'Initial Invoice';
+            let usr = getCol(masterRec, ["Username", "Logged By", "Created By"]) || gV(masterRec, ["username", "loggedby", "createdby"]) || '-';
+            let initialDiscount = Math.max(0, (parseFloat(getCol(masterRec, ["Discount", "Discount Allowed"])) || 0) - tDisc);
 
-            if (inRange) {
-                if (hasDates) {
-                    rngSold += initialSold;
-                    rngCash += initialCash;
-                    rngCard += initialCard;
-                    let initialDiscount = Math.max(0, (parseFloat(getCol(masterRec, ["Discount", "Discount Allowed"])) || 0) - tDisc);
-                    rngDiscount += initialDiscount;
-                }
-                let remarks = getCol(masterRec, ["Invoice", "Memo", "Invoice / Memo Number"]) || gV(masterRec, ["invoice", "memo", "invoicememonumber"]) || 'Initial Invoice';
-                let usr = getCol(masterRec, ["Username", "Logged By", "Created By"]) || gV(masterRec, ["username", "loggedby", "createdby"]) || '-';
-                let initialDiscount = Math.max(0, (parseFloat(getCol(masterRec, ["Discount", "Discount Allowed"])) || 0) - tDisc);
+            if (inRange && hasDates) {
+                rngSold += initialSold;
+                rngCash += initialCash;
+                rngCard += initialCard;
+                rngDiscount += initialDiscount;
+            }
 
-                if (Math.abs(initialSold) > 0.001) {
-                    cdTxnHistory.push({ d, sell: initialSold, disc: initialDiscount, recv: 0, meth: '-', txnDue: initialSold - initialDiscount, rem: "Inv: " + remarks, usr, isRefund: false, isInitial: true });
-                    cdSales.push({ d, amt: initialSold, rem: "Inv: " + remarks, usr, isRefund: false });
-                }
-                if (Math.abs(initialCash) > 0.001) {
-                    cdTxnHistory.push({ d, sell: 0, disc: 0, recv: initialCash, meth: "Cash", txnDue: -initialCash, rem: "Inv Deposit: " + remarks, usr, isRefund: false, isInitial: true });
-                    cdPayments.push({ d, amt: initialCash, meth: "Cash", rem: "Inv Deposit: " + remarks, usr, isRefund: false });
-                }
-                if (Math.abs(initialCard) > 0.001) {
-                    cdTxnHistory.push({ d, sell: 0, disc: 0, recv: initialCard, meth: "Card", txnDue: -initialCard, rem: "Inv Deposit: " + remarks, usr, isRefund: false, isInitial: true });
-                    cdPayments.push({ d, amt: initialCard, meth: "Card", rem: "Inv Deposit: " + remarks, usr, isRefund: false });
-                }
+            if (Math.abs(initialSold) > 0.001) {
+                cdTxnHistory.push({ d, sell: initialSold, disc: initialDiscount, recv: 0, meth: '-', txnDue: initialSold - initialDiscount, rem: "Inv: " + remarks, usr, isRefund: false, isInitial: true });
+                cdSales.push({ d, amt: initialSold, rem: "Inv: " + remarks, usr, isRefund: false });
+            }
+            if (Math.abs(initialCash) > 0.001) {
+                cdTxnHistory.push({ d, sell: 0, disc: 0, recv: initialCash, meth: "Cash", txnDue: -initialCash, rem: "Inv Deposit: " + remarks, usr, isRefund: false, isInitial: true });
+                cdPayments.push({ d, amt: initialCash, meth: "Cash", rem: "Inv Deposit: " + remarks, usr, isRefund: false });
+            }
+            if (Math.abs(initialCard) > 0.001) {
+                cdTxnHistory.push({ d, sell: 0, disc: 0, recv: initialCard, meth: "Card", txnDue: -initialCard, rem: "Inv Deposit: " + remarks, usr, isRefund: false, isInitial: true });
+                cdPayments.push({ d, amt: initialCard, meth: "Card", rem: "Inv Deposit: " + remarks, usr, isRefund: false });
             }
         }
         
@@ -5482,7 +5492,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         tableContainer.innerHTML = `
           <div class="space-y-6">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs border-b border-slate-700 text-center">${t('report.customerTxnAuditTrail')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
+                <div class="bg-slate-800 text-white font-bold p-3 uppercase tracking-wider text-xs border-b border-slate-700 text-center">${t('report.customerTxnAuditTrail')} ${t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b whitespace-nowrap">
@@ -5522,7 +5532,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              </div>
           <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.salesBillingLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
+                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.salesBillingLedger')} ${t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
@@ -5542,7 +5552,7 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 </div>
              </div>
              <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.paymentsReceivedLedger')} ${hasDates ? t('report.selectedRange') : t('report.allTime')}</div>
+                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.paymentsReceivedLedger')} ${t('report.allTime')}</div>
                 <div class="erp-report-ledger-wrap overflow-x-auto">
                   <table class="w-full text-left text-xs">
                      <thead class="bg-gray-50 text-gray-500 border-b">
