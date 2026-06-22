@@ -78,6 +78,19 @@ const EXPENSE_TXN_FIELDS = {
   categories: { bill: "Incurred", pay: "Payment Paid", prev: "Previous Due" }
 };
 
+/** Customer_Transactions sheet — keep row 1 headers aligned with backend/Code.gs */
+const CUSTOMER_TXN_COL = {
+  uid: ["System Unique ID", "Sys UID", "UNIQUEID", "Unique ID", "Customer UID", "Customer ID"],
+  sold: ["Sold Amount", "Sold Amt", "SOLDAMT", "Sold", "Total Sell"],
+  discount: ["Discount", "Discount Amount", "Discount Allowed", "Txn Discount"],
+  received: ["Received Amount", "Received Amt", "RECEIVEDAMT", "Received", "Cash Amt", "Cash Amount"],
+  method: ["Payment Method", "Method", "METHOD", "Payment Type"],
+  due: ["Transaction Due", "Txn Due", "TXNDUE", "Due"],
+  remarks: ["Remarks / Reference", "Remarks", "Remarks / Reference Info"],
+  loggedBy: ["Logged By", "Username", "User"],
+  stamp: ["Stamp", "Timestamp", "System Stamp"]
+};
+
 function buildModuleTxnTrackingId(prefix, main, sub, dateStr) {
   const m = String(main || "GEN").substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "") || "GEN";
   const s = String(sub || "SUB").substring(0, 3).toUpperCase().replace(/[^A-Z0-9]/g, "") || "SUB";
@@ -810,6 +823,111 @@ function getCol(rec, possibleNames) {
     }
   }
   return undefined;
+}
+
+function escapeHtmlAttr(val) {
+  return String(val ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;');
+}
+
+function parseMoney(val) {
+  if (val === undefined || val === null || val === '') return null;
+  if (typeof val === 'number' && !Number.isNaN(val)) return val;
+  const n = parseFloat(String(val).replace(/,/g, '').trim());
+  return Number.isNaN(n) ? null : n;
+}
+
+function normalizeCustMatchKey(val) {
+  return String(val ?? '').trim().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+}
+
+function resolveCustomerReportTarget(secVal, secText, customerRecords) {
+  const raw = String(secVal || '').trim();
+  const loose = normalizeCustMatchKey(raw);
+  const nameHint = String(secText || '').includes(' - ')
+    ? secText.split(' - ').slice(1).join(' - ').trim()
+    : String(secText || '').trim();
+
+  let masterRec = null;
+  for (const r of customerRecords || []) {
+    const uid = String(getCol(r, CUSTOMER_TXN_COL.uid) || '').trim();
+    const name = String(getCol(r, ['Customer Name', 'Name']) || '').trim();
+    if (uid && (uid === raw || normalizeCustMatchKey(uid) === loose)) { masterRec = r; break; }
+    if (name && (name === raw || normalizeCustMatchKey(name) === normalizeCustMatchKey(nameHint) || normalizeCustMatchKey(name) === loose)) {
+      masterRec = r; break;
+    }
+  }
+
+  const matchSet = new Set();
+  const addMatch = (v) => {
+    const s = String(v ?? '').trim();
+    if (!s) return;
+    matchSet.add(s);
+    matchSet.add(normalizeCustMatchKey(s));
+  };
+  addMatch(raw);
+  addMatch(nameHint);
+  if (masterRec) {
+    addMatch(getCol(masterRec, CUSTOMER_TXN_COL.uid));
+    addMatch(getCol(masterRec, ['Customer Name', 'Name']));
+  }
+
+  const canonicalUid = String(
+    (masterRec && getCol(masterRec, CUSTOMER_TXN_COL.uid)) || raw
+  ).trim();
+
+  return { masterRec, matchSet, canonicalUid };
+}
+
+function customerTxnBelongsToTarget(txn, target) {
+  if (!target || !target.matchSet.size) return false;
+  const uid = String(getCol(txn, CUSTOMER_TXN_COL.uid) || '').trim();
+  if (uid && (target.matchSet.has(uid) || target.matchSet.has(normalizeCustMatchKey(uid)))) return true;
+  if (target.canonicalUid && normalizeCustMatchKey(uid) === normalizeCustMatchKey(target.canonicalUid)) return true;
+  for (const key of Object.keys(txn || {})) {
+    const v = String(txn[key] ?? '').trim();
+    if (!v || v.length < 3) continue;
+    if (target.matchSet.has(v) || target.matchSet.has(normalizeCustMatchKey(v))) return true;
+  }
+  return false;
+}
+
+function collectCustomerReportTransactions(allTxns, target) {
+  if (!Array.isArray(allTxns) || !target) return [];
+  let matched = allTxns.filter((t) => customerTxnBelongsToTarget(t, target));
+  if (matched.length === 0 && target.canonicalUid) {
+    const needle = normalizeCustMatchKey(target.canonicalUid);
+    if (needle.length >= 4) {
+      matched = allTxns.filter((t) =>
+        normalizeCustMatchKey(JSON.stringify(t)).includes(needle)
+      );
+    }
+  }
+  return matched;
+}
+
+function readCustomerTxnRowAmounts(txn, gF) {
+  const num = (names, fallbacks) => {
+    const direct = parseMoney(getCol(txn, names));
+    if (direct !== null) return direct;
+    const fuzzy = gF(txn, fallbacks);
+    return Number.isNaN(fuzzy) ? 0 : fuzzy;
+  };
+  return {
+    sell: num(CUSTOMER_TXN_COL.sold, ['soldamount', 'soldamt', 'sellamount', 'sell', 'totalsell']),
+    recv: num(CUSTOMER_TXN_COL.received, ['receivedamount', 'receivedamt', 'received', 'cashamt', 'cashamount']),
+    disc: num(CUSTOMER_TXN_COL.discount, ['discount', 'discountallowed', 'txndiscount', 'discountamount'])
+  };
+}
+
+function parseCustomerTxnDate(rec, gV) {
+  const raw = getCol(rec, ['Date', 'Transaction Date']) ?? gV(rec, ['date']);
+  if (typeof raw === 'number' && raw > 20000 && raw < 120000) {
+    return new Date(Math.round((raw - 25569) * 86400 * 1000));
+  }
+  return parseRecordDate(raw) || new Date();
 }
 
 function normalizeHrEmployeeName(name) {
@@ -2240,7 +2358,7 @@ function renderCustomerTxnDropdownOptions(records) {
     const uid = getCol(c, ["System Unique ID", "Sys UID", "UNIQUEID"]);
     const name = getCol(c, ["Customer Name", "Name"]);
     const due = getCustomerDueBalance(c);
-    return `<option value="${uid}">${uid} (${name}) — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
+    return `<option value="${escapeHtmlAttr(uid)}">${uid} (${name}) — ${t('col.dueBalance')}: ${due.toFixed(2)}</option>`;
   }).join('');
 }
 
@@ -3661,7 +3779,7 @@ function initReportsSystem() {
                  display = value + " - " + display;
               }
               
-              return `<option value="${value || 'Unknown'}">${display || t('report.unknown')}</option>`;
+              return `<option value="${escapeHtmlAttr(value || 'Unknown')}">${display || t('report.unknown')}</option>`;
             }).join('');
           } else { secSelect.innerHTML = `<option value="">${t('report.noData')}</option>`; }
         } catch(err) { secSelect.innerHTML = `<option value="">${t('report.errorLoading')}</option>`; }
@@ -5297,41 +5415,19 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
         const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
         const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:v; };
-        const custUid = (obj) => getCol(obj, ["System Unique ID", "Sys UID", "UNIQUEID"]) || gV(obj, ["systemuniqueid", "sysuid", "uniqueid"]);
-        const sellCols = ["soldamount", "soldamt", "totalsell", "sellamount", "grosssell", "sell"];
-        const recvCols = ["receivedamount", "receivedamt", "received", "cashreceived", "cashamt", "cashamount", "paidamount", "paidamt", "amountpaid"];
         const methCols = ["paymentmethod", "method", "paymenttype", "type"];
-        const parseTxnDate = (rec) => parseRecordDate(getCol(rec, ["Date", "Transaction Date"]) || gV(rec, ["date"])) || new Date();
-        const readCustTxnAmounts = (rec) => ({
-          sell: parseFloat(getCol(rec, ["Sold Amount", "Sold Amt", "SOLDAMT"])) || gF(rec, sellCols),
-          recv: parseFloat(getCol(rec, ["Received Amount", "Received Amt", "RECEIVEDAMT"])) || gF(rec, recvCols),
-          disc: parseFloat(getCol(rec, ["Discount", "Discount Amount", "Txn Discount"])) || gF(rec, ["discount", "discountallowed", "txndiscount", "discountamount"])
-        });
 
         const hasDates = useDateFilter;
-        const secUid = cln(secVal);
-        const secName = cln((secText || '').includes(' - ') ? secText.split(' - ').slice(1).join(' - ') : secText);
-
-        // 3. Locate Master Record (UID first, then customer name fallback)
-        let masterRec = null;
-        if (rCust.success) {
-          masterRec = rCust.records.find((r) => cln(custUid(r)) === secUid)
-            || (secName ? rCust.records.find((r) => cln(getCol(r, ["Customer Name", "Name"])) === secName) : null)
-            || rCust.records.find((r) => cln(custUid(r)) === secUid || cln(getCol(r, ["Customer Name", "Name"])) === secUid);
-        }
-        const selectedUid = cln(masterRec ? custUid(masterRec) : secVal);
-        const isC = (obj) => {
-          const uid = cln(custUid(obj));
-          return !!selectedUid && uid === selectedUid;
-        };
+        const reportTarget = resolveCustomerReportTarget(secVal, secText, rCust.success ? rCust.records : []);
+        const masterRec = reportTarget.masterRec;
+        const custTxns = collectCustomerReportTransactions(rCustT.success ? rCustT.records : [], reportTarget);
 
         let sheetSold = 0, sheetCash = 0, sheetCard = 0;
 
         // 4. Process Transactions & Populate Ledgers
         let tSold = 0, tCash = 0, tCard = 0, tDisc = 0;
-        if (rCustT.success) {
-            rCustT.records.filter(isC).forEach(t => {
-                const amounts = readCustTxnAmounts(t);
+        custTxns.forEach(t => {
+                const amounts = readCustomerTxnRowAmounts(t, gF);
                 let sell = amounts.sell;
                 let recv = amounts.recv;
                 let disc = amounts.disc;
@@ -5342,29 +5438,28 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 // Sum up transactions to subtract from Master later
                 tSold += sell;
                 tDisc += disc;
-                if(method.includes("cash")) tCash += recv; else tCard += recv;
+                if(method.includes("cash")) tCash += recv; else if (method.includes("card")) tCard += recv;
 
-                let d = parseTxnDate(t);
+                let d = parseCustomerTxnDate(t, gV);
                 let inRange = !hasDates || (d >= fDate && d <= tDate);
 
                 let remarks = getCol(t, ["Remarks", "Remarks / Reference"]) || gV(t, ["remarks", "remarksreference"]) || '-';
-                let usr = getCol(t, ["Username", "Logged By"]) || gV(t, ["username", "loggedby"]) || '-';
+                let usr = getCol(t, ["Logged By", "Username"]) || gV(t, ["username", "loggedby"]) || '-';
                 const methLabel = method.includes("card") ? "Card" : (method.includes("previousdue") ? "Previous Due" : "Cash");
                 const isRefund = String(remarks).toUpperCase().includes('[REFUND/CANCELLATION]') || sell < -0.001 || recv < -0.001 || disc < -0.001;
-                const txnDue = sell - disc - recv;
+                const txnDue = parseMoney(getCol(t, ["Transaction Due", "Txn Due", "TXNDUE", "Due"])) ?? (sell - disc - recv);
 
-                // Always show every transaction for this customer in detail tables (audit trail)
+                // Always show every matched transaction (sale, payment, refund) in detail tables
                 cdTxnHistory.push({ d, sell, disc, recv, meth: methLabel, txnDue, rem: remarks, usr, isRefund, isInitial: false });
                 if (Math.abs(sell) > 0.001) cdSales.push({ d, amt: sell, rem: remarks, usr, isRefund });
                 if (Math.abs(recv) > 0.001) cdPayments.push({ d, amt: recv, meth: methLabel, rem: remarks, usr, isRefund });
 
                 if (inRange && hasDates) {
                     rngSold += sell;
-                    if(method.includes("cash")) rngCash += recv; else rngCard += recv;
+                    if(method.includes("cash")) rngCash += recv; else if (method.includes("card")) rngCard += recv;
                     if (!check.includes("previousdue") && !check.includes("openingbalance")) rngDiscount += disc;
                 }
             });
-        }
 
         // 5. Lifetime totals from Master Sheet (getCol priority — avoids gV picking wrong columns)
         if (masterRec) {
@@ -5380,8 +5475,16 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
                 lifePaid = parseFloat(getCol(masterRec, ["Received Amount", "Total Received", "Received"])) || 0;
             }
         }
+        // Fallback: derive lifetime totals from matched transactions when master is zeroed after refund
+        if (masterRec && lifeSold === 0 && lifePaid === 0 && custTxns.length > 0) {
+            lifeSold = tSold;
+            lifeCash = tCash;
+            lifeCard = tCard;
+            lifePaid = lifeCash + lifeCard;
+            lifeDiscount = Math.max(0, tDisc);
+        }
         // Fallback: derive from all transactions when master totals are unavailable
-        if (!masterRec || (lifeSold === 0 && lifePaid === 0 && (tSold > 0 || tCash > 0 || tCard > 0))) {
+        if (!masterRec || (lifeSold === 0 && lifePaid === 0 && (tSold !== 0 || tCash !== 0 || tCard !== 0))) {
             lifeSold = tSold + (masterRec ? Math.max(0, sheetSold - tSold) : 0);
             lifeCash = tCash + (masterRec ? Math.max(0, sheetCash - tCash) : 0);
             lifeCard = tCard + (masterRec ? Math.max(0, sheetCard - tCard) : 0);

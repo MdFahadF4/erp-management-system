@@ -11,8 +11,10 @@
  *
  * SECURITY — CLIENT_TOKEN in js/config.js (and Vercel env) must match SECRET_TOKEN in doPost below.
  *
- * CUSTOMER_TRANSACTIONS — add column D = Discount (after Sold Amount) if missing.
- * New row order: Date | System Unique ID | Sold | Discount | Received | Method | Txn Due | Remarks | Logged By | Stamp
+ * CUSTOMER_TRANSACTIONS — row 1 headers MUST match (column A = ID):
+ *   ID | Date | System Unique ID | Sold Amount | Discount | Received Amount | Payment Method | Transaction Due | Remarks / Reference | Logged By | Stamp
+ * Legacy aliases (Sold, Received, Sys UID, Method, Due, Remarks, Username) are auto-renamed on FETCH_RECORDS.
+ * If Discount column is missing, it is inserted automatically after Sold Amount.
  * Customers master (Total Sell / Cash / Card / Received / Discount / Due) is recalculated from ALL transactions on create, update, delete, and SYNC_CUSTOMER_MASTER.
  * Refund/Cancellation: post negative Sold / Discount / Received (Method = Cash or Card). Prefix remarks with [REFUND/CANCELLATION] for audit trail.
  *
@@ -588,15 +590,70 @@ function parseSupplierTxnSheetRow_(row) {
   return normalized;
 }
 
-/** Parse Customer_Transactions sheet row (column A = ID). */
-function parseCustomerTxnSheetRow_(row) {
+/** Parse Customer_Transactions sheet row using header row (column A = ID). */
+function parseCustomerTxnSheetRow_(row, headers) {
+  headers = headers || [];
+  var uidIdx = findColumnIndex_(headers, ["System Unique ID", "Sys UID", "UNIQUEID", "Unique ID", "Customer UID"]);
+  var soldIdx = findColumnIndex_(headers, ["Sold Amount", "Sold Amt", "Sold", "Total Sell"]);
+  var discIdx = findColumnIndex_(headers, ["Discount", "Discount Allowed", "Txn Discount", "Discount Amount"]);
+  var recvIdx = findColumnIndex_(headers, ["Received Amount", "Received Amt", "Received", "Cash Amt", "Cash Amount"]);
+  var methIdx = findColumnIndex_(headers, ["Payment Method", "Method", "Payment Type", "Type"]);
+  if (uidIdx === -1) uidIdx = 2;
+  if (soldIdx === -1) soldIdx = 3;
+  if (discIdx === -1) discIdx = 4;
+  if (recvIdx === -1) recvIdx = 5;
+  if (methIdx === -1) methIdx = 6;
   return {
-    uid: String(row[2] || "").trim(),
-    sold: parseFloat(row[3]) || 0,
-    discount: parseFloat(row[4]) || 0,
-    received: parseFloat(row[5]) || 0,
-    method: String(row[6] || "").trim()
+    uid: String(row[uidIdx] || "").trim(),
+    sold: parseFloat(row[soldIdx]) || 0,
+    discount: parseFloat(row[discIdx]) || 0,
+    received: parseFloat(row[recvIdx]) || 0,
+    method: String(row[methIdx] || "").trim()
   };
+}
+
+/** Normalize Customer_Transactions headers and ensure Discount column exists. */
+function ensureCustomerTxnSheetLayout_(sheet) {
+  ensureTransactionIdColumn_(sheet, "Customer_Transactions");
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var renameMap = {
+    SYSUID: "System Unique ID",
+    UNIQUEID: "System Unique ID",
+    CUSTOMERUID: "System Unique ID",
+    CUSTOMERID: "System Unique ID",
+    SOLD: "Sold Amount",
+    SOLDAMT: "Sold Amount",
+    TOTALSELL: "Sold Amount",
+    RECEIVED: "Received Amount",
+    RECEIVEDAMT: "Received Amount",
+    CASHAMT: "Received Amount",
+    CASHAMOUNT: "Received Amount",
+    AMOUNTPAID: "Received Amount",
+    METHOD: "Payment Method",
+    PAYMENTTYPE: "Payment Method",
+    TXNDUE: "Transaction Due",
+    TRANSACTIONDUE: "Transaction Due",
+    DUE: "Transaction Due",
+    REMARKS: "Remarks / Reference",
+    REMARKSREFERENCE: "Remarks / Reference",
+    USERNAME: "Logged By",
+    LOGGEDBY: "Logged By",
+    TIMESTAMP: "Stamp"
+  };
+  var soldIdx = findColumnIndex_(headers, ["Sold Amount", "Sold Amt", "Sold", "Total Sell"]);
+  var discIdx = findColumnIndex_(headers, ["Discount", "Discount Allowed", "Txn Discount"]);
+  if (discIdx === -1 && soldIdx !== -1) {
+    sheet.insertColumnAfter(soldIdx + 1);
+    sheet.getRange(1, soldIdx + 2).setValue("Discount");
+    headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  }
+  for (var c = 0; c < headers.length; c++) {
+    var key = String(headers[c] || "").trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (renameMap[key]) {
+      sheet.getRange(1, c + 1).setValue(renameMap[key]);
+    }
+  }
 }
 
 /** Recalculate Customers master row from all Customer_Transactions for one System Unique ID. */
@@ -616,7 +673,7 @@ function syncCustomerMasterForUid_(ss, systemUID) {
   var totalDiscount = 0;
 
   for (var t = 1; t < txnData.length; t++) {
-    var p = parseCustomerTxnSheetRow_(txnData[t]);
+    var p = parseCustomerTxnSheetRow_(txnData[t], txnData[0]);
     if (p.uid !== target) continue;
     totalSell += p.sold;
     totalDiscount += p.discount;
@@ -732,6 +789,10 @@ function createGenericRecord(sheetName, rowData) {
   const fullRow = [Utilities.getUuid(), ...rowData];
   sheet.appendRow(fullRow);
 
+  if (sheetName === "Customer_Transactions") {
+    ensureCustomerTxnSheetLayout_(sheet);
+  }
+
   if (sheetName === "HR_Transactions") {
     syncHrMasterForEmployee_(ss, rowData[1]);
   }
@@ -757,6 +818,9 @@ function fetchGenericRecords(sheetName) {
   if (!sheet) return { success: false, message: "Sheet not found" };
   if (usesRowIds_(sheetName)) {
     ensureTransactionIdColumn_(sheet, sheetName);
+  }
+  if (sheetName === "Customer_Transactions") {
+    ensureCustomerTxnSheetLayout_(sheet);
   }
   backfillMissingRecordIds_(sheet);
   const data = sheet.getDataRange().getValues();
