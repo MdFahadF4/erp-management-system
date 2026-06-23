@@ -765,9 +765,19 @@
   font: inherit;
 }
 
+.erp-app-page-footer {
+  box-shadow: 0 -1px 0 rgba(15, 23, 42, 0.04);
+}
+
+.erp-creator-credit--page {
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
 @media print {
   .erp-creator-credit,
-  .erp-creator-credit-menu {
+  .erp-creator-credit-menu,
+  .erp-app-page-footer {
     display: none !important;
   }
 }

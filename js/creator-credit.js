@@ -92,3 +92,8 @@ export function initCreatorCredit() {
 
   window.addEventListener('resize', () => menu.classList.add('hidden'));
 }
+
+export function setAppPageFooterVisible(visible) {
+  const footer = document.getElementById('app-page-footer');
+  if (footer) footer.classList.toggle('hidden', !visible);
+}

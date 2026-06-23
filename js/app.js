@@ -7,7 +7,7 @@ import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js'
 import { refreshSessionUser, userCanAccessModule, userCanEditModule, getDefaultModuleForUser } from './user-session.js';
 import { initDeliveryDashboard } from './delivery-dashboard.js';
 import { applyCompanyBranding } from './company.js';
-import { initCreatorCredit } from './creator-credit.js';
+import { initCreatorCredit, setAppPageFooterVisible } from './creator-credit.js';
 import { finalizeReportPrintLayout, initReportExportButtons, initCustomerTxnSlipButtons } from './report-export.js';
 
 const loginScreen = document.getElementById('login-screen');
@@ -133,6 +133,8 @@ Date.prototype.toLocaleDateString = function() {
   const user = await refreshSessionUser();
   if (user) {
     if (loginScreen) loginScreen.classList.add('hidden');
+    setAppPageFooterVisible(true);
+    initCreatorCredit();
     if (mainContent) {
       const defaultModule = getDefaultModuleForUser(user);
       if (defaultModule) {
@@ -199,6 +201,7 @@ Date.prototype.toLocaleDateString = function() {
     initUserAdminSystem({ onReload: loadUserDirectories });
   } else {
     if (loginScreen) loginScreen.classList.remove('hidden');
+    setAppPageFooterVisible(false);
   }
 }
 
