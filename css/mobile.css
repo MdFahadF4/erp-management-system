@@ -22,6 +22,7 @@
   html,
   body {
     height: 100%;
+    min-height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
   }
@@ -29,6 +30,20 @@
   #app-shell {
     min-height: 0;
     height: 100%;
+    min-height: 100dvh;
+  }
+
+  #login-screen {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    align-items: flex-start;
+    padding-top: max(1rem, env(safe-area-inset-top, 0px));
+    padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+  }
+
+  #login-screen > .max-w-md {
+    margin-top: auto;
+    margin-bottom: auto;
   }
 
   #app-body {
@@ -109,6 +124,21 @@
     overscroll-behavior-y: contain;
     scroll-padding-top: 0.5rem;
     padding-bottom: 2rem;
+  }
+
+  /* Page footer: pin above mobile browser chrome so developer credit stays visible */
+  body.erp-page-footer-visible #app-page-footer {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 55;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 14px rgba(15, 23, 42, 0.08);
+  }
+
+  body.erp-page-footer-visible #main-content {
+    padding-bottom: calc(4.75rem + env(safe-area-inset-bottom, 0px)) !important;
   }
 
   /* Sticky table headers stick to #main-content top, not the window */

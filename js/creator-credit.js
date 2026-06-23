@@ -96,4 +96,5 @@ export function initCreatorCredit() {
 export function setAppPageFooterVisible(visible) {
   const footer = document.getElementById('app-page-footer');
   if (footer) footer.classList.toggle('hidden', !visible);
+  document.body.classList.toggle('erp-page-footer-visible', Boolean(visible));
 }
