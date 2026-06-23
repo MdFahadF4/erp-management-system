@@ -17,6 +17,31 @@ export const templates = {
          </div>
       </div>
 
+      <div id="dash-user-sales-section" class="bg-white border border-blue-200 rounded-xl shadow-sm overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 md:px-5 md:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h3 class="text-sm md:text-base font-black uppercase tracking-wider" data-i18n="dash.monthlyUserSales">Current Month User Sales Performance</h3>
+            <p class="text-[10px] md:text-xs opacity-90 mt-0.5" data-i18n="dash.monthlyUserSalesHint">Ranked by sold amount — day 1 through last day of this month</p>
+          </div>
+          <div id="dash-user-sales-period" class="text-[10px] md:text-xs font-bold bg-white/15 rounded-lg px-3 py-1.5 text-center whitespace-nowrap"></div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead class="bg-gray-50 text-gray-500 border-b uppercase whitespace-nowrap">
+              <tr>
+                <th class="p-2.5 md:p-3 font-semibold w-12 text-center" data-i18n="dash.rank">Rank</th>
+                <th class="p-2.5 md:p-3 font-semibold" data-i18n="field.username">Username</th>
+                <th class="p-2.5 md:p-3 font-semibold text-right" data-i18n="dash.totalSold">Sold Amount</th>
+                <th class="p-2.5 md:p-3 font-semibold text-right" data-i18n="dash.totalReceived">Received Amount</th>
+              </tr>
+            </thead>
+            <tbody id="dash-user-sales-rows" class="divide-y divide-gray-100 text-gray-700 font-medium">
+              <tr><td colspan="4" class="p-6 text-center text-blue-500 font-bold animate-pulse" data-i18n="dash.calculatingSales">Calculating monthly sales performance...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2 mt-4" data-i18n="dash.revenueStreams">Revenue Streams (Lifetime)</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
          

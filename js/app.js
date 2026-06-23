@@ -7042,11 +7042,158 @@ function updateDashboardInsightsSummary(globalBalance, drawerCount) {
 
 /**
  * ------------------------------------------------------------------
+ * CURRENT MONTH USER SALES LEADERBOARD (Dashboard)
+ * ------------------------------------------------------------------
+ */
+function getCurrentMonthWindow() {
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  end.setHours(23, 59, 59, 999);
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const pad = (n) => String(n).padStart(2, '0');
+  const label = `${months[now.getMonth()]} ${now.getFullYear()} (${pad(start.getDate())} – ${pad(end.getDate())})`;
+  return { start, end, label };
+}
+
+function parseDashboardRowDate(val) {
+  if (!val) return null;
+  const d = new Date(val);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isDateInDashboardRange(d, start, end) {
+  return d && d >= start && d <= end;
+}
+
+function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
+  const { start, end, label } = getCurrentMonthWindow();
+  const cln = (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const gV = (obj, names) => {
+    for (const k in obj) {
+      const cK = cln(k);
+      for (const n of names) if (cK === cln(n)) return obj[k];
+    }
+    return null;
+  };
+  const gF = (obj, names) => {
+    const v = parseFloat(gV(obj, names));
+    return Number.isNaN(v) ? 0 : v;
+  };
+
+  const sellCols = ['soldamount', 'soldamt', 'totalsell', 'sellamount', 'grosssell', 'sell'];
+  const recvCols = ['receivedamount', 'receivedamt', 'received', 'cashreceived', 'cashamt', 'cashamount', 'paidamount', 'paidamt', 'amountpaid'];
+  const methCols = ['paymentmethod', 'method', 'paymenttype', 'type'];
+
+  const userStats = {};
+  const ensureUser = (name) => {
+    const u = String(name || '').trim();
+    if (!u) return null;
+    if (!userStats[u]) userStats[u] = { sold: 0, recv: 0 };
+    return u;
+  };
+
+  if (rUsers?.success) {
+    rUsers.records.forEach((u) => ensureUser(gV(u, ['username'])));
+  }
+
+  const txnTotals = {};
+  if (rCustT?.success) {
+    rCustT.records.forEach((row) => {
+      const uid = cln(gV(row, ['systemuniqueid', 'sysuid', 'uniqueid']));
+      if (!uid) return;
+      if (!txnTotals[uid]) txnTotals[uid] = { sold: 0, cash: 0, card: 0 };
+      txnTotals[uid].sold += gF(row, sellCols);
+      const recv = gF(row, recvCols);
+      let method = cln(gV(row, methCols));
+      if (method === '') method = 'cash';
+      if (method.includes('cash')) txnTotals[uid].cash += recv;
+      else txnTotals[uid].card += recv;
+    });
+  }
+
+  if (rCust?.success) {
+    rCust.records.forEach((r) => {
+      const d = parseDashboardRowDate(gV(r, ['date', 'creationstamp', 'timestamp']));
+      if (!isDateInDashboardRange(d, start, end)) return;
+      const creator = ensureUser(gV(r, ['username', 'loggedby', 'createdby']));
+      if (!creator) return;
+      const uid = cln(gV(r, ['systemuniqueid', 'sysuid', 'uniqueid']));
+      const tt = txnTotals[uid] || { sold: 0, cash: 0, card: 0 };
+      userStats[creator].sold += gF(r, sellCols) - tt.sold;
+      userStats[creator].recv += (gF(r, ['cashamt', 'cashamount', 'cash']) - tt.cash)
+        + (gF(r, ['cardamt', 'cardamount', 'card']) - tt.card);
+    });
+  }
+
+  if (rCustT?.success) {
+    rCustT.records.forEach((row) => {
+      const d = parseDashboardRowDate(gV(row, ['date', 'timestamp']));
+      if (!isDateInDashboardRange(d, start, end)) return;
+      const usr = ensureUser(gV(row, ['username', 'loggedby']));
+      if (!usr) return;
+      const check = cln(gV(row, ['remarks', 'category', 'method', 'type', 'paymentmethod']));
+      if (check.includes('previousdue') || check.includes('openingbalance')) {
+        userStats[usr].sold += gF(row, recvCols);
+        return;
+      }
+      userStats[usr].sold += gF(row, sellCols);
+      userStats[usr].recv += gF(row, recvCols);
+    });
+  }
+
+  const ranked = Object.entries(userStats)
+    .map(([name, stats]) => ({ name, sold: stats.sold, recv: stats.recv }))
+    .sort((a, b) => b.sold - a.sold || b.recv - a.recv || a.name.localeCompare(b.name));
+
+  return { label, ranked };
+}
+
+function renderMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
+  const periodEl = document.getElementById('dash-user-sales-period');
+  const tbody = document.getElementById('dash-user-sales-rows');
+  if (!tbody) return;
+
+  const { label, ranked } = computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers);
+  if (periodEl) periodEl.textContent = label;
+
+  if (!ranked.length) {
+    tbody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-gray-400 font-semibold">${t('dash.noMonthlySales')}</td></tr>`;
+    return;
+  }
+
+  const rankBadge = (rank) => {
+    if (rank === 1) return 'bg-amber-100 text-amber-800 border-amber-200';
+    if (rank === 2) return 'bg-slate-200 text-slate-700 border-slate-300';
+    if (rank === 3) return 'bg-orange-100 text-orange-800 border-orange-200';
+    return 'bg-gray-100 text-gray-600 border-gray-200';
+  };
+
+  tbody.innerHTML = ranked.map((row, idx) => {
+    const rank = idx + 1;
+    const badge = rankBadge(rank);
+    const rowBg = rank <= 3 ? 'bg-blue-50/40' : '';
+    return `<tr class="hover:bg-gray-50 ${rowBg}">
+      <td class="p-2.5 md:p-3 text-center">
+        <span class="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-full border text-[10px] font-black ${badge}">#${rank}</span>
+      </td>
+      <td class="p-2.5 md:p-3 font-bold text-gray-900 capitalize">${row.name}</td>
+      <td class="p-2.5 md:p-3 text-right font-mono font-bold text-blue-700">SAR ${row.sold.toFixed(2)}</td>
+      <td class="p-2.5 md:p-3 text-right font-mono font-bold text-emerald-700">SAR ${row.recv.toFixed(2)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/**
+ * ------------------------------------------------------------------
  * MASTER DASHBOARD ENGINE (FIXED: STRICT MATH & NO DOUBLE COUNTING)
  * ------------------------------------------------------------------
  */
 async function loadDashboardData() {
   const container = document.getElementById('dash-user-drawers');
+  const salesBody = document.getElementById('dash-user-sales-rows');
+  if (salesBody) salesBody.innerHTML = `<tr><td colspan="4" class="p-6 text-center text-blue-500 font-bold animate-pulse">${t('dash.calculatingSales')}</td></tr>`;
   if (container) container.innerHTML = `<div class="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">${t('dash.calculatingBalances')}</div>`;
   
   try {
@@ -7242,6 +7389,7 @@ async function loadDashboardData() {
     if(drawerHTML === "" && container) drawerHTML = `<div class="snap-start w-full md:col-span-full p-2.5 md:p-3 text-center text-gray-400 text-xs font-semibold border border-gray-100 rounded-lg bg-white">${t('dash.allDrawersBalanced')}</div>`;
     if(container) container.innerHTML = drawerHTML;
     updateDashboardInsightsSummary(globalBalance, drawerCount);
+    renderMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers);
 
   } catch (err) { console.error("Dashboard Load Error:", err); }
 }
