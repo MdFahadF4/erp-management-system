@@ -684,7 +684,7 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   } else if (target === 'delivery_dashboard') {
     await initDeliveryDashboard();
   } else if (target === 'internal_transfer') {
-    initInternalTransferFormListeners(); await loadInternalTransferTableRecords();
+    await initInternalTransferFormListeners(); await loadInternalTransferTableRecords();
     document.getElementById('btn-filter-int')?.addEventListener('click', () => {
       loadInternalTransferTableRecords(true);
       onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
@@ -1422,13 +1422,22 @@ async function updateLiveUserCashDrawerBalance() {
         if (isU(r) && cln(gV(r, methCols) || "cash").includes("cash")) uCashIn += gF(r, recvCols);
     });
 
+    // Internal transfers: sender cash out; recipient cash in (user-to-user handover)
+    const applyInternalTransferDrawer = (r) => {
+      const amt = Math.abs(gF(r, ["transferamount", "amount"]));
+      const sender = String(gV(r, ["transferredby", "username", "loggedby"]) || '').trim();
+      const recipient = String(gV(r, ["transfertouser", "transferto", "receivedby", "handoverto"]) || '').trim();
+      const me = cln(user.username);
+      if (sender && cln(sender) === me) uCashOut += amt;
+      if (recipient && cln(recipient) === me && cln(recipient) !== cln(sender)) uCashIn += amt;
+    };
+    if (resInt.success) resInt.records.forEach(applyInternalTransferDrawer);
+
     // 2. CASH OUT: The crucial separation of logic!
     if (isAdmin) {
-        // ADMIN RULE: Physical drawer only drops when they Internal Transfer cash out of it.
-        if (resInt.success) resInt.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["transferamount", "amount"])); });
+        // ADMIN RULE: Physical drawer only affected by internal transfers (handled above).
     } else {
         // USER RULE: Drawer drops for EVERYTHING they pay for.
-        if (resInt.success) resInt.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["transferamount", "amount"])); });
         if (resCred.success) resCred.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["returnamount", "returnamt", "amount"])); });
         if (resHr.success) resHr.records.forEach(r => { if (isU(r) && cln(gV(r, ["category"])).includes("paid")) uCashOut += Math.abs(gF(r, ["amount"])); });
         if (resSup.success) resSup.records.forEach(r => { if (isU(r)) { const p = parseSupplierTxnAmounts(r); if (p.pay > 0) uCashOut += p.pay; } });
@@ -2393,26 +2402,59 @@ async function populateCustomerTxnDropdown() {
 /**
  * MODULE: INTERNAL TRANSFER EXECUTION ENGINE
  */
-function initInternalTransferFormListeners() {
+async function populateInternalTransferUserDropdown() {
+  const select = document.getElementById('int-to-user');
+  if (!select) return;
+  const currentUser = fetchSessionUser();
+  const norm = (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  select.innerHTML = `<option value="">${t('placeholder.transferToUserOptional')}</option>`;
+  try {
+    const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Users" } });
+    if (result.success) {
+      result.records.forEach((u) => {
+        const username = String(getCol(u, ['Username', 'User Name']) || '').trim();
+        if (!username || (currentUser && norm(username) === norm(currentUser.username))) return;
+        const safe = username.replace(/"/g, '&quot;');
+        select.innerHTML += `<option value="${safe}">${username}</option>`;
+      });
+    }
+  } catch (err) { /* keep optional empty option */ }
+}
+
+async function initInternalTransferFormListeners() {
   const form = document.getElementById('form-internal-entry'); if (!form) return;
   const dateInput = document.getElementById('int-date'); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+  await populateInternalTransferUserDropdown();
   
   form.onsubmit = async (e) => {
     e.preventDefault();
     if (!guardModuleEdit('internal_transfer')) return;
     const currentUser = fetchSessionUser();
     const amountVal = parseFloat(document.getElementById('int-amount').value) || 0;
+    const transferToUser = String(document.getElementById('int-to-user')?.value || '').trim();
+    const norm = (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    if (transferToUser && norm(transferToUser) === norm(currentUser.username)) {
+      alert(t('alert.cannotTransferToSelf'));
+      return;
+    }
     
     const rowPayload = [
       document.getElementById('int-date').value,
       amountVal,
       document.getElementById('int-desc').value.trim(),
       currentUser.username,
+      transferToUser,
       new Date().toLocaleString()
     ];
     try {
       const result = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "Internal_Transfers", rowData: rowPayload } }); alert(result.message);
-      if (result.success) { form.reset(); if (dateInput) dateInput.value = new Date().toISOString().split('T')[0]; await loadInternalTransferTableRecords(true); await updateLiveUserCashDrawerBalance(); }
+      if (result.success) {
+        form.reset();
+        if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
+        await populateInternalTransferUserDropdown();
+        await loadInternalTransferTableRecords(true);
+        await updateLiveUserCashDrawerBalance();
+      }
     } catch (err) { alert(t('alert.errorLog')); }
   };
 }
@@ -2422,10 +2464,10 @@ async function loadInternalTransferTableRecords(isFilter = false) {
   const fDateInput = document.getElementById('filter-from-int');
   const tDateInput = document.getElementById('filter-to-int');
 
-  if (!isFilter) { container.innerHTML = `<tr><td colspan="7" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
+  if (!isFilter) { container.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b">${t('ledger.selectDatesPrompt')}</td></tr>`; return; }
   if (!fDateInput.value || !tDateInput.value) { alert(t('ledger.bothDatesRequired')); return; }
 
-  container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
+  container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-blue-500 font-bold">${t('ledger.querying')}</td></tr>`;
   try {
     const result = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Internal_Transfers" } });
     if (result.success) {
@@ -2433,14 +2475,14 @@ async function loadInternalTransferTableRecords(isFilter = false) {
       const tDate = new Date(tDateInput.value); tDate.setHours(23,59,59,999);
       let filtered = result.records.filter(rec => { if (!rec["Date"]) return false; const rDate = new Date(rec["Date"]); return rDate >= fDate && rDate <= tDate; });
 
-      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noHandovers')}</td></tr>`; return; }
+      if (filtered.length === 0) { container.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-gray-500 font-bold">${t('ledger.noHandovers')}</td></tr>`; return; }
       cacheTxnRecords("Internal_Transfers", filtered);
       container.innerHTML = filtered.reverse().map(rec => {
-        const dateVal = getCol(rec, ["Date"]); const uid = getCol(rec, ["System Unique ID", "ID", "Tracking ID"]) || ''; const amt = parseFloat(getCol(rec, ["Transfer Amount", "Amount"])) || 0; const desc = getCol(rec, ["Description", "Description / Purpose"]) || '-'; const userVal = getCol(rec, ["Transferred By", "Username", "Logged By"]) || ''; const stamp = getCol(rec, ["System Stamp", "Timestamp"]) || '';
-        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${dateVal ? new Date(dateVal).toLocaleDateString() : ''}</td><td class="font-mono text-gray-400 text-[11px]">${uid}</td><td class="font-mono font-bold text-emerald-600">SAR ${amt.toFixed(2)}</td><td class="max-w-xs truncate" title="${desc}">${desc}</td><td class="font-bold text-gray-800">${userVal}</td><td class="text-gray-400 text-[10px] font-mono">${stamp}</td>${renderTxnActions(rec, "Internal_Transfers")}</tr>`;
+        const dateVal = getCol(rec, ["Date"]); const uid = getCol(rec, ["System Unique ID", "ID", "Tracking ID"]) || ''; const amt = parseFloat(getCol(rec, ["Transfer Amount", "Amount"])) || 0; const desc = getCol(rec, ["Description", "Description / Purpose"]) || '-'; const userVal = getCol(rec, ["Transferred By", "Username", "Logged By"]) || ''; const toUserVal = getCol(rec, ["Transfer To User", "Transfer To", "Received By"]) || '-'; const stamp = getCol(rec, ["System Stamp", "Timestamp"]) || '';
+        return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap"><td class="p-2.5">${dateVal ? new Date(dateVal).toLocaleDateString() : ''}</td><td class="font-mono text-gray-400 text-[11px]">${uid}</td><td class="font-mono font-bold text-emerald-600">SAR ${amt.toFixed(2)}</td><td class="max-w-xs truncate" title="${desc}">${desc}</td><td class="font-bold text-gray-800">${userVal}</td><td class="font-bold text-blue-700">${toUserVal}</td><td class="text-gray-400 text-[10px] font-mono">${stamp}</td>${renderTxnActions(rec, "Internal_Transfers")}</tr>`;
       }).join('');
     }
-  } catch (err) { container.innerHTML = `<tr><td colspan="7" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTransfer')}</td></tr>`; }
+  } catch (err) { container.innerHTML = `<tr><td colspan="8" class="p-3 text-center text-red-500 font-bold">${t('ledger.loadFailedTransfer')}</td></tr>`; }
 }
 
 /**
@@ -3586,13 +3628,16 @@ async function loadAllTxnTableRecords(isFilter = false) {
        stamp: getCol(r, ["Timestamp"])
     }));
 
-    addRecords(resInt, "Internal", "Internal_Transfers", r => ({
-       details: t('allTxn.cashHandover'),
+    addRecords(resInt, "Internal", "Internal_Transfers", r => {
+       const toUser = getCol(r, ["Transfer To User", "Transfer To", "Received By"]);
+       return {
+       details: toUser ? t('allTxn.cashHandover') + ' → ' + toUser : t('allTxn.cashHandover'),
        financial: t('allTxn.finAmount', { amount: Number(getCol(r, ["Transfer Amount", "Amount"])||0).toFixed(2) }),
        remarks: getCol(r, ["Description", "Description / Purpose", "Remarks"]) || t('allTxn.noRemarks'),
-       user: getCol(r, ["Username", "Transferred By", "Logged By"]),
-       stamp: getCol(r, ["Timestamp"])
-    }));
+       user: getCol(r, ["Transferred By", "Username", "Logged By"]),
+       stamp: getCol(r, ["Timestamp", "System Stamp"])
+    };
+    });
 
     addRecords(resExp, "Expense", "Expense_Transactions", r => {
        const a = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
@@ -7360,8 +7405,14 @@ async function loadDashboardData() {
     });
     hrDue = hrEarned - hrPaid;
 
-    // INTERNAL TRANSFERS
-    if(rInt.success) rInt.records.forEach(r => { addCash(gV(r, ["username", "transferredby", "loggedby"]), -Math.abs(gF(r, ["transferamount", "amount"]))); });
+    // INTERNAL TRANSFERS (sender out, recipient in)
+    if (rInt.success) rInt.records.forEach(r => {
+      const amt = Math.abs(gF(r, ["transferamount", "amount"]));
+      const sender = gV(r, ["transferredby", "username", "loggedby"]);
+      const recipient = String(gV(r, ["transfertouser", "transferto", "receivedby", "handoverto"]) || '').trim();
+      if (sender) addCash(sender, -amt);
+      if (recipient && cln(recipient) !== cln(sender)) addCash(recipient, amt);
+    });
 
     // MASTER AGGREGATION (Flawless Totals)
     tRecv = saleDue + incDue;

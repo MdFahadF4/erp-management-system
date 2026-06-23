@@ -630,6 +630,7 @@ export const templates = {
           <form id="form-internal-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transferDate">Transfer Date</label><input type="date" id="int-date" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500"></div>
             <div><label class="block font-bold text-emerald-700 mb-1" data-i18n="field.transferCashAmount">Transfer Cash Amount</label><input type="number" step="0.01" id="int-amount" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 font-mono font-bold" placeholder="0.00" data-i18n-placeholder="placeholder.zero"></div>
+            <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transferToUser">Transfer To User</label><select id="int-to-user" class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500 bg-white"><option value="" data-i18n="placeholder.transferToUserOptional">Owner / external handover (optional)</option></select></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.descriptionNarrative">Description / Narrative Note</label><textarea id="int-desc" rows="3" required class="w-full border rounded p-2 text-sm outline-none focus:ring-2 focus:ring-emerald-500" placeholder="e.g. Cash handed over to owner for bank deposit..." data-i18n-placeholder="placeholder.handoverExample"></textarea></div>
             <button type="submit" class="erp-submit-btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider uppercase" data-i18n="form.int.executeHandover">Execute Cash Handover</button>
           </form>
@@ -644,7 +645,7 @@ export const templates = {
           <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
             <table class="w-full text-left border-collapse text-xs">
               <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap">
-                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.systemUniqueId">System Unique ID</th><th class="p-2.5" data-i18n="col.transferAmount">Transfer Amount</th><th class="p-2.5" data-i18n="col.descriptionPurpose">Description / Purpose</th><th class="p-2.5" data-i18n="col.transferredBy">Transferred By</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5 erp-col-actions" data-i18n="col.actions">Actions</th></tr>
+                <tr><th class="p-2.5" data-i18n="col.date">Date</th><th class="p-2.5" data-i18n="col.systemUniqueId">System Unique ID</th><th class="p-2.5" data-i18n="col.transferAmount">Transfer Amount</th><th class="p-2.5" data-i18n="col.descriptionPurpose">Description / Purpose</th><th class="p-2.5" data-i18n="col.transferredBy">Transferred By</th><th class="p-2.5" data-i18n="col.transferToUser">Transfer To User</th><th class="p-2.5" data-i18n="col.systemStamp">System Stamp</th><th class="p-2.5 erp-col-actions" data-i18n="col.actions">Actions</th></tr>
               </thead>
               <tbody id="table-internal-rows" class="divide-y text-gray-600 font-medium"></tbody>
             </table>

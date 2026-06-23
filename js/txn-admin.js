@@ -183,7 +183,8 @@ const TXN_FORMS = {
     return [
       fieldHtml('date', 'field.transferDate', 'date', formatDateInput(getCol(rec, ['Date']))),
       fieldHtml('amount', 'field.transferCashAmount', 'number', getCol(rec, ['Transfer Amount', 'Amount'])),
-      fieldHtml('desc', 'field.descriptionNarrative', 'textarea', getCol(rec, ['Description', 'Description / Purpose']))
+      fieldHtml('desc', 'field.descriptionNarrative', 'textarea', getCol(rec, ['Description', 'Description / Purpose'])),
+      fieldHtml('toUser', 'field.transferToUser', 'text', getCol(rec, ['Transfer To User', 'Transfer To', 'Received By']))
     ].join('');
   },
   Expense_Transactions(rec) {
@@ -280,7 +281,7 @@ function buildRowData(sheetName, original) {
       return [date, readField('uid'), sold, discount, recv, readField('method'), sold - discount - recv, readField('remarks').trim(), loggedBy, stamp];
     }
     case 'Internal_Transfers':
-      return [date, parseFloat(readField('amount')) || 0, readField('desc').trim(), loggedBy, stamp];
+      return [date, parseFloat(readField('amount')) || 0, readField('desc').trim(), loggedBy, readField('toUser').trim(), stamp];
     case 'Expense_Transactions': {
       const incurred = parseFloat(readField('deposit')) || 0;
       const discount = parseFloat(readField('discount')) || 0;

@@ -612,6 +612,19 @@ function parseCustomerTxnSheetRow_(row, headers) {
   };
 }
 
+/** Ensure Internal_Transfers has Transfer To User column for user-to-user handover. */
+function ensureInternalTransferSheetLayout_(sheet) {
+  ensureTransactionIdColumn_(sheet, "Internal_Transfers");
+  var lastCol = Math.max(sheet.getLastColumn(), 1);
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var toUserIdx = findColumnIndex_(headers, ["Transfer To User", "Transfer To", "Received By", "Handover To"]);
+  if (toUserIdx !== -1) return;
+  var transferredByIdx = findColumnIndex_(headers, ["Transferred By", "Username", "Logged By"]);
+  var insertAfter = transferredByIdx !== -1 ? transferredByIdx : Math.max(headers.length - 2, 0);
+  sheet.insertColumnAfter(insertAfter + 1);
+  sheet.getRange(1, insertAfter + 2).setValue("Transfer To User");
+}
+
 /** Normalize Customer_Transactions headers and ensure Discount column exists. */
 function ensureCustomerTxnSheetLayout_(sheet) {
   ensureTransactionIdColumn_(sheet, "Customer_Transactions");
@@ -786,12 +799,16 @@ function createGenericRecord(sheetName, rowData) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) return { success: false, message: "Sheet not found: " + sheetName };
 
-  const fullRow = [Utilities.getUuid(), ...rowData];
-  sheet.appendRow(fullRow);
-
   if (sheetName === "Customer_Transactions") {
     ensureCustomerTxnSheetLayout_(sheet);
   }
+
+  if (sheetName === "Internal_Transfers") {
+    ensureInternalTransferSheetLayout_(sheet);
+  }
+
+  const fullRow = [Utilities.getUuid(), ...rowData];
+  sheet.appendRow(fullRow);
 
   if (sheetName === "HR_Transactions") {
     syncHrMasterForEmployee_(ss, rowData[1]);
@@ -821,6 +838,9 @@ function fetchGenericRecords(sheetName) {
   }
   if (sheetName === "Customer_Transactions") {
     ensureCustomerTxnSheetLayout_(sheet);
+  }
+  if (sheetName === "Internal_Transfers") {
+    ensureInternalTransferSheetLayout_(sheet);
   }
   backfillMissingRecordIds_(sheet);
   const data = sheet.getDataRange().getValues();
@@ -897,6 +917,10 @@ function updateGenericRecord(sheetName, id, rowData) {
   if (!sheet) return { success: false, message: 'Sheet not found: ' + sheetName };
   if (!id) return { success: false, message: 'Missing record ID.' };
   if (!rowData || !rowData.length) return { success: false, message: 'Missing row data.' };
+
+  if (sheetName === "Internal_Transfers") {
+    ensureInternalTransferSheetLayout_(sheet);
+  }
 
   const data = sheet.getDataRange().getValues();
   const targetId = String(id);
