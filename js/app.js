@@ -7087,9 +7087,19 @@ function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
   const methCols = ['paymentmethod', 'method', 'paymenttype', 'type'];
 
   const userStats = {};
+  const roleByUser = {};
+  if (rUsers?.success) {
+    rUsers.records.forEach((u) => {
+      const name = String(gV(u, ['username']) || '').trim();
+      if (!name) return;
+      roleByUser[cln(name)] = String(gV(u, ['role']) || '');
+    });
+  }
+  const isSuperAdminUser = (name) => cln(roleByUser[cln(name)] || '').includes('superadmin');
+
   const ensureUser = (name) => {
     const u = String(name || '').trim();
-    if (!u) return null;
+    if (!u || isSuperAdminUser(u)) return null;
     if (!userStats[u]) userStats[u] = { sold: 0, recv: 0 };
     return u;
   };
@@ -7144,6 +7154,7 @@ function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
   }
 
   const ranked = Object.entries(userStats)
+    .filter(([name, stats]) => !isSuperAdminUser(name) && Math.abs(stats.sold) > 0.001)
     .map(([name, stats]) => ({ name, sold: stats.sold, recv: stats.recv }))
     .sort((a, b) => b.sold - a.sold || b.recv - a.recv || a.name.localeCompare(b.name));
 
@@ -7173,14 +7184,14 @@ function renderMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
   tbody.innerHTML = ranked.map((row, idx) => {
     const rank = idx + 1;
     const badge = rankBadge(rank);
-    const rowBg = rank <= 3 ? 'bg-blue-50/40' : '';
+    const rowBg = rank <= 3 ? 'bg-gray-50' : '';
     return `<tr class="hover:bg-gray-50 ${rowBg}">
-      <td class="p-2.5 md:p-3 text-center">
-        <span class="inline-flex items-center justify-center min-w-[2rem] px-2 py-0.5 rounded-full border text-[10px] font-black ${badge}">#${rank}</span>
+      <td class="p-2.5 text-center">
+        <span class="inline-flex items-center justify-center min-w-[1.75rem] px-1.5 py-0.5 rounded border text-[10px] font-bold ${badge}">#${rank}</span>
       </td>
-      <td class="p-2.5 md:p-3 font-bold text-gray-900 capitalize">${row.name}</td>
-      <td class="p-2.5 md:p-3 text-right font-mono font-bold text-blue-700">SAR ${row.sold.toFixed(2)}</td>
-      <td class="p-2.5 md:p-3 text-right font-mono font-bold text-emerald-700">SAR ${row.recv.toFixed(2)}</td>
+      <td class="p-2.5 font-bold text-gray-800 capitalize">${row.name}</td>
+      <td class="p-2.5 text-right font-mono font-bold text-blue-700">SAR ${row.sold.toFixed(2)}</td>
+      <td class="p-2.5 text-right font-mono font-bold text-emerald-700">SAR ${row.recv.toFixed(2)}</td>
     </tr>`;
   }).join('');
 }

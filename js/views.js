@@ -17,26 +17,27 @@ export const templates = {
          </div>
       </div>
 
-      <div id="dash-user-sales-section" class="bg-white border border-blue-200 rounded-xl shadow-sm overflow-hidden">
-        <div class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3 md:px-5 md:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+      <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider border-b pb-2 mt-2" data-i18n="dash.monthlyUserSales">Current Month User Sales Performance</h3>
+      <div id="dash-user-sales-section" class="bg-white border border-gray-200 rounded-xl p-4 md:p-5 shadow-sm mb-2">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 border-b pb-3">
           <div>
-            <h3 class="text-sm md:text-base font-black uppercase tracking-wider" data-i18n="dash.monthlyUserSales">Current Month User Sales Performance</h3>
-            <p class="text-[10px] md:text-xs opacity-90 mt-0.5" data-i18n="dash.monthlyUserSalesHint">Ranked by sold amount — day 1 through last day of this month</p>
+            <h4 class="font-bold text-blue-800 text-base md:text-lg" data-i18n="dash.monthlyUserSalesTitle">Sales Ranking (This Month)</h4>
+            <p class="text-[10px] text-gray-400 font-medium mt-0.5" data-i18n="dash.monthlyUserSalesHint">Ranked by sold amount — day 1 through last day of this month</p>
           </div>
-          <div id="dash-user-sales-period" class="text-[10px] md:text-xs font-bold bg-white/15 rounded-lg px-3 py-1.5 text-center whitespace-nowrap"></div>
+          <span id="dash-user-sales-period" class="self-start sm:self-auto bg-blue-100 text-blue-800 text-[10px] px-2.5 py-1 rounded font-bold whitespace-nowrap"></span>
         </div>
-        <div class="overflow-x-auto">
-          <table class="w-full text-left text-xs border-collapse">
+        <div class="overflow-x-auto border border-gray-100 rounded-lg">
+          <table class="w-full text-left text-xs border-collapse min-w-[320px]">
             <thead class="bg-gray-50 text-gray-500 border-b uppercase whitespace-nowrap">
               <tr>
-                <th class="p-2.5 md:p-3 font-semibold w-12 text-center" data-i18n="dash.rank">Rank</th>
-                <th class="p-2.5 md:p-3 font-semibold" data-i18n="field.username">Username</th>
-                <th class="p-2.5 md:p-3 font-semibold text-right" data-i18n="dash.totalSold">Sold Amount</th>
-                <th class="p-2.5 md:p-3 font-semibold text-right" data-i18n="dash.totalReceived">Received Amount</th>
+                <th class="p-2.5 font-semibold w-12 text-center" data-i18n="dash.rank">Rank</th>
+                <th class="p-2.5 font-semibold" data-i18n="field.username">Username</th>
+                <th class="p-2.5 font-semibold text-right" data-i18n="dash.totalSold">Sold Amount</th>
+                <th class="p-2.5 font-semibold text-right" data-i18n="dash.totalReceived">Received Amount</th>
               </tr>
             </thead>
             <tbody id="dash-user-sales-rows" class="divide-y divide-gray-100 text-gray-700 font-medium">
-              <tr><td colspan="4" class="p-6 text-center text-blue-500 font-bold animate-pulse" data-i18n="dash.calculatingSales">Calculating monthly sales performance...</td></tr>
+              <tr><td colspan="4" class="p-4 text-center text-blue-500 font-bold animate-pulse text-[11px]" data-i18n="dash.calculatingSales">Calculating monthly sales performance...</td></tr>
             </tbody>
           </table>
         </div>
