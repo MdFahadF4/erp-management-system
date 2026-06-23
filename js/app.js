@@ -1371,15 +1371,14 @@ async function updateLiveUserCashDrawerBalance() {
   const balanceDisplay = document.getElementById('header-user-balance'); if (!balanceDisplay) return;
   
   try {
-    const [resCust, resCustTxn, resExp, resHr, resSup, resInt, resCred, resCap] = await Promise.all([
+    const [resCust, resCustTxn, resExp, resHr, resSup, resInt, resCred] = await Promise.all([
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customers" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Customer_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Expense_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Supplier_Transactions" } }),
       apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Internal_Transfers" } }),
-      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } }),
-      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Capital_Transactions" } })
+      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "Creditor_Transactions" } })
     ]);
 
     const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
@@ -1394,12 +1393,14 @@ async function updateLiveUserCashDrawerBalance() {
 
     let uCashIn = 0; let uCashOut = 0;
 
-    // 1. CASH IN: Only Customer Cash goes into the physical drawer (For both Admin and User)
+    // 1. CASH IN: Only customer master cash + customer txn cash payments (never capital/accounting entries)
     let txnTotals = {};
     if (resCustTxn.success) {
        resCustTxn.records.forEach(t => {
           let uid = cln(gV(t, ["systemuniqueid", "sysuid", "uniqueid"]));
           if(!uid) return;
+          let check = cln(gV(t, ["remarks", "category", "method", "type", "paymentmethod"]));
+          if (check.includes("previousdue") || check.includes("openingbalance")) return;
           if(!txnTotals[uid]) txnTotals[uid] = { cash: 0 };
           let method = cln(gV(t, methCols)); if (method === "") method = "cash"; 
           if (method.includes("cash")) txnTotals[uid].cash += gF(t, recvCols);
@@ -1411,6 +1412,8 @@ async function updateLiveUserCashDrawerBalance() {
     });
 
     if (resCustTxn.success) resCustTxn.records.forEach(r => {
+        let check = cln(gV(r, ["remarks", "category", "method", "type", "paymentmethod"]));
+        if (check.includes("previousdue") || check.includes("openingbalance")) return;
         if (isU(r) && cln(gV(r, methCols) || "cash").includes("cash")) uCashIn += gF(r, recvCols);
     });
 
@@ -1418,11 +1421,6 @@ async function updateLiveUserCashDrawerBalance() {
     if (isAdmin) {
         // ADMIN RULE: Physical drawer only drops when they Internal Transfer cash out of it.
         if (resInt.success) resInt.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["transferamount", "amount"])); });
-        if (resCap.success) resCap.records.forEach(r => {
-            if (!isU(r)) return;
-            uCashIn += Math.abs(gF(r, ["capitalinamount", "capitalinamt", "capitalin"]));
-            uCashOut += Math.abs(gF(r, ["capitaloutamount", "capitaloutamt", "capitalout"]));
-        });
     } else {
         // USER RULE: Drawer drops for EVERYTHING they pay for.
         if (resInt.success) resInt.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["transferamount", "amount"])); });
@@ -1436,13 +1434,6 @@ async function updateLiveUserCashDrawerBalance() {
                     const amounts = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
                     if (amounts.pay > 0) uCashOut += amounts.pay;
                 }
-            });
-        }
-        if (resCap.success) {
-            resCap.records.forEach(r => {
-                if (!isU(r)) return;
-                uCashIn += Math.abs(gF(r, ["capitalinamount", "capitalinamt", "capitalin"]));
-                uCashOut += Math.abs(gF(r, ["capitaloutamount", "capitaloutamt", "capitalout"]));
             });
         }
     }
@@ -7176,7 +7167,7 @@ async function loadDashboardData() {
        }
     });
 
-    // CAPITAL LOGIC
+    // CAPITAL LOGIC (dashboard totals only — capital never affects live user cash drawers)
     if(rCapT.success) rCapT.records.forEach(r => {
        const amounts = parseTxnDualAmounts(r, CAPITAL_TXN_FIELDS);
        let check = cln(getDualTxnCategory(r, CAPITAL_TXN_FIELDS) + " " + gV(r, ["remarks", "subhead"]));
@@ -7185,11 +7176,6 @@ async function loadDashboardData() {
            capIn += prevAmt; capNet += prevAmt;
        } else {
            capIn += amounts.bill; capOut += amounts.pay; capNet += amounts.txnDue;
-           let logger = gV(r, ["username", "loggedby"]);
-           if (logger && !isAdm(logger)) {
-               addCash(logger, amounts.bill);
-               addCash(logger, -amounts.pay);
-           }
        }
     });
 
