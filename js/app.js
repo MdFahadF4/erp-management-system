@@ -1097,14 +1097,20 @@ function renderHrDetailsReportPanels({ cardsEl, tableContainer, employeeName, fr
   `;
 }
 
+function getHrStatusBadgeClass(status) {
+  const value = String(status || 'Active');
+  if (value === 'Inactive') return 'bg-amber-100 text-amber-800';
+  if (value === 'Released') return 'bg-red-100 text-red-800';
+  if (value === 'Vacation') return 'bg-sky-100 text-sky-800';
+  return 'bg-green-100 text-green-800';
+}
+
 function buildHrMasterLedgerRowHtml(rec, txns, editModuleKey = 'hr') {
   const canEdit = userCanEditModule(fetchSessionUser(), editModuleKey);
   const actionBtn = canEdit
     ? `<button class="btn-hr-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>`
     : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
-  const badgeStyle = rec["Status"] === "Inactive"
-    ? "bg-amber-100 text-amber-800"
-    : (rec["Status"] === "Released" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800");
+  const badgeStyle = getHrStatusBadgeClass(rec["Status"]);
 
   const empName = String(getCol(rec, ["Employee Name", "Employee", "Name"]) || "").trim();
   const baseSalary = parseFloat(rec["Salary Start"]) || 0;

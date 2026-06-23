@@ -212,6 +212,7 @@ export const FORM_EN = {
   'status.active': 'Active',
   'status.inactive': 'Inactive',
   'status.released': 'Released',
+  'status.vacation': 'Vacation',
   'category.salaryEarn': 'Salary Earn',
   'category.salaryPaid': 'Salary Paid',
   'category.salaryIncrement': 'Salary Increment',
@@ -469,7 +470,8 @@ const CATEGORY_I18N = {
   Card: 'option.card',
   Active: 'status.active',
   Inactive: 'status.inactive',
-  Released: 'status.released'
+  Released: 'status.released',
+  Vacation: 'status.vacation'
 };
 
 export function getCategoryLabel(value, tFn) {
@@ -665,6 +667,7 @@ export const FORM_AR = translatePack(FORM_EN, {
   'status.active': 'نشط',
   'status.inactive': 'غير نشط',
   'status.released': 'مُنهى',
+  'status.vacation': 'إجازة',
   'category.salaryEarn': 'أرباح الراتب',
   'category.salaryPaid': 'الراتب المدفوع',
   'category.salaryIncrement': 'زيادة الراتب',
@@ -1012,6 +1015,7 @@ export const FORM_BN = translatePack(FORM_EN, {
   'status.active': 'সক্রিয়',
   'status.inactive': 'নিষ্ক্রিয়',
   'status.released': 'মুক্ত',
+  'status.vacation': 'ছুটি',
   'category.salaryEarn': 'বেতন অর্জন',
   'category.salaryPaid': 'বেতন প্রদত্ত',
   'category.salaryIncrement': 'বেতন বৃদ্ধি',
@@ -1359,6 +1363,7 @@ export const FORM_DE = translatePack(FORM_EN, {
   'status.active': 'Aktiv',
   'status.inactive': 'Inaktiv',
   'status.released': 'Freigegeben',
+  'status.vacation': 'Urlaub',
   'category.salaryEarn': 'Gehaltsverdienst',
   'category.salaryPaid': 'Gehalt gezahlt',
   'category.salaryIncrement': 'Gehaltserhöhung',
@@ -1706,6 +1711,7 @@ export const FORM_FR = translatePack(FORM_EN, {
   'status.active': 'Actif',
   'status.inactive': 'Inactif',
   'status.released': 'Libéré',
+  'status.vacation': 'Vacances',
   'category.salaryEarn': 'Salaire acquis',
   'category.salaryPaid': 'Salaire payé',
   'category.salaryIncrement': 'Augmentation salariale',
@@ -2053,6 +2059,7 @@ export const FORM_HI = translatePack(FORM_EN, {
   'status.active': 'सक्रिय',
   'status.inactive': 'निष्क्रिय',
   'status.released': 'मुक्त',
+  'status.vacation': 'अवकाश',
   'category.salaryEarn': 'वेतन अर्जित',
   'category.salaryPaid': 'वेतन भुगतान',
   'category.salaryIncrement': 'वेतन वृद्धि',
@@ -2400,6 +2407,7 @@ export const FORM_UR = translatePack(FORM_EN, {
   'status.active': 'فعال',
   'status.inactive': 'غیر فعال',
   'status.released': 'رخصت',
+  'status.vacation': 'تعطیل',
   'category.salaryEarn': 'تنخواہ کمائی',
   'category.salaryPaid': 'تنخواہ ادا',
   'category.salaryIncrement': 'تنخواہ میں اضافہ',
@@ -2747,6 +2755,7 @@ export const FORM_ES = translatePack(FORM_EN, {
   'status.active': 'Activo',
   'status.inactive': 'Inactivo',
   'status.released': 'Liberado',
+  'status.vacation': 'Vacaciones',
   'category.salaryEarn': 'Salario devengado',
   'category.salaryPaid': 'Salario pagado',
   'category.salaryIncrement': 'Incremento salarial',
