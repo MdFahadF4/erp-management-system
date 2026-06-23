@@ -464,7 +464,7 @@ export function buildCustomerTxnSlipHtml(data, options = {}) {
           ).join('')}
         </tbody>
       </table>
-      <div class="text-center text-[10px] text-gray-500 border-t pt-2">${options.footer || t('custTxn.slipFooter')}</div>
+      <div class="erp-txn-slip-footer">${options.footer || t('custTxn.slipFooter')}</div>
     </div>`;
 }
 
@@ -476,8 +476,9 @@ function buildCustomerTxnSlipExportHtml(data, qrDataUrl) {
 body{font-family:Arial,sans-serif;margin:24px;color:#111}
 .header{text-align:center;border-bottom:2px solid #333;padding-bottom:12px;margin-bottom:16px;position:relative;min-height:110px}
 .header img{position:absolute;top:0;right:0;width:96px;height:96px}
-table{width:100%;border-collapse:collapse;font-size:11px}
+table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}
 td{border:1px solid #ccc;padding:8px}
+.footer{text-align:center;font-size:12px;color:#444;margin-top:20px;padding:12px 8px 16px;line-height:1.6;border-top:1px solid #ccc}
 </style></head><body>
 <div class="header">
   ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR" />` : ''}
@@ -489,8 +490,68 @@ td{border:1px solid #ccc;padding:8px}
 <table><tbody>
   ${rows.map(([l, v]) => `<tr><td><b>${l}</b></td><td>${v}</td></tr>`).join('')}
 </tbody></table>
-<p style="text-align:center;font-size:10px;color:#666;margin-top:16px">${t('custTxn.slipFooter')}</p>
+<p class="footer">${t('custTxn.slipFooter')}</p>
 </body></html>`;
+}
+
+function buildCustomerSlipSheetRows(slipData) {
+  const co = getCompanyInfo();
+  return [
+    [co.COMPANY_NAME],
+    [getCompanyLegalLine()],
+    [t('custTxn.slipTitle')],
+    [t('report.printedOn'), formatPrintDateTime()],
+    ['QR', buildCustomerTxnSlipQrPayload(slipData)],
+    [],
+    [t('report.slipField'), t('report.slipValue')],
+    ...customerSlipFieldRows(slipData),
+    [],
+    [t('custTxn.slipFooter')]
+  ];
+}
+
+function styleCustomerSlipWorksheet(ws, rowCount) {
+  ws['!cols'] = [{ wch: 28 }, { wch: 40 }];
+  ws['!rows'] = Array.from({ length: rowCount }, (_, i) => ({
+    hpt: i === rowCount - 1 ? 36 : 20
+  }));
+  ws['!merges'] = [{ s: { r: rowCount - 1, c: 0 }, e: { r: rowCount - 1, c: 1 } }];
+}
+
+async function renderSlipPdf(slipData, qrDataUrl, base) {
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-10000px;top:0;width:720px;background:#fff;padding:24px;z-index:-1;';
+  host.innerHTML = `<div id="cust-txn-slip-print-root">${buildCustomerTxnSlipHtml(slipData, { qrDataUrl })}</div>`;
+  document.body.appendChild(host);
+  await new Promise((resolve) => requestAnimationFrame(resolve));
+  try {
+    const root = host.firstElementChild;
+    const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+      import('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm'),
+      import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm')
+    ]);
+    const canvas = await html2canvas(root, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+    const img = canvas.toDataURL('image/png');
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const ratio = pageW / canvas.width;
+    const imgH = canvas.height * ratio;
+    pdf.addImage(img, 'PNG', 0, 0, pageW, imgH);
+    if (imgH > pageH) {
+      let left = imgH - pageH;
+      let pos = -pageH;
+      while (left > 0) {
+        pdf.addPage();
+        pdf.addImage(img, 'PNG', 0, pos, pageW, imgH);
+        left -= pageH;
+        pos -= pageH;
+      }
+    }
+    pdf.save(`${base}.pdf`);
+  } finally {
+    host.remove();
+  }
 }
 
 async function renderSlipQr(hostId, data) {
@@ -539,19 +600,10 @@ export async function exportCustomerTxnSlipAs(format, data = null) {
   if (format === 'excel') {
     try {
       const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
-      const co = getCompanyInfo();
-      const aoa = [
-        [co.COMPANY_NAME],
-        [getCompanyLegalLine()],
-        [t('custTxn.slipTitle')],
-        [t('report.printedOn'), formatPrintDateTime()],
-        ['QR', buildCustomerTxnSlipQrPayload(slipData)],
-        [],
-        ['Field', 'Value'],
-        ...customerSlipFieldRows(slipData)
-      ];
+      const aoa = buildCustomerSlipSheetRows(slipData);
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.aoa_to_sheet(aoa);
+      styleCustomerSlipWorksheet(ws, aoa.length);
       XLSX.utils.book_append_sheet(wb, ws, 'Transaction');
       XLSX.writeFile(wb, `${base}.xlsx`);
     } catch (err) {
@@ -563,32 +615,7 @@ export async function exportCustomerTxnSlipAs(format, data = null) {
 
   if (format === 'pdf') {
     try {
-      await openCustomerTxnSlipPreview(slipData, { skipShow: true });
-      const root = document.getElementById('cust-txn-slip-print-root');
-      if (!root) return;
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm'),
-        import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm')
-      ]);
-      const canvas = await html2canvas(root, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const img = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const ratio = pageW / canvas.width;
-      const imgH = canvas.height * ratio;
-      pdf.addImage(img, 'PNG', 0, 0, pageW, imgH);
-      if (imgH > pageH) {
-        let left = imgH - pageH;
-        let pos = -pageH;
-        while (left > 0) {
-          pdf.addPage();
-          pdf.addImage(img, 'PNG', 0, pos, pageW, imgH);
-          left -= pageH;
-          pos -= pageH;
-        }
-      }
-      pdf.save(`${base}.pdf`);
+      await renderSlipPdf(slipData, qrDataUrl, base);
     } catch (err) {
       console.error(err);
       alert(t('report.exportFailed'));
@@ -610,8 +637,11 @@ export async function exportCustomerTxnSlipAs(format, data = null) {
         slide1.addImage({ data: qrDataUrl, x: 8.2, y: 0.3, w: 1.2, h: 1.2 });
       }
       const slide2 = pptx.addSlide();
-      slide2.addTable([['Field', 'Value'], ...customerSlipFieldRows(slipData)], {
+      slide2.addTable([[t('report.slipField'), t('report.slipValue')], ...customerSlipFieldRows(slipData)], {
         x: 0.4, y: 0.5, w: 9.2, fontSize: 11, border: { type: 'solid', color: 'CCCCCC', pt: 1 }
+      });
+      slide2.addText(t('custTxn.slipFooter'), {
+        x: 0.5, y: 6.8, w: 9, h: 0.5, fontSize: 12, align: 'center', color: '666666'
       });
       await pptx.writeFile({ fileName: `${base}.pptx` });
     } catch (err) {

@@ -447,7 +447,7 @@ export const FORM_EN = {
   'custTxn.slipPreview': 'Customer Transaction Receipt',
   'custTxn.slipTitle': 'Customer Transaction Receipt',
   'custTxn.slipFooter': 'Thank you for your business.',
-  'custTxn.selectCustomerFirst': 'Select a customer before previewing the slip.'
+  'custTxn.selectCustomerFirst': 'Select a customer before previewing the slip.',
 };
 
 const CATEGORY_I18N = {
@@ -812,6 +812,11 @@ export const FORM_AR = translatePack(FORM_EN, {
   'custTxn.helpNet': 'الإجمالي الصافي',
   'custTxn.helpTip': 'نصيحة: في السجل، انقر «استرداد» على الصف الأصلي لملء النموذج تلقائياً. لا تحذف البيع الأصلي — سجّل دائماً معاملة عكسية.',
   'custTxn.helpClose': 'إغلاق',
+  'custTxn.previewSlip': 'طباعة / تصدير الإيصال',
+  'custTxn.slipPreview': 'إيصال معاملة العميل',
+  'custTxn.slipTitle': 'إيصال معاملة العميل',
+  'custTxn.slipFooter': 'شكراً لتعاملكم معنا.',
+  'custTxn.selectCustomerFirst': 'اختر عميلاً قبل معاينة الإيصال.',
 });
 
 export const FORM_BN = translatePack(FORM_EN, {
@@ -1153,6 +1158,11 @@ export const FORM_BN = translatePack(FORM_EN, {
   'custTxn.helpNet': 'মোট নিট',
   'custTxn.helpTip': 'টিপ: লেজারে মূল সারিতে «রিফান্ড» ক্লিক করলে ফর্ম স্বয়ংক্রিয়ভাবে পূরণ হবে। মূল বিক্রয় মুছবেন না — সবসময় বিপরীত লেনদেন পোস্ট করুন।',
   'custTxn.helpClose': 'বন্ধ',
+  'custTxn.previewSlip': 'প্রিন্ট / রসিদ রপ্তানি',
+  'custTxn.slipPreview': 'গ্রাহক লেনদেনের রসিদ',
+  'custTxn.slipTitle': 'গ্রাহক লেনদেনের রসিদ',
+  'custTxn.slipFooter': 'আপনার ব্যবসার জন্য ধন্যবাদ।',
+  'custTxn.selectCustomerFirst': 'রসিদ দেখতে আগে একজন গ্রাহক নির্বাচন করুন।',
 });
 
 export const FORM_DE = translatePack(FORM_EN, {
@@ -1494,6 +1504,11 @@ export const FORM_DE = translatePack(FORM_EN, {
   'custTxn.helpNet': 'Nettosumme',
   'custTxn.helpTip': 'Tipp: Im Ledger auf «Erstatten» in der Originalzeile klicken, um das Formular automatisch auszufüllen. Originalverkauf nie löschen — immer eine Stornobuchung erfassen.',
   'custTxn.helpClose': 'Schließen',
+  'custTxn.previewSlip': 'Beleg drucken / exportieren',
+  'custTxn.slipPreview': 'Kundentransaktionsbeleg',
+  'custTxn.slipTitle': 'Kundentransaktionsbeleg',
+  'custTxn.slipFooter': 'Vielen Dank für Ihr Vertrauen.',
+  'custTxn.selectCustomerFirst': 'Wählen Sie zuerst einen Kunden, bevor Sie den Beleg anzeigen.',
 });
 
 export const FORM_FR = translatePack(FORM_EN, {
@@ -1835,6 +1850,11 @@ export const FORM_FR = translatePack(FORM_EN, {
   'custTxn.helpNet': 'Total net',
   'custTxn.helpTip': 'Astuce : dans le grand livre, cliquez « Rembourser » sur la ligne originale pour remplir le formulaire. Ne supprimez jamais la vente originale — enregistrez toujours une contre-écriture.',
   'custTxn.helpClose': 'Fermer',
+  'custTxn.previewSlip': 'Imprimer / exporter le reçu',
+  'custTxn.slipPreview': 'Reçu de transaction client',
+  'custTxn.slipTitle': 'Reçu de transaction client',
+  'custTxn.slipFooter': 'Merci pour votre confiance.',
+  'custTxn.selectCustomerFirst': 'Sélectionnez un client avant d\'afficher le reçu.',
 });
 
 export const FORM_HI = translatePack(FORM_EN, {
@@ -2176,6 +2196,11 @@ export const FORM_HI = translatePack(FORM_EN, {
   'custTxn.helpNet': 'शुद्ध कुल',
   'custTxn.helpTip': 'सुझाव: लेजर में मूल पंक्ति पर «रिफंड» क्लिक करें — फॉर्म अपने आप भर जाएगा। मूल बिक्री मत हटाएं — हमेशा उलट लेनदेन पोस्ट करें।',
   'custTxn.helpClose': 'बंद करें',
+  'custTxn.previewSlip': 'प्रिंट / रसीद निर्यात',
+  'custTxn.slipPreview': 'ग्राहक लेनदेन रसीद',
+  'custTxn.slipTitle': 'ग्राहक लेनदेन रसीद',
+  'custTxn.slipFooter': 'आपके व्यवसाय के लिए धन्यवाद।',
+  'custTxn.selectCustomerFirst': 'रसीद देखने से पहले ग्राहक चुनें।',
 });
 
 export const FORM_UR = translatePack(FORM_EN, {
@@ -2517,6 +2542,11 @@ export const FORM_UR = translatePack(FORM_EN, {
   'custTxn.helpNet': 'خالص کل',
   'custTxn.helpTip': 'مشورہ: لیجر میں اصل قطار پر «واپسی» کلک کریں — فارم خود بھر جائے گا۔ اصل فروخت مت حذف کریں — ہمیشہ الٹ لین دین پوسٹ کریں۔',
   'custTxn.helpClose': 'بند کریں',
+  'custTxn.previewSlip': 'پرنٹ / رسید برآمد',
+  'custTxn.slipPreview': 'کسٹمر لین دین کی رسید',
+  'custTxn.slipTitle': 'کسٹمر لین دین کی رسید',
+  'custTxn.slipFooter': 'آپ کے کاروبار کا شکریہ۔',
+  'custTxn.selectCustomerFirst': 'رسید دیکھنے سے پہلے کسٹمر منتخب کریں۔',
 });
 
 export const FORM_ES = translatePack(FORM_EN, {
@@ -2858,6 +2888,11 @@ export const FORM_ES = translatePack(FORM_EN, {
   'custTxn.helpNet': 'Total neto',
   'custTxn.helpTip': 'Consejo: en el libro, haga clic en «Reembolsar» en la fila original para autocompletar el formulario. Nunca elimine la venta original — registre siempre una reversión.',
   'custTxn.helpClose': 'Cerrar',
+  'custTxn.previewSlip': 'Imprimir / exportar recibo',
+  'custTxn.slipPreview': 'Recibo de transacción del cliente',
+  'custTxn.slipTitle': 'Recibo de transacción del cliente',
+  'custTxn.slipFooter': 'Gracias por su preferencia.',
+  'custTxn.selectCustomerFirst': 'Seleccione un cliente antes de ver el recibo.',
 });
 
 export const FORM_STRINGS = {

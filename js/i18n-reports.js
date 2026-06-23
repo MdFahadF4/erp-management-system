@@ -42,6 +42,8 @@ export const REPORT_EN = {
   // Report chrome
   'report.reportName': 'Report Name',
   'report.printedOn': 'Printed on',
+  'report.slipField': 'Field',
+  'report.slipValue': 'Value',
   'report.lifetimeSummary': 'Lifetime Summary',
   'report.rangeSummary': 'Date Range Summary',
   'report.noRangeSummary': 'No date-range summary for this report.',
@@ -636,6 +638,8 @@ export const REPORT_AR = translatePack(REPORT_EN, {
   'report.txnTypePayment': 'دفع',
   'report.txnTypeRefund': 'استرداد / إلغاء',
   'report.txnTypeSalePayment': 'بيع ودفع',
+  'report.slipField': 'الحقل',
+  'report.slipValue': 'القيمة',
 });
 
 export const REPORT_BN = translatePack(REPORT_EN, {
@@ -852,7 +856,9 @@ export const REPORT_BN = translatePack(REPORT_EN, {
   'dash.globalBalance': 'গ্লোবাল ব্যালেন্স',
   'dash.drawerCount': '{count} ড্রয়ার',
   'dash.drawerCountPlural': '{count} ড্রয়ার',
-  'dash.balanceSummary': 'ব্যালেন্স SAR {amount}'
+  'dash.balanceSummary': 'ব্যালেন্স SAR {amount}',
+  'report.slipField': 'ক্ষেত্র',
+  'report.slipValue': 'মান',
 });
 
 export const REPORT_DE = translatePack(REPORT_EN, {
@@ -1069,10 +1075,10 @@ export const REPORT_DE = translatePack(REPORT_EN, {
   'dash.globalBalance': 'Gesamtsaldo',
   'dash.drawerCount': '{count} Kasse',
   'dash.drawerCountPlural': '{count} Kassen',
-  'dash.balanceSummary': 'Saldo SAR {amount}'
+  'dash.balanceSummary': 'Saldo SAR {amount}',
+  'report.slipField': 'Feld',
+  'report.slipValue': 'Wert',
 });
-
-// Temporary append fragment — merged into i18n-reports.js
 
 export const REPORT_FR = translatePack(REPORT_EN, {
   'report.dailyMonthly': 'Rapport agrégé journalier / mensuel',
@@ -1288,7 +1294,9 @@ export const REPORT_FR = translatePack(REPORT_EN, {
   'dash.globalBalance': 'Solde global',
   'dash.drawerCount': '{count} caisse',
   'dash.drawerCountPlural': '{count} caisses',
-  'dash.balanceSummary': 'Solde SAR {amount}'
+  'dash.balanceSummary': 'Solde SAR {amount}',
+  'report.slipField': 'Champ',
+  'report.slipValue': 'Valeur',
 });
 
 export const REPORT_HI = translatePack(REPORT_EN, {
@@ -1505,7 +1513,9 @@ export const REPORT_HI = translatePack(REPORT_EN, {
   'dash.globalBalance': 'वैश्विक शेष',
   'dash.drawerCount': '{count} ड्रॉअर',
   'dash.drawerCountPlural': '{count} ड्रॉअर',
-  'dash.balanceSummary': 'शेष SAR {amount}'
+  'dash.balanceSummary': 'शेष SAR {amount}',
+  'report.slipField': 'फ़ील्ड',
+  'report.slipValue': 'मान',
 });
 
 export const REPORT_UR = translatePack(REPORT_EN, {
@@ -1722,7 +1732,9 @@ export const REPORT_UR = translatePack(REPORT_EN, {
   'dash.globalBalance': 'عالمی بیلنس',
   'dash.drawerCount': '{count} دراز',
   'dash.drawerCountPlural': '{count} دراز',
-  'dash.balanceSummary': 'بیلنس SAR {amount}'
+  'dash.balanceSummary': 'بیلنس SAR {amount}',
+  'report.slipField': 'فیلڈ',
+  'report.slipValue': 'قدر',
 });
 
 export const REPORT_ES = translatePack(REPORT_EN, {
@@ -1939,7 +1951,9 @@ export const REPORT_ES = translatePack(REPORT_EN, {
   'dash.globalBalance': 'Saldo global',
   'dash.drawerCount': '{count} caja',
   'dash.drawerCountPlural': '{count} cajas',
-  'dash.balanceSummary': 'Saldo SAR {amount}'
+  'dash.balanceSummary': 'Saldo SAR {amount}',
+  'report.slipField': 'Campo',
+  'report.slipValue': 'Valor',
 });
 
 export const REPORT_STRINGS = {
