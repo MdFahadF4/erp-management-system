@@ -234,22 +234,17 @@ export const templates = {
     </div>
   `,
   hr_factory: `
-      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
+      <div id="hr-factory-root" class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3">
         <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.hrFactory.title">HR Factory</h2>
-        <p class="text-xs text-gray-500 mt-1" data-i18n="page.hrFactory.subtitle">Factory-designation personnel only — same fields as the HR master ledger.</p>
-      </div>
-      <div class="bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col w-full">
-        <div class="flex flex-col lg:flex-row lg:items-end gap-3 mb-3 erp-mobile-filter-bar">
-          <div class="flex-1 min-w-0">
-            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1" data-i18n="hrFactory.searchLabel">Search Factory Personnel</label>
-            <input type="search" id="hr-factory-search" class="w-full border rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-400" autocomplete="off" data-i18n-placeholder="hrFactory.searchPlaceholder" placeholder="Name, designation, status...">
-          </div>
-          <div class="flex flex-wrap gap-2 shrink-0">
-            <button type="button" id="btn-hr-factory-search" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition shadow-sm" data-i18n="hrFactory.searchBtn">Search</button>
-            <button type="button" id="btn-hr-factory-clear" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg text-sm transition" data-i18n="hrFactory.clearBtn">Clear</button>
-          </div>
+        <p class="text-xs text-gray-500 mt-1" data-i18n="page.hrFactory.subtitle">Factory-designation personnel — master ledger list and date-wise details report.</p>
+        <div class="hr-factory-tab-bar flex flex-wrap gap-2 mt-4">
+          <button type="button" id="hr-factory-tab-ledger" class="hr-factory-tab px-4 py-2 rounded-lg text-sm font-bold transition bg-amber-600 text-white shadow-sm" data-tab="ledger" data-i18n="hrFactory.tabLedger">Factory Ledger</button>
+          <button type="button" id="hr-factory-tab-details" class="hr-factory-tab px-4 py-2 rounded-lg text-sm font-bold transition bg-gray-100 text-gray-700 hover:bg-gray-200" data-tab="details" data-i18n="hrFactory.tabDetails">Factory Details Report</button>
         </div>
+      </div>
+
+      <div id="hr-factory-panel-ledger" class="bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col w-full">
         <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider" data-i18n="page.hrFactory.ledgerTitle">Factory Personnel Ledger</h3>
         <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:max-h-[calc(100vh-16rem)] md:overflow-y-auto">
           <table class="w-full text-left border-collapse text-xs">
@@ -262,6 +257,31 @@ export const templates = {
           </table>
         </div>
         <p id="hr-factory-count" class="text-[11px] text-gray-500 mt-2 font-medium"></p>
+      </div>
+
+      <div id="hr-factory-panel-details" class="hidden space-y-4">
+        <div class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-mobile-filter-bar">
+          <div class="w-full md:flex-1 md:min-w-[180px]">
+            <label class="block text-gray-600 font-bold mb-1" data-i18n="report.selectEmployee">Select Employee</label>
+            <select id="hr-factory-details-employee" class="w-full border rounded p-2.5 outline-none bg-white focus:border-amber-500 text-sm font-medium">
+              <option value="" data-i18n="dropdown.loadingEmployees">Loading employees...</option>
+            </select>
+          </div>
+          <div class="w-full md:flex-1 md:min-w-[120px]">
+            <label class="block text-gray-600 font-bold mb-1" data-i18n="common.fromDate">From Date</label>
+            <input type="date" id="hr-factory-details-from" class="w-full border rounded p-2.5 outline-none focus:border-amber-500 text-sm">
+          </div>
+          <div class="w-full md:flex-1 md:min-w-[120px]">
+            <label class="block text-gray-600 font-bold mb-1" data-i18n="common.toDate">To Date</label>
+            <input type="date" id="hr-factory-details-to" class="w-full border rounded p-2.5 outline-none focus:border-amber-500 text-sm">
+          </div>
+          <div class="w-full md:w-auto">
+            <button type="button" id="btn-hr-factory-details" class="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]" data-i18n="common.executeQuery">Execute Query</button>
+          </div>
+        </div>
+
+        <div id="hr-factory-details-summary" class="hidden grid grid-cols-1 mb-2"></div>
+        <div id="hr-factory-details-table" class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"></div>
       </div>
     </div>
   `,

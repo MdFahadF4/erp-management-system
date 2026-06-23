@@ -173,6 +173,7 @@ Date.prototype.toLocaleDateString = function() {
           await loadTxnTableRecords(true);
           await loadHRTableRecords();
           await loadHrFactoryTableRecords();
+          await populateHrFactoryEmployeeDropdown();
           await populateEmployeeDropdown();
         },
         Supplier_Transactions: async () => {
@@ -464,10 +465,10 @@ function initMobileModuleSnapshot(target) {
   }
 
   if (target === 'hr_factory') {
-    markMobileSnapshotTargets(pageRoot, ['.border-b', '.erp-mobile-filter-bar']);
+    markMobileSnapshotTargets(pageRoot, ['.border-b', '#hr-factory-panel-details .erp-mobile-filter-bar']);
     return createMobileSnapshotController(pageRoot, {
       label: t('page.hrFactory.title'),
-      defaultSummary: t('hrFactory.searchLabel')
+      defaultSummary: t('hrFactory.tabLedger')
     });
   }
 
@@ -671,8 +672,9 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   } else if (target === 'hr') {
     initHRFormListeners(); await loadHRTableRecords();
   } else if (target === 'hr_factory') {
-    initHrFactoryListeners();
+    initHrFactoryModule();
     await loadHrFactoryTableRecords();
+    await populateHrFactoryEmployeeDropdown();
   } else if (target === 'hr_transactions') {
     await populateEmployeeDropdown();
     initTxnFormListeners();
@@ -960,15 +962,139 @@ function isHrFactoryDesignation(designation) {
   return String(designation || '').trim().toLowerCase().includes('factory');
 }
 
-function matchesHrFactorySearch(rec, query) {
-  const q = String(query || '').trim().toLowerCase();
-  if (!q) return true;
-  const empName = String(getCol(rec, ["Employee Name", "Employee", "Name"]) || '').trim().toLowerCase();
-  const designation = String(getCol(rec, ["Designation"]) || rec["Designation"] || '').trim().toLowerCase();
-  const status = String(rec["Status"] || '').trim().toLowerCase();
-  const joinRaw = rec["Date of Joining"];
-  const joinDate = joinRaw ? new Date(joinRaw).toLocaleDateString().toLowerCase() : '';
-  return empName.includes(q) || designation.includes(q) || status.includes(q) || joinDate.includes(q);
+function buildHrDetailsDateRange(fromStr, toStr) {
+  const fDate = fromStr ? new Date(fromStr) : new Date(0);
+  if (fromStr) fDate.setHours(0, 0, 0, 0);
+  const tDate = toStr ? new Date(toStr) : new Date();
+  if (toStr) tDate.setHours(23, 59, 59, 999);
+  return { fDate, tDate };
+}
+
+function renderHrDetailsReportPanels({ cardsEl, tableContainer, employeeName, fromStr, toStr, hrTxns }) {
+  if (!cardsEl || !tableContainer) return;
+
+  const { fDate, tDate } = buildHrDetailsDateRange(fromStr, toStr);
+  const secVal = employeeName;
+  const allHrTxns = (hrTxns || []).filter((r) => getCol(r, ["Employee Name"]) === secVal);
+
+  let globalEarn = 0;
+  let globalPaid = 0;
+  allHrTxns.forEach((r) => {
+    const cat = String(getCol(r, ["Category"])).trim().toUpperCase();
+    const amt = parseFloat(getCol(r, ["Amount"])) || 0;
+    if (cat.includes("EARN") || cat.includes("PREVIOUS DUE") || cat.includes("OPENING BALANCE")) {
+      globalEarn += amt;
+    } else if (cat.includes("PAID")) {
+      globalPaid += amt;
+    }
+  });
+  const globalDueHr = globalEarn - globalPaid;
+
+  const hrEarns = [];
+  const hrPayments = [];
+  let hrRangeEarn = 0;
+  let hrRangePaid = 0;
+
+  const hrFilteredTxns = allHrTxns.filter((r) => {
+    const dStr = getCol(r, ["Date"]);
+    if (!dStr) return false;
+    const d = new Date(dStr);
+    return d >= fDate && d <= tDate;
+  });
+
+  hrFilteredTxns.forEach((r) => {
+    const cat = String(getCol(r, ["Category"])).trim().toUpperCase();
+    const amt = parseFloat(getCol(r, ["Amount"])) || 0;
+    const d = getCol(r, ["Date"]);
+    const rem = getCol(r, ["Remarks"]) || '-';
+    const usr = getCol(r, ["Username", "Logged By"]) || '';
+
+    if (cat.includes("EARN") || cat.includes("PREVIOUS DUE") || cat.includes("OPENING BALANCE")) {
+      hrRangeEarn += amt;
+      hrEarns.push({ d, amt, rem, usr, type: getCol(r, ["Category"]) });
+    } else if (cat.includes("PAID")) {
+      hrRangePaid += amt;
+      hrPayments.push({ d, amt, rem, usr });
+    }
+  });
+
+  cardsEl.innerHTML = `
+    <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-6">
+      <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
+        <div class="text-left">
+          <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalEarnedDue')}</div>
+          <div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${globalEarn.toFixed(2)}</div>
+        </div>
+        <div class="text-center">
+          <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeSalaryPaid')}</div>
+          <div class="text-2xl font-black text-emerald-600 font-mono mt-1">SAR ${globalPaid.toFixed(2)}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentDueBalance')}</div>
+          <div class="text-2xl font-black ${(globalDueHr > 0) ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${globalDueHr.toFixed(2)}</div>
+        </div>
+      </div>
+      <div class="flex justify-around bg-gray-50 p-4 rounded-lg">
+        <div class="text-center">
+          <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeEarnedTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
+          <div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${hrRangeEarn.toFixed(2)}</div>
+        </div>
+        <div class="text-center">
+          <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaidTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
+          <div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${hrRangePaid.toFixed(2)}</div>
+        </div>
+      </div>
+    </div>
+  `;
+  cardsEl.className = 'grid grid-cols-1 mb-6';
+  cardsEl.classList.remove('hidden');
+
+  tableContainer.innerHTML = `
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start p-3 md:p-4">
+      <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+        <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.salaryEarnedLedger')}</div>
+        <div class="erp-report-ledger-wrap overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-50 text-gray-500 border-b">
+              <tr><th class="p-2.5 font-semibold">${t('report.earnedDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              ${hrEarns.length > 0 ? hrEarns.sort((a, b) => new Date(b.d) - new Date(a.d)).map((s) => `
+                <tr class="hover:bg-gray-50">
+                  <td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td>
+                  <td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">
+                    ${Number(s.amt).toFixed(2)}<br><span class="text-[9px] text-gray-400 font-normal leading-none">${getCategoryLabel(s.type, t)}</span>
+                  </td>
+                  <td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td>
+                  <td class="p-2.5">${s.usr}</td>
+                </tr>
+              `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noEarningsInRange')}</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+        <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.salaryPaidLedger')}</div>
+        <div class="erp-report-ledger-wrap overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-gray-50 text-gray-500 border-b">
+              <tr><th class="p-2.5 font-semibold">${t('report.paymentDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
+            </thead>
+            <tbody class="divide-y divide-gray-100">
+              ${hrPayments.length > 0 ? hrPayments.sort((a, b) => new Date(b.d) - new Date(a.d)).map((p) => `
+                <tr class="hover:bg-gray-50">
+                  <td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td>
+                  <td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td>
+                  <td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td>
+                  <td class="p-2.5">${p.usr}</td>
+                </tr>
+              `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noPaymentsInRange')}</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  `;
 }
 
 function buildHrMasterLedgerRowHtml(rec, txns, editModuleKey = 'hr') {
@@ -1579,32 +1705,107 @@ async function loadHRTableRecords() {
   } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('hr.loadFailed')}</td></tr>`; }
 }
 
-function initHrFactoryListeners() {
-  const searchInput = document.getElementById('hr-factory-search');
-  const btnSearch = document.getElementById('btn-hr-factory-search');
-  const btnClear = document.getElementById('btn-hr-factory-clear');
-  if (!searchInput || searchInput.dataset.bound === 'true') return;
-  searchInput.dataset.bound = 'true';
+function initHrFactoryModule() {
+  const root = document.getElementById('hr-factory-root');
+  if (!root || root.dataset.bound === 'true') return;
+  root.dataset.bound = 'true';
 
-  const runSearch = () => {
-    loadHrFactoryTableRecords();
-    onMobileLedgerFilterApplied(activeMobileSnapshot, document.querySelector('.erp-ledger-wrap'));
+  const tabLedger = document.getElementById('hr-factory-tab-ledger');
+  const tabDetails = document.getElementById('hr-factory-tab-details');
+  const panelLedger = document.getElementById('hr-factory-panel-ledger');
+  const panelDetails = document.getElementById('hr-factory-panel-details');
+
+  const setTab = (mode) => {
+    const isLedger = mode === 'ledger';
+    panelLedger?.classList.toggle('hidden', !isLedger);
+    panelDetails?.classList.toggle('hidden', isLedger);
+    tabLedger?.classList.toggle('bg-amber-600', isLedger);
+    tabLedger?.classList.toggle('text-white', isLedger);
+    tabLedger?.classList.toggle('shadow-sm', isLedger);
+    tabLedger?.classList.toggle('bg-gray-100', !isLedger);
+    tabLedger?.classList.toggle('text-gray-700', !isLedger);
+    tabDetails?.classList.toggle('bg-amber-600', !isLedger);
+    tabDetails?.classList.toggle('text-white', !isLedger);
+    tabDetails?.classList.toggle('shadow-sm', !isLedger);
+    tabDetails?.classList.toggle('bg-gray-100', isLedger);
+    tabDetails?.classList.toggle('text-gray-700', isLedger);
+    root.dataset.activeTab = mode;
   };
 
-  searchInput.addEventListener('input', () => {
-    clearTimeout(searchInput._hrFactoryDebounce);
-    searchInput._hrFactoryDebounce = setTimeout(runSearch, 300);
-  });
-  searchInput.addEventListener('keydown', (e) => {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    runSearch();
-  });
-  btnSearch?.addEventListener('click', runSearch);
-  btnClear?.addEventListener('click', () => {
-    searchInput.value = '';
-    runSearch();
-  });
+  tabLedger?.addEventListener('click', () => setTab('ledger'));
+  tabDetails?.addEventListener('click', () => setTab('details'));
+  document.getElementById('btn-hr-factory-details')?.addEventListener('click', () => generateHrFactoryDetailsReport());
+
+  ensureLedgerDateInputs('hr-factory-details-from', 'hr-factory-details-to');
+  setTab('ledger');
+}
+
+async function populateHrFactoryEmployeeDropdown() {
+  const dropdown = document.getElementById('hr-factory-details-employee');
+  if (!dropdown) return;
+  dropdown.innerHTML = `<option value="">${t('dropdown.loadingEmployees')}</option>`;
+
+  try {
+    const hrRes = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR" } });
+    if (!hrRes.success || !hrRes.records.length) {
+      dropdown.innerHTML = `<option value="">${t('hrFactory.noEntries')}</option>`;
+      return;
+    }
+
+    const factoryEmployees = hrRes.records.filter((rec) => isHrFactoryDesignation(getCol(rec, ["Designation"]) || rec["Designation"]));
+    if (factoryEmployees.length === 0) {
+      dropdown.innerHTML = `<option value="">${t('hrFactory.noEntries')}</option>`;
+      return;
+    }
+
+    dropdown.innerHTML = `<option value="">${t('report.selectOption', { label: t('report.selectEmployee') })}</option>` + factoryEmployees.map((emp) => {
+      const name = getCol(emp, ["Employee Name", "Employee", "Name"]);
+      const designation = getCol(emp, ["Designation"]) || '-';
+      return `<option value="${String(name).replace(/"/g, '&quot;')}">${name} (${designation})</option>`;
+    }).join('');
+  } catch (err) {
+    dropdown.innerHTML = `<option value="">${t('dropdown.errorRecords')}</option>`;
+  }
+}
+
+async function generateHrFactoryDetailsReport() {
+  const employee = document.getElementById('hr-factory-details-employee')?.value;
+  const fromStr = document.getElementById('hr-factory-details-from')?.value;
+  const toStr = document.getElementById('hr-factory-details-to')?.value;
+  const summaryEl = document.getElementById('hr-factory-details-summary');
+  const tableEl = document.getElementById('hr-factory-details-table');
+
+  if (!employee) {
+    alert(t('report.alertSelectTarget'));
+    return;
+  }
+  if (!fromStr || !toStr) {
+    alert(t('report.alertSelectDates'));
+    return;
+  }
+  if (!summaryEl || !tableEl) return;
+
+  summaryEl.classList.remove('hidden');
+  summaryEl.innerHTML = `<div class="col-span-1 p-6 text-center text-blue-500 font-bold animate-pulse">${t('report.runningQuery')}</div>`;
+  tableEl.innerHTML = '';
+
+  try {
+    const txnRes = await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } });
+    renderHrDetailsReportPanels({
+      cardsEl: summaryEl,
+      tableContainer: tableEl,
+      employeeName: employee,
+      fromStr,
+      toStr,
+      hrTxns: txnRes.success ? txnRes.records : []
+    });
+    onMobileLedgerFilterApplied(activeMobileSnapshot, tableEl);
+    scrollMainToElementAfterLayout(tableEl, 8);
+  } catch (err) {
+    summaryEl.classList.add('hidden');
+    summaryEl.innerHTML = '';
+    tableEl.innerHTML = `<div class="p-6 text-center text-red-500 font-bold">${t('hrFactory.detailsLoadFailed')}</div>`;
+  }
 }
 
 async function loadHrFactoryTableRecords() {
@@ -1632,19 +1833,15 @@ async function loadHrFactoryTableRecords() {
     cachedHrTxns = txns;
 
     const factoryRecords = cachedHrRecords.filter((rec) => isHrFactoryDesignation(getCol(rec, ["Designation"]) || rec["Designation"]));
-    const searchQuery = document.getElementById('hr-factory-search')?.value || '';
-    const filtered = factoryRecords.filter((rec) => matchesHrFactorySearch(rec, searchQuery));
 
     if (factoryRecords.length === 0) {
       container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hrFactory.noEntries')}</td></tr>`;
-    } else if (filtered.length === 0) {
-      container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hrFactory.noSearchResults')}</td></tr>`;
     } else {
-      container.innerHTML = filtered.map((rec) => buildHrMasterLedgerRowHtml(rec, txns, 'hr_factory')).join('');
+      container.innerHTML = factoryRecords.map((rec) => buildHrMasterLedgerRowHtml(rec, txns, 'hr_factory')).join('');
     }
 
     if (countEl) {
-      countEl.textContent = t('hrFactory.recordCount', { shown: filtered.length, total: factoryRecords.length });
+      countEl.textContent = t('hrFactory.totalWorkers', { total: factoryRecords.length });
     }
   } catch (err) {
     container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('hrFactory.loadFailed')}</td></tr>`;
@@ -6505,128 +6702,14 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
       // ----------------------------------------------------
       case 'hr_details': {
         titleEl.textContent = t('report.titleHrPayroll');
-        
-        let allHrTxns = rHrT.success ? rHrT.records.filter(r => getCol(r, ["Employee Name"]) === secVal) : [];
-        
-        // 1. Bulletproof Global Totals
-        let globalEarn = 0; let globalPaid = 0;
-        allHrTxns.forEach(r => {
-            let cat = String(getCol(r, ["Category"])).trim().toUpperCase();
-            let amt = parseFloat(getCol(r, ["Amount"])) || 0;
-            if (cat.includes("EARN") || cat.includes("PREVIOUS DUE") || cat.includes("OPENING BALANCE")) {
-                globalEarn += amt;
-            } else if (cat.includes("PAID")) {
-                globalPaid += amt;
-            }
+        renderHrDetailsReportPanels({
+          cardsEl,
+          tableContainer,
+          employeeName: secVal,
+          fromStr,
+          toStr,
+          hrTxns: rHrT.success ? rHrT.records : []
         });
-        let globalDueHr = globalEarn - globalPaid;
-
-        // 2. Filtered Range Transactions
-        let hrEarns = [];
-        let hrPayments = [];
-        let hrRangeEarn = 0;
-        let hrRangePaid = 0;
-
-        let hrFilteredTxns = filterByDate(allHrTxns, ["Date"]);
-
-        hrFilteredTxns.forEach(r => {
-           let cat = String(getCol(r, ["Category"])).trim().toUpperCase();
-           let amt = parseFloat(getCol(r, ["Amount"])) || 0;
-           let d = getCol(r, ["Date"]);
-           let rem = getCol(r, ["Remarks"]) || '-';
-           let usr = getCol(r, ["Username", "Logged By"]) || '';
-
-           if (cat.includes("EARN") || cat.includes("PREVIOUS DUE") || cat.includes("OPENING BALANCE")) {
-              hrRangeEarn += amt;
-              hrEarns.push({ d, amt, rem, usr, type: getCol(r, ["Category"]) });
-           } else if (cat.includes("PAID")) {
-              hrRangePaid += amt;
-              hrPayments.push({ d, amt, rem, usr });
-           }
-        });
-
-        // Custom Layout: Summary Block at the top
-        cardsEl.innerHTML = `
-          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-6">
-             
-             <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
-                <div class="text-left">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeTotalEarnedDue')}</div>
-                  <div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${globalEarn.toFixed(2)}</div>
-                </div>
-                <div class="text-center">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeSalaryPaid')}</div>
-                  <div class="text-2xl font-black text-emerald-600 font-mono mt-1">SAR ${globalPaid.toFixed(2)}</div>
-                </div>
-                <div class="text-right">
-                  <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentDueBalance')}</div>
-                  <div class="text-2xl font-black ${(globalDueHr > 0) ? 'text-red-600' : 'text-emerald-600'} font-mono mt-1">SAR ${globalDueHr.toFixed(2)}</div>
-                </div>
-             </div>
-
-             <div class="flex justify-around bg-gray-50 p-4 rounded-lg">
-                <div class="text-center">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeEarnedTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
-                   <div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${hrRangeEarn.toFixed(2)}</div>
-                </div>
-                <div class="text-center">
-                   <div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangePaidTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })}</div>
-                   <div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${hrRangePaid.toFixed(2)}</div>
-                </div>
-             </div>
-          </div>
-        `;
-        cardsEl.className = "grid grid-cols-1 mb-6";
-
-        // Custom Layout: Replace the standard table wrapper with the 2-Column Grid
-        tableContainer.innerHTML = `
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-             
-             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.salaryEarnedLedger')}</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs">
-                     <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">${t('report.earnedDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
-                     </thead>
-                     <tbody class="divide-y divide-gray-100">
-                        ${hrEarns.length > 0 ? hrEarns.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `
-                           <tr class="hover:bg-gray-50">
-                             <td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td>
-                             <td class="p-2.5 font-mono font-bold text-blue-600 whitespace-nowrap">
-                                ${Number(s.amt).toFixed(2)}<br><span class="text-[9px] text-gray-400 font-normal leading-none">${getCategoryLabel(s.type, t)}</span>
-                             </td>
-                             <td class="p-2.5 truncate max-w-[120px]" title="${s.rem}">${s.rem}</td>
-                             <td class="p-2.5">${s.usr}</td>
-                           </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noEarningsInRange')}</td></tr>`}
-                     </tbody>
-                  </table>
-                </div>
-             </div>
-
-             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">${t('report.salaryPaidLedger')}</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto">
-                  <table class="w-full text-left text-xs">
-                     <thead class="bg-gray-50 text-gray-500 border-b">
-                        <tr><th class="p-2.5 font-semibold">${t('report.paymentDate')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr>
-                     </thead>
-                     <tbody class="divide-y divide-gray-100">
-                        ${hrPayments.length > 0 ? hrPayments.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `
-                           <tr class="hover:bg-gray-50">
-                             <td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td>
-                             <td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td>
-                             <td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td>
-                             <td class="p-2.5">${p.usr}</td>
-                           </tr>
-                        `).join('') : `<tr><td colspan="4" class="p-6 text-center text-gray-400">${t('report.noPaymentsInRange')}</td></tr>`}
-                     </tbody>
-                  </table>
-                </div>
-             </div>
-          </div>
-        `;
         break;
       }
 

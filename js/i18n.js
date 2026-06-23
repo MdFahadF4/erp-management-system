@@ -92,7 +92,7 @@ const STRINGS = {
     'page.hr.personnelRecords': 'Personnel Database Records',
     'page.hrTransactions.title': 'HR Transaction Ledger',
     'page.hrFactory.title': 'HR Factory',
-    'page.hrFactory.subtitle': 'Factory-designation personnel only — same fields as the HR master ledger.',
+    'page.hrFactory.subtitle': 'Factory-designation personnel — master ledger list and date-wise details report.',
     'page.hrFactory.ledgerTitle': 'Factory Personnel Ledger',
     'page.suppliers.title': 'Supplier Account Management',
     'page.supplierTransactions.title': 'Supplier Transaction Ledger',
