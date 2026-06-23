@@ -432,7 +432,14 @@ export const FORM_EN = {
   'custTxn.helpReversal': 'Refund row',
   'custTxn.helpNet': 'Net total',
   'custTxn.helpTip': 'Tip: In the ledger, click Refund on the original row to auto-fill this form. Never delete the original sale — always post a reversal.',
-  'custTxn.helpClose': 'Close'
+  'custTxn.helpClose': 'Close',
+  'custTxn.previewSlip': 'Preview / Print Slip',
+  'custTxn.slipPreview': 'Customer Transaction Slip',
+  'custTxn.slipTitle': 'Customer Transaction Receipt',
+  'custTxn.slipDraftTitle': 'Customer Transaction Slip (Draft)',
+  'custTxn.slipDraftNotice': 'Draft — not yet posted',
+  'custTxn.slipFooter': 'Thank you for your business.',
+  'custTxn.selectCustomerFirst': 'Select a customer before previewing the slip.'
 };
 
 const CATEGORY_I18N = {

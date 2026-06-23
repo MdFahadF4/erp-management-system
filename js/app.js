@@ -6,6 +6,8 @@ import { initUserAdminSystem, initForgotPasswordSystem, cacheUserRecords, render
 import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js';
 import { refreshSessionUser, userCanAccessModule, userCanEditModule, getDefaultModuleForUser } from './user-session.js';
 import { initDeliveryDashboard } from './delivery-dashboard.js';
+import { applyCompanyBranding } from './company.js';
+import { finalizeReportPrintLayout, initReportExportButtons, initCustomerTxnSlipButtons } from './report-export.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -105,6 +107,7 @@ async function initApp() {
   initForgotPasswordSystem();
   initLanguageSwitcher(async () => {
     applyTranslations(document);
+    applyCompanyBranding(document);
     if (activeModuleTarget && templates[activeModuleTarget]) {
       await loadModulePage(activeModuleTarget);
     } else if (fetchSessionUser()) {
@@ -112,6 +115,7 @@ async function initApp() {
     }
   });
   applyTranslations(document);
+  applyCompanyBranding(document);
 
   // =====================================================================
 // GLOBAL DATE FORMATTER OVERRIDE (Forces DD MMM YYYY across entire app)
@@ -672,7 +676,7 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   } else if (target === 'customers') {
     initCustomerFormListeners(); await loadCustomerTableRecords();
   } else if (target === 'customer_transactions') {
-    await populateCustomerTxnDropdown(); initCustomerTxnFormListeners(); await loadCustomerTxnTableRecords();
+    await populateCustomerTxnDropdown(); initCustomerTxnFormListeners(); initCustomerTxnSlipButtons(); await loadCustomerTxnTableRecords();
     document.getElementById('btn-filter-cust')?.addEventListener('click', () => {
       loadCustomerTxnTableRecords(true);
       onMobileLedgerFilterApplied(mobileSnapshot, ledgerContainer);
@@ -729,6 +733,7 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     });
   } else if (target === 'reports') {
     initReportsSystem();
+    initReportExportButtons();
   } else if (target === 'users') {
     initUserManagementFormListener();
     buildPermCheckboxes('create-user-perms', 'Dashboard:view,Dashboard:edit');
@@ -6865,6 +6870,12 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
       default:
         tBody.innerHTML = `<tr><td class="p-6 text-center text-red-500 font-bold">${t('report.underConstruction')}</td></tr>`;
     }
+
+    await finalizeReportPrintLayout({
+      title: titleEl?.textContent || t('report.reportName'),
+      dateRange: dateEl?.textContent || '',
+      target: tgtEl?.textContent || ''
+    });
 
   } catch (err) {
     console.error(err);

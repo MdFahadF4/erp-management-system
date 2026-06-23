@@ -19,8 +19,8 @@ export const LANGUAGES = [
 
 const STRINGS = {
   en: {
-    'app.title': 'Enterprise Management System',
-    'header.workspace': 'System Workspace',
+    'app.title': 'Mehrin Trading Co.',
+    'header.workspace': 'Mehrin Trading Co.',
     'header.cashDrawer': 'Cash Drawer:',
     'header.changeLanguage': 'Change language',
     'login.title': 'System Gateway',
@@ -63,6 +63,7 @@ const STRINGS = {
     'modal.confirmPassword': 'Confirm New Password',
     'modal.overwritePassword': 'OVERWRITE PASSWORD',
     'common.show': 'Show',
+    'common.print': 'Print',
     'common.hide': 'Hide',
     'common.refresh': 'Refresh Data',
     'common.ledgerView': 'Ledger View',

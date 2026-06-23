@@ -512,6 +512,9 @@ export const templates = {
             <div id="cust-txn-method-wrap"><label class="block font-bold text-gray-600 mb-1" data-i18n="field.paymentMethod">Payment Method</label><select id="cust-txn-method" required class="w-full border rounded p-2 bg-white text-sm outline-none"><option value="Cash" data-i18n="option.cash">Cash</option><option value="Card" data-i18n="option.card">Card</option></select></div>
             <div><label class="block font-bold text-gray-500 mb-1" data-i18n="field.transactionDueBalance">Transaction Due / Balance</label><input type="number" id="cust-txn-due" readonly class="w-full border rounded p-2 text-sm bg-gray-50 font-bold text-red-600 outline-none"></div>
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.remarksReferenceInfo">Remarks / Reference Info</label><textarea id="cust-txn-remarks" rows="2" class="w-full border rounded p-2 text-sm outline-none" placeholder="Invoice details, receipt #..." data-i18n-placeholder="placeholder.invoiceDetails"></textarea></div>
+            <div class="flex flex-wrap gap-2 pt-2 border-t border-gray-100 no-print">
+              <button type="button" id="cust-txn-preview-slip" class="flex-1 min-w-[120px] bg-slate-700 hover:bg-slate-800 text-white font-bold p-2 rounded text-[11px] transition" data-i18n="custTxn.previewSlip">Preview / Print Slip</button>
+            </div>
             <button type="submit" id="cust-txn-submit-btn" class="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition tracking-wider" data-i18n="form.postTransaction">POST TRANSACTION</button>
           </form>
         </div>
@@ -1049,10 +1052,13 @@ export const templates = {
       <div class="erp-report-tools print:hidden">
         <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
           <h2 class="text-lg md:text-2xl font-bold text-gray-800" data-i18n="page.reports.title">Enterprise Reporting System</h2>
-          <button onclick="window.print()" class="w-full sm:w-auto bg-slate-800 hover:bg-slate-900 text-white font-bold px-4 py-2.5 rounded text-sm transition shadow-sm flex items-center justify-center gap-2" data-i18n="common.printExport">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
-            Print / Export
-          </button>
+          <div class="flex flex-wrap gap-2 w-full sm:w-auto">
+            <button id="btn-report-print" type="button" class="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-2 rounded text-xs transition shadow-sm" data-i18n="common.print">Print</button>
+            <button id="btn-report-pdf" type="button" class="flex-1 sm:flex-none bg-red-700 hover:bg-red-800 text-white font-bold px-3 py-2 rounded text-xs transition shadow-sm">PDF</button>
+            <button id="btn-report-word" type="button" class="flex-1 sm:flex-none bg-blue-700 hover:bg-blue-800 text-white font-bold px-3 py-2 rounded text-xs transition shadow-sm">Word</button>
+            <button id="btn-report-excel" type="button" class="flex-1 sm:flex-none bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-2 rounded text-xs transition shadow-sm">Excel</button>
+            <button id="btn-report-ppt" type="button" class="flex-1 sm:flex-none bg-orange-600 hover:bg-orange-700 text-white font-bold px-3 py-2 rounded text-xs transition shadow-sm">PPT</button>
+          </div>
         </div>
 
         <div id="report-filters-panel" class="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mt-3 md:mt-4 mb-2 md:mb-0 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-report-filters">
@@ -1096,16 +1102,21 @@ export const templates = {
       <div id="report-results-anchor" aria-hidden="true"></div>
       
       <div class="bg-white p-3 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col overflow-visible print:shadow-none print:border-none print:p-0 erp-report-results">
-        <div id="report-print-header" class="hidden mb-4 md:mb-6 text-center border-b pb-4 print:block">
-          <h1 class="text-lg md:text-2xl font-black text-gray-800 uppercase tracking-wide md:tracking-widest px-2" id="report-title-display" data-i18n="report.reportName">Report Name</h1>
-          <p class="text-xs md:text-sm font-medium text-gray-500 mt-1 px-2" id="report-date-display" data-i18n="report.dateRangeLabel">Date Range: </p>
-          <p class="text-[10px] md:text-xs text-gray-400 mt-1 px-2 break-words" id="report-target-display"></p>
+        <div id="report-print-header" class="hidden mb-4 md:mb-6 border-b pb-4 print:block">
+          <div class="erp-report-print-meta flex items-start justify-between gap-4 px-2">
+            <div class="erp-report-print-center flex-1 text-center">
+              <h1 class="text-lg md:text-2xl font-black text-gray-900 uppercase tracking-wide" id="report-company-name" data-company-name>Mehrin Trading Co.</h1>
+              <p class="text-[10px] md:text-xs font-semibold text-gray-600 mt-1" id="report-company-legal" data-company-legal>VAT:000000000000000  |  CR:0000000000</p>
+              <h2 class="text-base md:text-xl font-bold text-gray-800 mt-3 uppercase tracking-wide" id="report-title-display" data-i18n="report.reportName">Report Name</h2>
+              <p class="text-xs md:text-sm font-medium text-gray-500 mt-1" id="report-date-display" data-i18n="report.dateRangeLabel">Date Range: </p>
+              <p class="text-[10px] md:text-xs text-gray-400 mt-1 break-words" id="report-target-display"></p>
+              <p class="text-[10px] text-gray-500 mt-2" id="report-print-datetime"></p>
+            </div>
+            <div id="report-qr-code" class="shrink-0 w-24 h-24 flex items-center justify-center border border-gray-200 rounded bg-white print:block"></div>
+          </div>
         </div>
 
-        <div id="report-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6 hidden">
-        </div>
-
-        <div id="report-table-container" class="erp-report-panel border rounded-lg relative print:border-none bg-white">
+        <div id="report-table-container" class="erp-report-panel border rounded-lg relative print:border-none bg-white order-1">
            <div class="erp-report-scroll erp-report-ledger-wrap overflow-x-auto">
               <table class="erp-report-table w-full text-left border-collapse text-xs">
                 <thead id="report-table-head" class="bg-slate-800 text-white sticky top-0 z-10 shadow print:bg-gray-100 print:text-gray-800 print:shadow-none border-b">
@@ -1115,6 +1126,13 @@ export const templates = {
                 </tbody>
               </table>
            </div>
+        </div>
+
+        <div id="report-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6 hidden order-2 erp-report-summary-footer">
+        </div>
+
+        <div class="erp-print-page-footer hidden print:block text-center text-[10px] text-gray-500 pt-2 order-3">
+          <span id="report-print-footer-datetime"></span>
         </div>
 
       </div>

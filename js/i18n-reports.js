@@ -41,6 +41,12 @@ export const REPORT_EN = {
 
   // Report chrome
   'report.reportName': 'Report Name',
+  'report.printedOn': 'Printed on',
+  'report.lifetimeSummary': 'Lifetime Summary',
+  'report.rangeSummary': 'Date Range Summary',
+  'report.noRangeSummary': 'No date-range summary for this report.',
+  'report.runQueryFirst': 'Generate a report first, then export.',
+  'report.exportFailed': 'Export failed. Try Print, or check your internet connection for PDF/Excel libraries.',
   'report.dateRangeLabel': 'Date Range:',
   'report.dateRangeTo': 'Date Range: {from} to {to}',
   'report.specificTarget': 'Specific Target',

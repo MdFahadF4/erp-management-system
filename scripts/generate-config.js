@@ -21,10 +21,13 @@ if (!apiUrl || !clientToken) {
 
 const content = `/**
  * Auto-generated at deploy time — do not edit on the server.
- * Source: Vercel environment variables API_URL and CLIENT_TOKEN.
+ * Source: Vercel environment variables.
  */
 export const API_URL = ${JSON.stringify(apiUrl)};
 export const CLIENT_TOKEN = ${JSON.stringify(clientToken)};
+export const COMPANY_NAME = ${JSON.stringify(process.env.COMPANY_NAME?.trim() || 'Mehrin Trading Co.')};
+export const VAT_NUMBER = ${JSON.stringify(process.env.VAT_NUMBER?.trim() || '000000000000000')};
+export const CR_NUMBER = ${JSON.stringify(process.env.CR_NUMBER?.trim() || '0000000000')};
 `;
 
 const configPath = path.join(rootDir, 'js', 'config.js');

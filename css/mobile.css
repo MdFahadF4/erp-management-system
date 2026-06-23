@@ -554,3 +554,135 @@
 .erp-ledger-wrap tr.hover\:bg-gray-50:hover td.erp-col-actions {
   background: #f9fafb;
 }
+
+/* ── Print: reports & transaction slips only ── */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 12mm 10mm 18mm 10mm;
+  }
+
+  body.erp-print-reports #sidebar,
+  body.erp-print-reports #sidebar-backdrop,
+  body.erp-print-reports #app-header,
+  body.erp-print-reports #dashboard-insights-panel,
+  body.erp-print-reports #erp-module-toolbar,
+  body.erp-print-reports .erp-report-tools,
+  body.erp-print-reports .no-print,
+  body.erp-print-reports #login-screen,
+  body.erp-print-slip #sidebar,
+  body.erp-print-slip #sidebar-backdrop,
+  body.erp-print-slip #app-header,
+  body.erp-print-slip #dashboard-insights-panel,
+  body.erp-print-slip #erp-module-toolbar,
+  body.erp-print-slip .no-print,
+  body.erp-print-slip #login-screen,
+  body.erp-print-slip #modal-cust-txn-slip > div > .no-print,
+  body.erp-print-slip #modal-cust-txn-slip > div > div:first-child {
+    display: none !important;
+  }
+
+  body.erp-print-reports #main-content,
+  body.erp-print-slip #main-content,
+  body.erp-print-slip #modal-cust-txn-slip {
+    position: static !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  body.erp-print-slip #modal-cust-txn-slip {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+  }
+
+  body.erp-print-slip #modal-cust-txn-slip > div {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: none !important;
+  }
+
+  .erp-report-results {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+  }
+
+  #report-print-header {
+    display: block !important;
+    position: relative;
+    page-break-inside: avoid;
+  }
+
+  .erp-report-print-meta {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .erp-report-print-center {
+    flex: 1;
+    text-align: center;
+  }
+
+  #report-qr-code {
+    flex-shrink: 0;
+    width: 96px;
+    height: 96px;
+  }
+
+  .erp-report-section-divider {
+    display: block !important;
+    page-break-after: avoid;
+  }
+
+  .erp-report-summary-footer {
+    page-break-inside: avoid;
+    break-before: page;
+  }
+
+  .erp-report-grand-total td {
+    font-weight: 700 !important;
+    border-top: 2px solid #333 !important;
+  }
+
+  .erp-print-page-footer {
+    display: block !important;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 9px;
+    color: #444;
+    padding-top: 4mm;
+    border-top: 1px solid #ccc;
+  }
+
+  .erp-report-table thead {
+    display: table-header-group;
+  }
+
+  .erp-report-table tr {
+    page-break-inside: avoid;
+  }
+
+  table {
+    page-break-inside: auto;
+  }
+
+  .erp-txn-slip {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+}
+
+@page {
+  @bottom-center {
+    content: "Page " counter(page) " of " counter(pages);
+    font-size: 9px;
+    color: #555;
+  }
+}

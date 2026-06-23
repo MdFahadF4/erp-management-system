@@ -35,7 +35,13 @@ if (fs.existsSync(distDir)) {
 }
 fs.mkdirSync(distDir, { recursive: true });
 
-const runtimeConfig = { API_URL: apiUrl, CLIENT_TOKEN: clientToken };
+const runtimeConfig = {
+  API_URL: apiUrl,
+  CLIENT_TOKEN: clientToken,
+  COMPANY_NAME: process.env.COMPANY_NAME?.trim() || 'Mehrin Trading Co.',
+  VAT_NUMBER: process.env.VAT_NUMBER?.trim() || '000000000000000',
+  CR_NUMBER: process.env.CR_NUMBER?.trim() || '0000000000'
+};
 let html = fs.readFileSync(path.join(rootDir, 'index.html'), 'utf8');
 const runtimeScript = `<script>window.__ERP_CONFIG__=${JSON.stringify(runtimeConfig)};</script>`;
 if (!html.includes('window.__ERP_CONFIG__')) {
@@ -58,10 +64,13 @@ for (const file of fs.readdirSync(jsSrc)) {
 
 const configContent = `/**
  * Auto-generated at deploy time — do not edit on the server.
- * Source: Vercel environment variables API_URL and CLIENT_TOKEN.
+ * Source: Vercel environment variables.
  */
 export const API_URL = ${JSON.stringify(apiUrl)};
 export const CLIENT_TOKEN = ${JSON.stringify(clientToken)};
+export const COMPANY_NAME = ${JSON.stringify(runtimeConfig.COMPANY_NAME)};
+export const VAT_NUMBER = ${JSON.stringify(runtimeConfig.VAT_NUMBER)};
+export const CR_NUMBER = ${JSON.stringify(runtimeConfig.CR_NUMBER)};
 `;
 
 fs.writeFileSync(path.join(jsDest, 'config.js'), configContent, 'utf8');
