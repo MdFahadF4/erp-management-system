@@ -10,6 +10,7 @@ export const USER_PERM_MODULES = [
   { perm: 'Dashboard', labelKey: 'users.permDashboard' },
   { perm: 'HR', labelKey: 'users.permHR' },
   { perm: 'HR_Transactions', labelKey: 'users.permHRTransactions' },
+  { perm: 'HR_Factory', labelKey: 'users.permHRFactory' },
   { perm: 'Suppliers', labelKey: 'users.permSuppliers' },
   { perm: 'Supplier_Transactions', labelKey: 'users.permSupplierTransactions' },
   { perm: 'Customers', labelKey: 'users.permCustomers' },

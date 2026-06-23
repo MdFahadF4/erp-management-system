@@ -172,6 +172,7 @@ Date.prototype.toLocaleDateString = function() {
         HR_Transactions: async () => {
           await loadTxnTableRecords(true);
           await loadHRTableRecords();
+          await loadHrFactoryTableRecords();
           await populateEmployeeDropdown();
         },
         Supplier_Transactions: async () => {
@@ -462,6 +463,14 @@ function initMobileModuleSnapshot(target) {
     });
   }
 
+  if (target === 'hr_factory') {
+    markMobileSnapshotTargets(pageRoot, ['.border-b', '.erp-mobile-filter-bar']);
+    return createMobileSnapshotController(pageRoot, {
+      label: t('page.hrFactory.title'),
+      defaultSummary: t('hrFactory.searchLabel')
+    });
+  }
+
   if (pageRoot.querySelector('#toggle-ledger-btn')) {
     markMobileSnapshotTargets(pageRoot, ['.border-b', '#form-container']);
     return createMobileSnapshotController(pageRoot, {
@@ -661,6 +670,9 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
     await loadDashboardData();
   } else if (target === 'hr') {
     initHRFormListeners(); await loadHRTableRecords();
+  } else if (target === 'hr_factory') {
+    initHrFactoryListeners();
+    await loadHrFactoryTableRecords();
   } else if (target === 'hr_transactions') {
     await populateEmployeeDropdown();
     initTxnFormListeners();
@@ -942,6 +954,52 @@ function parseCustomerTxnDate(rec, gV) {
 
 function normalizeHrEmployeeName(name) {
   return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+function isHrFactoryDesignation(designation) {
+  return String(designation || '').trim().toLowerCase().includes('factory');
+}
+
+function matchesHrFactorySearch(rec, query) {
+  const q = String(query || '').trim().toLowerCase();
+  if (!q) return true;
+  const empName = String(getCol(rec, ["Employee Name", "Employee", "Name"]) || '').trim().toLowerCase();
+  const designation = String(getCol(rec, ["Designation"]) || rec["Designation"] || '').trim().toLowerCase();
+  const status = String(rec["Status"] || '').trim().toLowerCase();
+  const joinRaw = rec["Date of Joining"];
+  const joinDate = joinRaw ? new Date(joinRaw).toLocaleDateString().toLowerCase() : '';
+  return empName.includes(q) || designation.includes(q) || status.includes(q) || joinDate.includes(q);
+}
+
+function buildHrMasterLedgerRowHtml(rec, txns, editModuleKey = 'hr') {
+  const canEdit = userCanEditModule(fetchSessionUser(), editModuleKey);
+  const actionBtn = canEdit
+    ? `<button class="btn-hr-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>`
+    : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
+  const badgeStyle = rec["Status"] === "Inactive"
+    ? "bg-amber-100 text-amber-800"
+    : (rec["Status"] === "Released" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800");
+
+  const empName = String(getCol(rec, ["Employee Name", "Employee", "Name"]) || "").trim();
+  const baseSalary = parseFloat(rec["Salary Start"]) || 0;
+  const totals = rollupHrTxnTotals(txns, empName);
+  const totalInc = totals.increment;
+  const currentSalary = baseSalary + totalInc;
+  const dbEarned = totals.earned;
+  const dbPaid = totals.paid;
+  const dbDue = totals.due;
+
+  return `
+    <tr class="hover:bg-gray-50 whitespace-nowrap border-b border-gray-100">
+      <td class="p-2.5 font-bold text-gray-900">${empName}</td><td>${rec["Designation"] || ''}</td><td>${rec["Date of Joining"] ? new Date(rec["Date of Joining"]).toLocaleDateString() : ''}</td>
+      <td class="font-mono">${baseSalary.toFixed(2)}</td>
+      <td class="font-mono text-purple-600">+${totalInc.toFixed(2)}</td>
+      <td class="font-mono font-bold text-blue-600">${currentSalary.toFixed(2)}</td>
+      <td class="font-mono text-amber-600">${dbEarned.toFixed(2)}</td>
+      <td class="font-mono text-emerald-600">${dbPaid.toFixed(2)}</td>
+      <td class="font-mono font-bold text-red-600">${dbDue.toFixed(2)}</td>
+      <td><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeStyle}">${getCategoryLabel(rec["Status"] || 'Active', t)}</span></td><td>${actionBtn}</td>
+    </tr>`;
 }
 
 function parseRecordDate(val) {
@@ -1516,34 +1574,81 @@ async function loadHRTableRecords() {
       const txns = txnRes.success ? txnRes.records : [];
       cachedHrTxns = txns;
 
-      container.innerHTML = cachedHrRecords.map(rec => {
-        const canEdit = userCanEditModule(fetchSessionUser(), 'hr');
-        const actionBtn = canEdit ? `<button class="btn-hr-edit bg-orange-500 text-white font-bold px-2 py-0.5 rounded hover:bg-orange-600 transition" data-id="${rec["ID"]}">${t('common.edit')}</button>` : `<span class="text-gray-300 italic">${t('common.locked')}</span>`;
-        let badgeStyle = rec["Status"] === "Inactive" ? "bg-amber-100 text-amber-800" : (rec["Status"] === "Released" ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800");
-
-        let empName = String(getCol(rec, ["Employee Name", "Employee", "Name"]) || "").trim();
-        let baseSalary = parseFloat(rec["Salary Start"]) || 0;
-        const totals = rollupHrTxnTotals(txns, empName);
-        let totalInc = totals.increment;
-        let currentSalary = baseSalary + totalInc;
-        let dbEarned = totals.earned;
-        let dbPaid = totals.paid;
-        let dbDue = totals.due;
-
-        return `
-          <tr class="hover:bg-gray-50 whitespace-nowrap border-b border-gray-100">
-            <td class="p-2.5 font-bold text-gray-900">${empName}</td><td>${rec["Designation"] || ''}</td><td>${rec["Date of Joining"] ? new Date(rec["Date of Joining"]).toLocaleDateString() : ''}</td>
-            <td class="font-mono">${baseSalary.toFixed(2)}</td>
-            <td class="font-mono text-purple-600">+${totalInc.toFixed(2)}</td>
-            <td class="font-mono font-bold text-blue-600">${currentSalary.toFixed(2)}</td>
-            <td class="font-mono text-amber-600">${dbEarned.toFixed(2)}</td>
-            <td class="font-mono text-emerald-600">${dbPaid.toFixed(2)}</td>
-            <td class="font-mono font-bold text-red-600">${dbDue.toFixed(2)}</td>
-            <td><span class="px-2 py-0.5 text-[10px] font-bold rounded-full ${badgeStyle}">${getCategoryLabel(rec["Status"] || 'Active', t)}</span></td><td>${actionBtn}</td>
-          </tr>`;
-      }).join('');
+      container.innerHTML = cachedHrRecords.map(rec => buildHrMasterLedgerRowHtml(rec, txns, 'hr')).join('');
     }
   } catch (err) { container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('hr.loadFailed')}</td></tr>`; }
+}
+
+function initHrFactoryListeners() {
+  const searchInput = document.getElementById('hr-factory-search');
+  const btnSearch = document.getElementById('btn-hr-factory-search');
+  const btnClear = document.getElementById('btn-hr-factory-clear');
+  if (!searchInput || searchInput.dataset.bound === 'true') return;
+  searchInput.dataset.bound = 'true';
+
+  const runSearch = () => {
+    loadHrFactoryTableRecords();
+    onMobileLedgerFilterApplied(activeMobileSnapshot, document.querySelector('.erp-ledger-wrap'));
+  };
+
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchInput._hrFactoryDebounce);
+    searchInput._hrFactoryDebounce = setTimeout(runSearch, 300);
+  });
+  searchInput.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    runSearch();
+  });
+  btnSearch?.addEventListener('click', runSearch);
+  btnClear?.addEventListener('click', () => {
+    searchInput.value = '';
+    runSearch();
+  });
+}
+
+async function loadHrFactoryTableRecords() {
+  const container = document.getElementById('table-hr-factory-rows');
+  const countEl = document.getElementById('hr-factory-count');
+  if (!container) return;
+
+  container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hrFactory.queryingLedger')}</td></tr>`;
+  if (countEl) countEl.textContent = '';
+
+  try {
+    await apiRequest({ action: "SYNC_HR_MASTER" }).catch(() => null);
+    const [hrRes, txnRes] = await Promise.all([
+      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR" } }),
+      apiRequest({ action: "FETCH_RECORDS", payload: { sheetName: "HR_Transactions" } })
+    ]);
+
+    if (!hrRes.success) {
+      container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('hrFactory.loadFailed')}</td></tr>`;
+      return;
+    }
+
+    cachedHrRecords = hrRes.records;
+    const txns = txnRes.success ? txnRes.records : [];
+    cachedHrTxns = txns;
+
+    const factoryRecords = cachedHrRecords.filter((rec) => isHrFactoryDesignation(getCol(rec, ["Designation"]) || rec["Designation"]));
+    const searchQuery = document.getElementById('hr-factory-search')?.value || '';
+    const filtered = factoryRecords.filter((rec) => matchesHrFactorySearch(rec, searchQuery));
+
+    if (factoryRecords.length === 0) {
+      container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hrFactory.noEntries')}</td></tr>`;
+    } else if (filtered.length === 0) {
+      container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-gray-400">${t('hrFactory.noSearchResults')}</td></tr>`;
+    } else {
+      container.innerHTML = filtered.map((rec) => buildHrMasterLedgerRowHtml(rec, txns, 'hr_factory')).join('');
+    }
+
+    if (countEl) {
+      countEl.textContent = t('hrFactory.recordCount', { shown: filtered.length, total: factoryRecords.length });
+    }
+  } catch (err) {
+    container.innerHTML = `<tr><td colspan="11" class="p-3 text-center text-red-500 font-bold">${t('hrFactory.loadFailed')}</td></tr>`;
+  }
 }
 
 /**

@@ -233,6 +233,38 @@ export const templates = {
       </div>
     </div>
   `,
+  hr_factory: `
+      <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
+      <div class="border-b pb-3">
+        <h2 class="text-2xl font-bold text-gray-800" data-i18n="page.hrFactory.title">HR Factory</h2>
+        <p class="text-xs text-gray-500 mt-1" data-i18n="page.hrFactory.subtitle">Factory-designation personnel only — same fields as the HR master ledger.</p>
+      </div>
+      <div class="bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col w-full">
+        <div class="flex flex-col lg:flex-row lg:items-end gap-3 mb-3 erp-mobile-filter-bar">
+          <div class="flex-1 min-w-0">
+            <label class="block text-[10px] font-bold uppercase text-gray-500 mb-1" data-i18n="hrFactory.searchLabel">Search Factory Personnel</label>
+            <input type="search" id="hr-factory-search" class="w-full border rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-amber-400" autocomplete="off" data-i18n-placeholder="hrFactory.searchPlaceholder" placeholder="Name, designation, status...">
+          </div>
+          <div class="flex flex-wrap gap-2 shrink-0">
+            <button type="button" id="btn-hr-factory-search" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition shadow-sm" data-i18n="hrFactory.searchBtn">Search</button>
+            <button type="button" id="btn-hr-factory-clear" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold px-4 py-2 rounded-lg text-sm transition" data-i18n="hrFactory.clearBtn">Clear</button>
+          </div>
+        </div>
+        <h3 class="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider" data-i18n="page.hrFactory.ledgerTitle">Factory Personnel Ledger</h3>
+        <div class="erp-ledger-wrap overflow-x-auto border rounded-lg md:max-h-[calc(100vh-16rem)] md:overflow-y-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead class="bg-gray-100 font-bold text-gray-600 uppercase border-b whitespace-nowrap sticky top-0 z-[1]">
+              <tr>
+                <th class="p-2.5" data-i18n="col.employeeName">Employee Name</th><th class="p-2.5" data-i18n="col.designation">Designation</th><th class="p-2.5" data-i18n="col.joinDate">Join Date</th><th class="p-2.5" data-i18n="col.startSal">Start Sal</th><th class="p-2.5" data-i18n="col.increment">Increment</th><th class="p-2.5" data-i18n="col.currentSal">Current Sal</th><th class="p-2.5" data-i18n="col.totalEarn">Total Earn</th><th class="p-2.5" data-i18n="col.paid">Paid</th><th class="p-2.5" data-i18n="col.dueBalance">Due/Balance</th><th class="p-2.5" data-i18n="col.status">Status</th><th class="p-2.5 erp-col-actions" data-i18n="col.actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="table-hr-factory-rows" class="divide-y text-gray-600 font-medium"></tbody>
+          </table>
+        </div>
+        <p id="hr-factory-count" class="text-[11px] text-gray-500 mt-2 font-medium"></p>
+      </div>
+    </div>
+  `,
   hr_transactions: `
       <div class="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div class="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
