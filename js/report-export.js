@@ -10,6 +10,7 @@ const MAIN_REPORT_EXPORT_PROFILE = {
   getMeta: () => lastReportMeta,
   setMeta: (meta) => { lastReportMeta = meta; },
   printBodyClass: 'erp-print-reports',
+  printHeaderId: 'report-print-header',
   tableContainerId: 'report-table-container',
   summaryCardsId: 'report-summary-cards',
   headerIds: {
@@ -30,6 +31,7 @@ const HR_FACTORY_EXPORT_PROFILE = {
   getMeta: () => lastHrFactoryReportMeta,
   setMeta: (meta) => { lastHrFactoryReportMeta = meta; },
   printBodyClass: 'erp-print-factory-report',
+  printHeaderId: 'hr-factory-report-print-header',
   tableContainerId: 'hr-factory-details-table',
   summaryCardsId: 'hr-factory-details-summary',
   headerIds: {
@@ -70,8 +72,37 @@ function buildQrPayload(meta) {
     `CR:${co.CR_NUMBER}`,
     `VAT:${co.VAT_NUMBER}`,
     meta.title || '',
-    meta.dateRange || ''
+    meta.dateRange || '',
+    meta.target || ''
   ].filter(Boolean).join(' | ');
+}
+
+function buildReportInfoRows(meta) {
+  const co = getCompanyInfo();
+  return [
+    [co.COMPANY_NAME],
+    [getCompanyLegalLine()],
+    [meta?.title || ''],
+    [meta?.dateRange || ''],
+    [meta?.target || ''],
+    [`${t('report.printedOn')}: ${formatPrintDateTime()}`],
+    []
+  ];
+}
+
+function revealExportPrintHeader(profile) {
+  document.getElementById(profile.printHeaderId)?.classList.remove('hidden');
+}
+
+async function withExportHeaderVisible(profile, fn) {
+  const header = document.getElementById(profile.printHeaderId);
+  const wasHidden = header?.classList.contains('hidden');
+  header?.classList.remove('hidden');
+  try {
+    await fn();
+  } finally {
+    if (wasHidden) header?.classList.add('hidden');
+  }
 }
 
 export function updateReportPrintHeader({ title, dateRange, target }) {
@@ -101,6 +132,7 @@ function updateExportPrintHeader(profile, { title, dateRange, target }) {
     target: target || tgtEl?.textContent || '',
     generatedAt: new Date()
   });
+  revealExportPrintHeader(profile);
 }
 
 export function updateHrFactoryReportPrintHeader({ title, dateRange, target }) {
@@ -378,7 +410,7 @@ tfoot td{font-weight:bold;background:#f9fafb}
   <p>${getCompanyLegalLine()}</p>
   <p><strong>${meta?.title || ''}</strong></p>
   <p>${meta?.dateRange || ''}</p>
-  <p>${meta?.target || ''}</p>
+  <p style="font-size:14px;font-weight:700;color:#111;margin:10px 0">${meta?.target || ''}</p>
   <p>${printed}</p>
 </div>
 <div class="erp-export-details">${detailsHtml}</div>
@@ -410,6 +442,7 @@ function getReportExportRoot() {
 }
 
 function printReportRoot(profile) {
+  revealExportPrintHeader(profile);
   ensureReportExportLayout(profile);
   const printed = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
   const dtEl = document.getElementById(profile.headerIds.datetime);
@@ -454,6 +487,7 @@ async function exportReportRootAs(format, profile) {
     alert(t('report.runQueryFirst'));
     return;
   }
+  revealExportPrintHeader(profile);
   ensureReportExportLayout(profile);
   const base = safeFilename(meta.title);
   const summary = collectReportSummaryForExport(root, profile.summaryCardsId);
@@ -475,16 +509,17 @@ async function exportReportRootAs(format, profile) {
     try {
       const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
       const wb = XLSX.utils.book_new();
+      const infoLabel = t('report.exportReportInfo');
+      const wsInfo = XLSX.utils.aoa_to_sheet(buildReportInfoRows(meta));
+      XLSX.utils.book_append_sheet(wb, wsInfo, infoLabel.slice(0, 31));
+
       tables.forEach((tbl, i) => {
         let aoa = tbl.headers.length ? [tbl.headers, ...tbl.rows] : tbl.rows;
         if (tbl.footerRows?.length) aoa = [...aoa, ...tbl.footerRows];
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         XLSX.utils.book_append_sheet(wb, ws, (tbl.title || `Sheet${i + 1}`).slice(0, 31));
       });
-      if (!tables.length) {
-        const ws = XLSX.utils.aoa_to_sheet([[getCompanyDisplayTitle()], [getCompanyLegalLine()], [meta.title], [meta.dateRange]]);
-        XLSX.utils.book_append_sheet(wb, ws, 'Report');
-      }
+
       if (summary.rows.length) {
         const wsSummary = XLSX.utils.aoa_to_sheet(summary.rows);
         XLSX.utils.book_append_sheet(wb, wsSummary, t('report.exportSummarySection').slice(0, 31));
@@ -503,25 +538,27 @@ async function exportReportRootAs(format, profile) {
         import('https://cdn.jsdelivr.net/npm/jspdf@2.5.2/+esm'),
         import('https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/+esm')
       ]);
-      const canvas = await html2canvas(root, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-      const img = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const pageW = pdf.internal.pageSize.getWidth();
-      const pageH = pdf.internal.pageSize.getHeight();
-      const ratio = pageW / canvas.width;
-      const imgH = canvas.height * ratio;
-      let heightLeft = imgH;
-      let position = 0;
-      pdf.addImage(img, 'PNG', 0, position, pageW, imgH);
-      heightLeft -= pageH;
-      while (heightLeft > 0) {
-        position = heightLeft - imgH;
-        pdf.addPage();
+      await withExportHeaderVisible(profile, async () => {
+        const canvas = await html2canvas(root, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
+        const img = canvas.toDataURL('image/png');
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pageW = pdf.internal.pageSize.getWidth();
+        const pageH = pdf.internal.pageSize.getHeight();
+        const ratio = pageW / canvas.width;
+        const imgH = canvas.height * ratio;
+        let heightLeft = imgH;
+        let position = 0;
         pdf.addImage(img, 'PNG', 0, position, pageW, imgH);
         heightLeft -= pageH;
-      }
-      addPdfPageNumbers(pdf);
-      pdf.save(`${base}.pdf`);
+        while (heightLeft > 0) {
+          position = heightLeft - imgH;
+          pdf.addPage();
+          pdf.addImage(img, 'PNG', 0, position, pageW, imgH);
+          heightLeft -= pageH;
+        }
+        addPdfPageNumbers(pdf);
+        pdf.save(`${base}.pdf`);
+      });
     } catch (err) {
       console.error(err);
       alert(t('report.exportFailed'));
@@ -548,7 +585,10 @@ async function exportReportRootAs(format, profile) {
       slide1.addText(co.COMPANY_NAME, { x: 0.5, y: 0.8, w: 9, h: 0.6, fontSize: 24, bold: true, align: 'center' });
       slide1.addText(getCompanyLegalLine(), { x: 0.5, y: 1.5, w: 9, h: 0.4, fontSize: 12, align: 'center' });
       slide1.addText(meta.title, { x: 0.5, y: 2.2, w: 9, h: 0.5, fontSize: 16, align: 'center' });
-      slide1.addText(`${meta.dateRange}\n${meta.target || ''}`, { x: 0.5, y: 3, w: 9, h: 0.8, fontSize: 11, align: 'center' });
+      slide1.addText(meta.dateRange || '', { x: 0.5, y: 2.9, w: 9, h: 0.4, fontSize: 11, align: 'center' });
+      if (meta.target) {
+        slide1.addText(meta.target, { x: 0.5, y: 3.45, w: 9, h: 0.5, fontSize: 12, bold: true, align: 'center', color: '111827' });
+      }
       stampPage(slide1);
 
       detailSlides.forEach((tbl) => {

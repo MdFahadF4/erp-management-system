@@ -296,7 +296,7 @@ export const templates = {
                 <p class="text-[10px] md:text-xs font-semibold text-gray-600 mt-1" id="hr-factory-report-company-legal" data-company-legal>VAT:000000000000000  |  CR:0000000000</p>
                 <h2 class="text-base md:text-xl font-bold text-gray-800 mt-3 uppercase tracking-wide" id="hr-factory-report-title-display">Factory Details Report</h2>
                 <p class="text-xs md:text-sm font-medium text-gray-500 mt-1" id="hr-factory-report-date-display"></p>
-                <p class="text-[10px] md:text-xs text-gray-400 mt-1 break-words" id="hr-factory-report-target-display"></p>
+                <p class="text-sm md:text-base font-bold text-gray-900 mt-2 break-words" id="hr-factory-report-target-display"></p>
                 <p class="text-[10px] text-gray-500 mt-2" id="hr-factory-report-print-datetime"></p>
               </div>
               <div id="hr-factory-report-qr-code" class="shrink-0 w-24 h-24 flex items-center justify-center border border-gray-200 rounded bg-white print:block"></div>

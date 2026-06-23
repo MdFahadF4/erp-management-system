@@ -46,6 +46,7 @@ export const REPORT_EN = {
   'report.slipValue': 'Value',
   'report.pageOf': 'Page {current} of {total}',
   'report.exportSummarySection': 'Report Summary',
+  'report.exportReportInfo': 'Report Info',
   'report.lifetimeSummary': 'Lifetime Summary',
   'report.rangeSummary': 'Date Range Summary',
   'report.noRangeSummary': 'No date-range summary for this report.',
