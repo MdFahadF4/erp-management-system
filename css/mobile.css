@@ -556,6 +556,80 @@
   border-spacing: 0;
 }
 
+/* ── Project-wide: wrap table cell text (remarks, descriptions, addresses) ── */
+#main-content table,
+.erp-ledger-wrap table,
+.erp-report-table,
+#table-all-txn-rows,
+.fixed.inset-0 table {
+  table-layout: auto;
+}
+
+#main-content table tbody td,
+.erp-ledger-wrap table tbody td,
+.erp-report-table tbody td,
+#table-all-txn-rows tbody td,
+.fixed.inset-0 table tbody td {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  vertical-align: top;
+  line-height: 1.4;
+}
+
+#main-content table tbody tr.whitespace-nowrap,
+.erp-ledger-wrap table tbody tr.whitespace-nowrap,
+.erp-report-table tbody tr.whitespace-nowrap,
+#table-all-txn-rows tbody tr.whitespace-nowrap,
+.fixed.inset-0 table tbody tr.whitespace-nowrap {
+  white-space: normal;
+}
+
+#main-content table tbody td.truncate,
+#main-content table tbody td[class*="truncate"],
+#main-content table tbody td[class*="max-w-"],
+.erp-ledger-wrap table tbody td.truncate,
+.erp-ledger-wrap table tbody td[class*="truncate"],
+.erp-ledger-wrap table tbody td[class*="max-w-"],
+.erp-report-table tbody td.truncate,
+.erp-report-table tbody td[class*="truncate"],
+.erp-report-table tbody td[class*="max-w-"],
+#table-all-txn-rows tbody td.truncate,
+#table-all-txn-rows tbody td[class*="truncate"],
+#table-all-txn-rows tbody td[class*="max-w-"],
+.fixed.inset-0 table tbody td.truncate,
+.fixed.inset-0 table tbody td[class*="truncate"],
+.fixed.inset-0 table tbody td[class*="max-w-"] {
+  overflow: visible !important;
+  text-overflow: clip !important;
+  white-space: normal !important;
+  max-width: none !important;
+}
+
+#main-content table tbody td.whitespace-nowrap,
+#main-content table tbody td.erp-col-actions,
+#main-content table tbody td.erp-cell-nowrap,
+.erp-ledger-wrap table tbody td.whitespace-nowrap,
+.erp-ledger-wrap table tbody td.erp-col-actions,
+.erp-ledger-wrap table tbody td.erp-cell-nowrap,
+.erp-report-table tbody td.whitespace-nowrap,
+.erp-report-table tbody td.erp-cell-nowrap,
+#table-all-txn-rows tbody td.whitespace-nowrap {
+  white-space: nowrap !important;
+}
+
+.erp-report-table thead th {
+  white-space: normal;
+  word-break: break-word;
+}
+
+.erp-report-table tbody td {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 /* Keep Edit/Delete visible when ledger tables scroll horizontally */
 .erp-ledger-wrap table thead th:last-child,
 .erp-ledger-wrap table th.erp-col-actions,
@@ -727,6 +801,17 @@
 
   table {
     page-break-inside: auto;
+  }
+
+  #main-content table tbody td,
+  .erp-ledger-wrap table tbody td,
+  .erp-report-table tbody td,
+  #table-all-txn-rows tbody td {
+    white-space: normal !important;
+    overflow: visible !important;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
+    max-width: none !important;
   }
 
   .erp-txn-slip {
