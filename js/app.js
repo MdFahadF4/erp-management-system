@@ -8,7 +8,7 @@ import { refreshSessionUser, userCanAccessModule, userCanEditModule, getDefaultM
 import { initDeliveryDashboard } from './delivery-dashboard.js';
 import { applyCompanyBranding } from './company.js';
 import { initCreatorCredit, setAppPageFooterVisible } from './creator-credit.js';
-import { finalizeReportPrintLayout, initReportExportButtons, initCustomerTxnSlipButtons } from './report-export.js';
+import { finalizeReportPrintLayout, initReportExportButtons, initCustomerTxnSlipButtons, finalizeHrFactoryPrintLayout, initHrFactoryExportButtons } from './report-export.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -1741,6 +1741,7 @@ function initHrFactoryModule() {
   tabLedger?.addEventListener('click', () => setTab('ledger'));
   tabDetails?.addEventListener('click', () => setTab('details'));
   document.getElementById('btn-hr-factory-details')?.addEventListener('click', () => generateHrFactoryDetailsReport());
+  initHrFactoryExportButtons();
 
   ensureLedgerDateInputs('hr-factory-details-from', 'hr-factory-details-to');
   setTab('ledger');
@@ -1780,6 +1781,9 @@ async function generateHrFactoryDetailsReport() {
   const toStr = document.getElementById('hr-factory-details-to')?.value;
   const summaryEl = document.getElementById('hr-factory-details-summary');
   const tableEl = document.getElementById('hr-factory-details-table');
+  const resultsWrap = document.getElementById('hr-factory-report-results');
+  const exportToolbar = document.getElementById('hr-factory-export-toolbar');
+  const employeeSelect = document.getElementById('hr-factory-details-employee');
 
   if (!employee) {
     alert(t('report.alertSelectTarget'));
@@ -1791,6 +1795,8 @@ async function generateHrFactoryDetailsReport() {
   }
   if (!summaryEl || !tableEl) return;
 
+  resultsWrap?.classList.remove('hidden');
+  exportToolbar?.classList.remove('hidden');
   summaryEl.classList.remove('hidden');
   summaryEl.innerHTML = `<div class="col-span-1 p-6 text-center text-blue-500 font-bold animate-pulse">${t('report.runningQuery')}</div>`;
   tableEl.innerHTML = '';
@@ -1805,12 +1811,23 @@ async function generateHrFactoryDetailsReport() {
       toStr,
       hrTxns: txnRes.success ? txnRes.records : []
     });
+
+    const employeeLabel = employeeSelect?.options[employeeSelect.selectedIndex]?.text || employee;
+    const fDate = new Date(fromStr);
+    const tDate = new Date(toStr);
+    await finalizeHrFactoryPrintLayout({
+      title: t('hrFactory.tabDetails'),
+      dateRange: t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() }),
+      target: t('report.targetEntity', { name: employeeLabel })
+    });
+
     onMobileLedgerFilterApplied(activeMobileSnapshot, tableEl);
-    scrollMainToElementAfterLayout(tableEl, 8);
+    scrollMainToElementAfterLayout(resultsWrap || tableEl, 8);
   } catch (err) {
     summaryEl.classList.add('hidden');
     summaryEl.innerHTML = '';
     tableEl.innerHTML = `<div class="p-6 text-center text-red-500 font-bold">${t('hrFactory.detailsLoadFailed')}</div>`;
+    exportToolbar?.classList.add('hidden');
   }
 }
 

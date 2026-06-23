@@ -600,6 +600,18 @@
   body.erp-print-reports .erp-report-tools,
   body.erp-print-reports .no-print,
   body.erp-print-reports #login-screen,
+  body.erp-print-factory-report #sidebar,
+  body.erp-print-factory-report #sidebar-backdrop,
+  body.erp-print-factory-report #app-header,
+  body.erp-print-factory-report #dashboard-insights-panel,
+  body.erp-print-factory-report #erp-module-toolbar,
+  body.erp-print-factory-report .hr-factory-tab-bar,
+  body.erp-print-factory-report .erp-mobile-filter-bar,
+  body.erp-print-factory-report .hr-factory-export-toolbar,
+  body.erp-print-factory-report #hr-factory-panel-ledger,
+  body.erp-print-factory-report .no-print,
+  body.erp-print-factory-report #login-screen,
+  body.erp-print-factory-report #app-page-footer,
   body.erp-print-slip #sidebar,
   body.erp-print-slip #sidebar-backdrop,
   body.erp-print-slip #app-header,
@@ -613,6 +625,7 @@
   }
 
   body.erp-print-reports #main-content,
+  body.erp-print-factory-report #main-content,
   body.erp-print-slip #main-content,
   body.erp-print-slip #modal-cust-txn-slip {
     position: static !important;
@@ -640,6 +653,12 @@
   }
 
   #report-print-header {
+    display: block !important;
+    position: relative;
+    page-break-inside: avoid;
+  }
+
+  #hr-factory-report-print-header {
     display: block !important;
     position: relative;
     page-break-inside: avoid;
@@ -691,7 +710,8 @@
     border-top: 1px solid #ccc;
   }
 
-  body.erp-print-reports .erp-print-page-footer::after {
+  body.erp-print-reports .erp-print-page-footer::after,
+  body.erp-print-factory-report .erp-print-page-footer::after {
     display: block;
     margin-top: 2px;
     content: "Page " counter(page) " of " counter(pages);

@@ -2,6 +2,47 @@ import { getCompanyInfo, getCompanyLegalLine, getCompanyDisplayTitle } from './c
 import { t } from './i18n.js';
 
 let lastReportMeta = null;
+let lastHrFactoryReportMeta = null;
+
+const MAIN_REPORT_EXPORT_PROFILE = {
+  key: 'main',
+  getRoot: () => document.querySelector('.erp-report-results:not(#hr-factory-report-results)'),
+  getMeta: () => lastReportMeta,
+  setMeta: (meta) => { lastReportMeta = meta; },
+  printBodyClass: 'erp-print-reports',
+  tableContainerId: 'report-table-container',
+  summaryCardsId: 'report-summary-cards',
+  headerIds: {
+    companyName: 'report-company-name',
+    companyLegal: 'report-company-legal',
+    title: 'report-title-display',
+    dateRange: 'report-date-display',
+    target: 'report-target-display',
+    datetime: 'report-print-datetime',
+    footerDatetime: 'report-print-footer-datetime',
+    qr: 'report-qr-code'
+  }
+};
+
+const HR_FACTORY_EXPORT_PROFILE = {
+  key: 'hrFactory',
+  getRoot: () => document.getElementById('hr-factory-report-results'),
+  getMeta: () => lastHrFactoryReportMeta,
+  setMeta: (meta) => { lastHrFactoryReportMeta = meta; },
+  printBodyClass: 'erp-print-factory-report',
+  tableContainerId: 'hr-factory-details-table',
+  summaryCardsId: 'hr-factory-details-summary',
+  headerIds: {
+    companyName: 'hr-factory-report-company-name',
+    companyLegal: 'hr-factory-report-company-legal',
+    title: 'hr-factory-report-title-display',
+    dateRange: 'hr-factory-report-date-display',
+    target: 'hr-factory-report-target-display',
+    datetime: 'hr-factory-report-print-datetime',
+    footerDatetime: 'hr-factory-print-footer-datetime',
+    qr: 'hr-factory-report-qr-code'
+  }
+};
 
 export function getLastReportMeta() {
   return lastReportMeta;
@@ -34,13 +75,18 @@ function buildQrPayload(meta) {
 }
 
 export function updateReportPrintHeader({ title, dateRange, target }) {
+  updateExportPrintHeader(MAIN_REPORT_EXPORT_PROFILE, { title, dateRange, target });
+}
+
+function updateExportPrintHeader(profile, { title, dateRange, target }) {
   const co = getCompanyInfo();
-  const nameEl = document.getElementById('report-company-name');
-  const legalEl = document.getElementById('report-company-legal');
-  const titleEl = document.getElementById('report-title-display');
-  const dateEl = document.getElementById('report-date-display');
-  const tgtEl = document.getElementById('report-target-display');
-  const dtEl = document.getElementById('report-print-datetime');
+  const ids = profile.headerIds;
+  const nameEl = document.getElementById(ids.companyName);
+  const legalEl = document.getElementById(ids.companyLegal);
+  const titleEl = document.getElementById(ids.title);
+  const dateEl = document.getElementById(ids.dateRange);
+  const tgtEl = document.getElementById(ids.target);
+  const dtEl = document.getElementById(ids.datetime);
 
   if (nameEl) nameEl.textContent = co.COMPANY_NAME;
   if (legalEl) legalEl.textContent = getCompanyLegalLine();
@@ -49,16 +95,20 @@ export function updateReportPrintHeader({ title, dateRange, target }) {
   if (tgtEl) tgtEl.textContent = target || '';
   if (dtEl) dtEl.textContent = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
 
-  lastReportMeta = {
+  profile.setMeta({
     title: title || titleEl?.textContent || '',
     dateRange: dateRange || dateEl?.textContent || '',
     target: target || tgtEl?.textContent || '',
     generatedAt: new Date()
-  };
+  });
 }
 
-export async function renderReportQr(meta = lastReportMeta) {
-  const host = document.getElementById('report-qr-code');
+export function updateHrFactoryReportPrintHeader({ title, dateRange, target }) {
+  updateExportPrintHeader(HR_FACTORY_EXPORT_PROFILE, { title, dateRange, target });
+}
+
+export async function renderReportQr(meta = lastReportMeta, qrHostId = 'report-qr-code') {
+  const host = document.getElementById(qrHostId);
   if (!host || !meta) return;
   host.innerHTML = '';
   const payload = buildQrPayload(meta);
@@ -192,19 +242,19 @@ export function reorderAndSplitReportSummary() {
 }
 
 /** Keep detail tables before summary/footer for print and all export formats. */
-export function ensureReportExportLayout() {
-  const results = document.querySelector('.erp-report-results');
-  const cardsEl = document.getElementById('report-summary-cards');
-  const tableContainer = document.getElementById('report-table-container');
-  const pageFooter = results?.querySelector('.erp-print-page-footer');
-  if (!results || !cardsEl || !tableContainer) return;
+export function ensureReportExportLayout(profile = MAIN_REPORT_EXPORT_PROFILE) {
+  const root = profile.getRoot?.();
+  const cardsEl = document.getElementById(profile.summaryCardsId);
+  const tableContainer = document.getElementById(profile.tableContainerId);
+  const pageFooter = root?.querySelector('.erp-print-page-footer');
+  if (!root || !tableContainer) return;
 
-  reorderAndSplitReportSummary();
+  if (profile.key === 'main') reorderAndSplitReportSummary();
 
   const anchor = pageFooter || null;
   if (anchor) {
-    results.insertBefore(tableContainer, anchor);
-    if (cardsEl.innerHTML.trim()) results.insertBefore(cardsEl, anchor);
+    root.insertBefore(tableContainer, anchor);
+    if (cardsEl?.innerHTML.trim()) root.insertBefore(cardsEl, anchor);
   }
 }
 
@@ -235,8 +285,8 @@ function extractSummaryMetricPairs(container) {
   return pairs;
 }
 
-function collectReportSummaryForExport(root) {
-  const el = root.querySelector('#report-summary-cards');
+function collectReportSummaryForExport(root, summaryCardsId = 'report-summary-cards') {
+  const el = root.querySelector(`#${summaryCardsId}`);
   if (!el || el.classList.contains('hidden') || !el.innerHTML.trim()) {
     return { html: '', rows: [] };
   }
@@ -279,8 +329,8 @@ function addPdfPageNumbers(pdf) {
   }
 }
 
-function collectReportTables(root) {
-  const tableContainer = root.querySelector('#report-table-container');
+function collectReportTables(root, tableContainerId = 'report-table-container') {
+  const tableContainer = root.querySelector(`#${tableContainerId}`);
   const scope = tableContainer || root;
   return [...scope.querySelectorAll('table')].map((table, idx) => {
     const titleEl = table.closest('div.border')?.querySelector('.bg-slate-800, .bg-gray-800, .bg-violet-50, .bg-blue-50, .font-bold.p-3');
@@ -300,10 +350,10 @@ function collectReportTables(root) {
   });
 }
 
-function buildExportHtml(root, meta) {
+function buildExportHtml(root, meta, profile = MAIN_REPORT_EXPORT_PROFILE) {
   const co = getCompanyInfo();
-  const tableContainer = root.querySelector('#report-table-container');
-  const summary = collectReportSummaryForExport(root);
+  const tableContainer = root.querySelector(`#${profile.tableContainerId}`);
+  const summary = collectReportSummaryForExport(root, profile.summaryCardsId);
   const detailsHtml = tableContainer?.innerHTML || '';
   const printed = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
 
@@ -339,28 +389,41 @@ ${summary.html ? `<div class="erp-export-summary">${summary.html}</div>` : ''}
 
 export async function finalizeReportPrintLayout(meta) {
   updateReportPrintHeader(meta);
-  const tableContainer = document.getElementById('report-table-container');
+  const tableContainer = document.getElementById(MAIN_REPORT_EXPORT_PROFILE.tableContainerId);
   addSectionDividers(tableContainer);
   addGrandTotalRows(tableContainer);
-  ensureReportExportLayout();
-  await renderReportQr(meta);
+  ensureReportExportLayout(MAIN_REPORT_EXPORT_PROFILE);
+  await renderReportQr(meta, MAIN_REPORT_EXPORT_PROFILE.headerIds.qr);
+}
+
+export async function finalizeHrFactoryPrintLayout(meta) {
+  updateHrFactoryReportPrintHeader(meta);
+  const tableContainer = document.getElementById(HR_FACTORY_EXPORT_PROFILE.tableContainerId);
+  addSectionDividers(tableContainer);
+  addGrandTotalRows(tableContainer);
+  ensureReportExportLayout(HR_FACTORY_EXPORT_PROFILE);
+  await renderReportQr(meta, HR_FACTORY_EXPORT_PROFILE.headerIds.qr);
 }
 
 function getReportExportRoot() {
-  return document.querySelector('.erp-report-results');
+  return MAIN_REPORT_EXPORT_PROFILE.getRoot();
+}
+
+function printReportRoot(profile) {
+  ensureReportExportLayout(profile);
+  const printed = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
+  const dtEl = document.getElementById(profile.headerIds.datetime);
+  const footerDt = document.getElementById(profile.headerIds.footerDatetime);
+  if (dtEl) dtEl.textContent = printed;
+  if (footerDt) footerDt.textContent = printed;
+  document.body.classList.add(profile.printBodyClass);
+  const cleanup = () => document.body.classList.remove(profile.printBodyClass);
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
 }
 
 export function printReportsOnly() {
-  ensureReportExportLayout();
-  const printed = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
-  const dtEl = document.getElementById('report-print-datetime');
-  const footerDt = document.getElementById('report-print-footer-datetime');
-  if (dtEl) dtEl.textContent = printed;
-  if (footerDt) footerDt.textContent = printed;
-  document.body.classList.add('erp-print-reports');
-  const cleanup = () => document.body.classList.remove('erp-print-reports');
-  window.addEventListener('afterprint', cleanup, { once: true });
-  window.print();
+  printReportRoot(MAIN_REPORT_EXPORT_PROFILE);
 }
 
 function downloadBlob(blob, filename) {
@@ -377,24 +440,32 @@ function safeFilename(text) {
 }
 
 export async function exportReportAs(format) {
-  const root = getReportExportRoot();
-  if (!root || !lastReportMeta) {
+  return exportReportRootAs(format, MAIN_REPORT_EXPORT_PROFILE);
+}
+
+export async function exportHrFactoryDetailsAs(format) {
+  return exportReportRootAs(format, HR_FACTORY_EXPORT_PROFILE);
+}
+
+async function exportReportRootAs(format, profile) {
+  const root = profile.getRoot?.();
+  const meta = profile.getMeta?.();
+  if (!root || !meta) {
     alert(t('report.runQueryFirst'));
     return;
   }
-  ensureReportExportLayout();
-  const meta = lastReportMeta;
+  ensureReportExportLayout(profile);
   const base = safeFilename(meta.title);
-  const summary = collectReportSummaryForExport(root);
-  const tables = collectReportTables(root);
+  const summary = collectReportSummaryForExport(root, profile.summaryCardsId);
+  const tables = collectReportTables(root, profile.tableContainerId);
 
   if (format === 'print') {
-    printReportsOnly();
+    printReportRoot(profile);
     return;
   }
 
   if (format === 'word') {
-    const html = buildExportHtml(root, meta);
+    const html = buildExportHtml(root, meta, profile);
     const blob = new Blob(['\ufeff', html], { type: 'application/msword' });
     downloadBlob(blob, `${base}.doc`);
     return;
@@ -508,18 +579,31 @@ export async function exportReportAs(format) {
 }
 
 export function initReportExportButtons() {
-  const map = {
+  bindExportButtons({
     'btn-report-print': 'print',
     'btn-report-pdf': 'pdf',
     'btn-report-word': 'word',
     'btn-report-excel': 'excel',
     'btn-report-ppt': 'ppt'
-  };
+  }, exportReportAs);
+}
+
+export function initHrFactoryExportButtons() {
+  bindExportButtons({
+    'btn-hr-factory-print': 'print',
+    'btn-hr-factory-pdf': 'pdf',
+    'btn-hr-factory-word': 'word',
+    'btn-hr-factory-excel': 'excel',
+    'btn-hr-factory-ppt': 'ppt'
+  }, exportHrFactoryDetailsAs);
+}
+
+function bindExportButtons(map, handler) {
   Object.entries(map).forEach(([id, format]) => {
     const btn = document.getElementById(id);
     if (!btn || btn.dataset.bound === 'true') return;
     btn.dataset.bound = 'true';
-    btn.addEventListener('click', () => exportReportAs(format));
+    btn.addEventListener('click', () => handler(format));
   });
 }
 
