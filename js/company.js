@@ -49,8 +49,12 @@ export function applyCompanyBranding(root = document) {
 
   const headerTitle = root.getElementById('header-company-name');
   const headerLegal = root.getElementById('header-company-legal');
+  const loginTitle = root.getElementById('login-company-name');
+  const loginLegal = root.getElementById('login-company-legal');
   if (headerTitle) headerTitle.textContent = name;
   if (headerLegal) headerLegal.textContent = legal;
+  if (loginTitle) loginTitle.textContent = name;
+  if (loginLegal) loginLegal.textContent = legal;
 
   root.querySelectorAll('[data-company-name]').forEach((el) => { el.textContent = name; });
   root.querySelectorAll('[data-company-legal]').forEach((el) => { el.textContent = legal; });
