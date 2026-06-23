@@ -7,6 +7,7 @@ import { setupPasswordToggle, resetPasswordToggles } from './password-toggle.js'
 import { refreshSessionUser, userCanAccessModule, userCanEditModule, getDefaultModuleForUser } from './user-session.js';
 import { initDeliveryDashboard } from './delivery-dashboard.js';
 import { applyCompanyBranding } from './company.js';
+import { initCreatorCredit } from './creator-credit.js';
 import { finalizeReportPrintLayout, initReportExportButtons, initCustomerTxnSlipButtons } from './report-export.js';
 
 const loginScreen = document.getElementById('login-screen');
@@ -105,6 +106,7 @@ setupPasswordToggle('toggle-password', 'login-password');
 
 async function initApp() {
   initForgotPasswordSystem();
+  initCreatorCredit();
   initLanguageSwitcher(async () => {
     applyTranslations(document);
     applyCompanyBranding(document);

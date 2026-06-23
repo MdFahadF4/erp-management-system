@@ -44,6 +44,8 @@ export const REPORT_EN = {
   'report.printedOn': 'Printed on',
   'report.slipField': 'Field',
   'report.slipValue': 'Value',
+  'report.pageOf': 'Page {current} of {total}',
+  'report.exportSummarySection': 'Report Summary',
   'report.lifetimeSummary': 'Lifetime Summary',
   'report.rangeSummary': 'Date Range Summary',
   'report.noRangeSummary': 'No date-range summary for this report.',
@@ -640,6 +642,8 @@ export const REPORT_AR = translatePack(REPORT_EN, {
   'report.txnTypeSalePayment': 'بيع ودفع',
   'report.slipField': 'الحقل',
   'report.slipValue': 'القيمة',
+  'report.pageOf': 'صفحة {current} من {total}',
+  'report.exportSummarySection': 'ملخص التقرير',
 });
 
 export const REPORT_BN = translatePack(REPORT_EN, {
@@ -859,6 +863,8 @@ export const REPORT_BN = translatePack(REPORT_EN, {
   'dash.balanceSummary': 'ব্যালেন্স SAR {amount}',
   'report.slipField': 'ক্ষেত্র',
   'report.slipValue': 'মান',
+  'report.pageOf': 'পৃষ্ঠা {current} / {total}',
+  'report.exportSummarySection': 'রিপোর্ট সারাংশ',
 });
 
 export const REPORT_DE = translatePack(REPORT_EN, {
@@ -1078,6 +1084,8 @@ export const REPORT_DE = translatePack(REPORT_EN, {
   'dash.balanceSummary': 'Saldo SAR {amount}',
   'report.slipField': 'Feld',
   'report.slipValue': 'Wert',
+  'report.pageOf': 'Seite {current} von {total}',
+  'report.exportSummarySection': 'Berichtszusammenfassung',
 });
 
 export const REPORT_FR = translatePack(REPORT_EN, {
@@ -1297,6 +1305,8 @@ export const REPORT_FR = translatePack(REPORT_EN, {
   'dash.balanceSummary': 'Solde SAR {amount}',
   'report.slipField': 'Champ',
   'report.slipValue': 'Valeur',
+  'report.pageOf': 'Page {current} sur {total}',
+  'report.exportSummarySection': 'Résumé du rapport',
 });
 
 export const REPORT_HI = translatePack(REPORT_EN, {
@@ -1516,6 +1526,8 @@ export const REPORT_HI = translatePack(REPORT_EN, {
   'dash.balanceSummary': 'शेष SAR {amount}',
   'report.slipField': 'फ़ील्ड',
   'report.slipValue': 'मान',
+  'report.pageOf': 'पृष्ठ {current} / {total}',
+  'report.exportSummarySection': 'रिपोर्ट सारांश',
 });
 
 export const REPORT_UR = translatePack(REPORT_EN, {
@@ -1735,6 +1747,8 @@ export const REPORT_UR = translatePack(REPORT_EN, {
   'dash.balanceSummary': 'بیلنس SAR {amount}',
   'report.slipField': 'فیلڈ',
   'report.slipValue': 'قدر',
+  'report.pageOf': 'صفحہ {current} از {total}',
+  'report.exportSummarySection': 'رپورٹ خلاصہ',
 });
 
 export const REPORT_ES = translatePack(REPORT_EN, {
@@ -1954,6 +1968,8 @@ export const REPORT_ES = translatePack(REPORT_EN, {
   'dash.balanceSummary': 'Saldo SAR {amount}',
   'report.slipField': 'Campo',
   'report.slipValue': 'Valor',
+  'report.pageOf': 'Página {current} de {total}',
+  'report.exportSummarySection': 'Resumen del informe',
 });
 
 export const REPORT_STRINGS = {

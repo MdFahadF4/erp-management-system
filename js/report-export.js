@@ -160,11 +160,8 @@ export function addSectionDividers(container) {
 }
 
 export function reorderAndSplitReportSummary() {
-  const results = document.querySelector('.erp-report-results');
   const cardsEl = document.getElementById('report-summary-cards');
-  const tableContainer = document.getElementById('report-table-container');
-  if (!results || !cardsEl || !tableContainer) return;
-  if (!cardsEl.innerHTML.trim() || cardsEl.querySelector('.erp-report-summary-split')) return;
+  if (!cardsEl || !cardsEl.innerHTML.trim() || cardsEl.querySelector('.erp-report-summary-split')) return;
 
   const bluePanel = cardsEl.querySelector('.bg-blue-50');
   let lifetimeHtml = cardsEl.innerHTML;
@@ -192,58 +189,134 @@ export function reorderAndSplitReportSummary() {
       </div>
     </div>`;
   cardsEl.className = 'grid grid-cols-1 erp-report-summary-footer';
+}
 
-  if (tableContainer.nextElementSibling !== cardsEl) {
-    results.appendChild(cardsEl);
+/** Keep detail tables before summary/footer for print and all export formats. */
+export function ensureReportExportLayout() {
+  const results = document.querySelector('.erp-report-results');
+  const cardsEl = document.getElementById('report-summary-cards');
+  const tableContainer = document.getElementById('report-table-container');
+  const pageFooter = results?.querySelector('.erp-print-page-footer');
+  if (!results || !cardsEl || !tableContainer) return;
+
+  reorderAndSplitReportSummary();
+
+  const anchor = pageFooter || null;
+  if (anchor) {
+    results.insertBefore(tableContainer, anchor);
+    if (cardsEl.innerHTML.trim()) results.insertBefore(cardsEl, anchor);
   }
 }
 
-export async function finalizeReportPrintLayout(meta) {
-  updateReportPrintHeader(meta);
-  const tableContainer = document.getElementById('report-table-container');
-  addSectionDividers(tableContainer);
-  addGrandTotalRows(tableContainer);
-  reorderAndSplitReportSummary();
-  await renderReportQr(meta);
+function extractSummaryMetricPairs(container) {
+  const pairs = [];
+  const seen = new Set();
+  if (!container) return pairs;
+
+  container.querySelectorAll('h4').forEach((h4) => {
+    const label = h4.textContent.trim();
+    const value = h4.parentElement?.querySelector('.font-mono, .font-black')?.textContent?.trim();
+    if (label && value && !seen.has(label)) {
+      seen.add(label);
+      pairs.push([label, value]);
+    }
+  });
+
+  container.querySelectorAll('.grid > div, .flex.flex-wrap > div, .flex.justify-around > div').forEach((cell) => {
+    const labelEl = cell.querySelector('h4, .text-gray-500, [class*="uppercase"]');
+    const label = labelEl?.textContent?.trim();
+    const value = cell.querySelector('.font-mono, .font-black, .text-xl, .text-lg')?.textContent?.trim();
+    if (label && value && !seen.has(label)) {
+      seen.add(label);
+      pairs.push([label, value]);
+    }
+  });
+
+  return pairs;
 }
 
-function getReportExportRoot() {
-  return document.querySelector('.erp-report-results');
+function collectReportSummaryForExport(root) {
+  const el = root.querySelector('#report-summary-cards');
+  if (!el || el.classList.contains('hidden') || !el.innerHTML.trim()) {
+    return { html: '', rows: [] };
+  }
+
+  const rows = [];
+  rows.push([]);
+  rows.push([t('report.exportSummarySection')]);
+
+  const lifetime = el.querySelector('.erp-report-summary-col-lifetime');
+  const range = el.querySelector('.erp-report-summary-col-range');
+
+  if (lifetime || range) {
+    if (lifetime) {
+      const heading = lifetime.querySelector(':scope > .uppercase')?.textContent?.trim() || t('report.lifetimeSummary');
+      rows.push([heading]);
+      extractSummaryMetricPairs(lifetime).forEach((pair) => rows.push(pair));
+      rows.push([]);
+    }
+    if (range) {
+      const heading = range.querySelector(':scope > .uppercase')?.textContent?.trim() || t('report.rangeSummary');
+      rows.push([heading]);
+      extractSummaryMetricPairs(range).forEach((pair) => rows.push(pair));
+    }
+  } else {
+    extractSummaryMetricPairs(el).forEach((pair) => rows.push(pair));
+  }
+
+  return { html: el.outerHTML, rows: rows.filter((row) => row.some((cell) => String(cell || '').trim())) };
 }
 
-export function printReportsOnly() {
-  const printed = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
-  const dtEl = document.getElementById('report-print-datetime');
-  const footerDt = document.getElementById('report-print-footer-datetime');
-  if (dtEl) dtEl.textContent = printed;
-  if (footerDt) footerDt.textContent = printed;
-  document.body.classList.add('erp-print-reports');
-  const cleanup = () => document.body.classList.remove('erp-print-reports');
-  window.addEventListener('afterprint', cleanup, { once: true });
-  window.print();
+function addPdfPageNumbers(pdf) {
+  const total = pdf.internal.getNumberOfPages();
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  for (let i = 1; i <= total; i += 1) {
+    pdf.setPage(i);
+    pdf.setFontSize(9);
+    pdf.setTextColor(85);
+    pdf.text(t('report.pageOf', { current: i, total }), pageW / 2, pageH - 6, { align: 'center' });
+  }
 }
 
 function collectReportTables(root) {
-  return [...root.querySelectorAll('table')].map((table, idx) => {
+  const tableContainer = root.querySelector('#report-table-container');
+  const scope = tableContainer || root;
+  return [...scope.querySelectorAll('table')].map((table, idx) => {
     const titleEl = table.closest('div.border')?.querySelector('.bg-slate-800, .bg-gray-800, .bg-violet-50, .bg-blue-50, .font-bold.p-3');
     const headers = [...table.querySelectorAll('thead th')].map((th) => th.textContent.trim());
     const rows = [...table.querySelectorAll('tbody tr')].filter((tr) => !tr.querySelector('td[colspan]')).map((tr) =>
       [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())
     );
-    return { title: titleEl?.textContent?.trim() || `Table ${idx + 1}`, headers, rows };
+    const footerRows = [...table.querySelectorAll('tfoot tr')].map((tr) =>
+      [...tr.querySelectorAll('td')].map((td) => td.textContent.trim())
+    );
+    return {
+      title: titleEl?.textContent?.trim() || `Table ${idx + 1}`,
+      headers,
+      rows,
+      footerRows
+    };
   });
 }
 
 function buildExportHtml(root, meta) {
   const co = getCompanyInfo();
-  const clone = root.cloneNode(true);
-  clone.querySelectorAll('.print\\:hidden, .erp-report-tools').forEach((el) => el.remove());
+  const tableContainer = root.querySelector('#report-table-container');
+  const summary = collectReportSummaryForExport(root);
+  const detailsHtml = tableContainer?.innerHTML || '';
+  const printed = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
+
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${meta?.title || co.COMPANY_NAME}</title>
 <style>
+@page { size: A4 portrait; margin: 14mm 10mm 18mm 10mm; @bottom-center { content: "Page " counter(page) " of " counter(pages); font-size: 9px; color: #555; } }
 body{font-family:Arial,sans-serif;margin:24px;color:#111}
 .erp-export-header{text-align:center;margin-bottom:20px;border-bottom:2px solid #333;padding-bottom:12px}
 .erp-export-header h1{margin:0;font-size:22px}
 .erp-export-header p{margin:4px 0;font-size:12px;color:#555}
+.erp-export-details{margin-bottom:24px}
+.erp-export-summary{margin-top:28px;padding-top:16px;border-top:2px solid #999;page-break-before:always}
+.erp-export-footer{margin-top:24px;padding-top:12px;border-top:1px solid #ccc;text-align:center;font-size:10px;color:#666}
 table{width:100%;border-collapse:collapse;margin:16px 0;font-size:11px}
 th,td{border:1px solid #ccc;padding:6px 8px}
 th{background:#f3f4f6}
@@ -256,10 +329,38 @@ tfoot td{font-weight:bold;background:#f9fafb}
   <p><strong>${meta?.title || ''}</strong></p>
   <p>${meta?.dateRange || ''}</p>
   <p>${meta?.target || ''}</p>
-  <p>${t('report.printedOn')}: ${formatPrintDateTime()}</p>
+  <p>${printed}</p>
 </div>
-${clone.innerHTML}
+<div class="erp-export-details">${detailsHtml}</div>
+${summary.html ? `<div class="erp-export-summary">${summary.html}</div>` : ''}
+<div class="erp-export-footer">${printed}</div>
 </body></html>`;
+}
+
+export async function finalizeReportPrintLayout(meta) {
+  updateReportPrintHeader(meta);
+  const tableContainer = document.getElementById('report-table-container');
+  addSectionDividers(tableContainer);
+  addGrandTotalRows(tableContainer);
+  ensureReportExportLayout();
+  await renderReportQr(meta);
+}
+
+function getReportExportRoot() {
+  return document.querySelector('.erp-report-results');
+}
+
+export function printReportsOnly() {
+  ensureReportExportLayout();
+  const printed = `${t('report.printedOn')}: ${formatPrintDateTime()}`;
+  const dtEl = document.getElementById('report-print-datetime');
+  const footerDt = document.getElementById('report-print-footer-datetime');
+  if (dtEl) dtEl.textContent = printed;
+  if (footerDt) footerDt.textContent = printed;
+  document.body.classList.add('erp-print-reports');
+  const cleanup = () => document.body.classList.remove('erp-print-reports');
+  window.addEventListener('afterprint', cleanup, { once: true });
+  window.print();
 }
 
 function downloadBlob(blob, filename) {
@@ -281,8 +382,11 @@ export async function exportReportAs(format) {
     alert(t('report.runQueryFirst'));
     return;
   }
+  ensureReportExportLayout();
   const meta = lastReportMeta;
   const base = safeFilename(meta.title);
+  const summary = collectReportSummaryForExport(root);
+  const tables = collectReportTables(root);
 
   if (format === 'print') {
     printReportsOnly();
@@ -300,15 +404,19 @@ export async function exportReportAs(format) {
     try {
       const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs');
       const wb = XLSX.utils.book_new();
-      const tables = collectReportTables(root);
       tables.forEach((tbl, i) => {
-        const aoa = tbl.headers.length ? [tbl.headers, ...tbl.rows] : tbl.rows;
+        let aoa = tbl.headers.length ? [tbl.headers, ...tbl.rows] : tbl.rows;
+        if (tbl.footerRows?.length) aoa = [...aoa, ...tbl.footerRows];
         const ws = XLSX.utils.aoa_to_sheet(aoa);
         XLSX.utils.book_append_sheet(wb, ws, (tbl.title || `Sheet${i + 1}`).slice(0, 31));
       });
       if (!tables.length) {
         const ws = XLSX.utils.aoa_to_sheet([[getCompanyDisplayTitle()], [getCompanyLegalLine()], [meta.title], [meta.dateRange]]);
         XLSX.utils.book_append_sheet(wb, ws, 'Report');
+      }
+      if (summary.rows.length) {
+        const wsSummary = XLSX.utils.aoa_to_sheet(summary.rows);
+        XLSX.utils.book_append_sheet(wb, wsSummary, t('report.exportSummarySection').slice(0, 31));
       }
       XLSX.writeFile(wb, `${base}.xlsx`);
     } catch (err) {
@@ -341,6 +449,7 @@ export async function exportReportAs(format) {
         pdf.addImage(img, 'PNG', 0, position, pageW, imgH);
         heightLeft -= pageH;
       }
+      addPdfPageNumbers(pdf);
       pdf.save(`${base}.pdf`);
     } catch (err) {
       console.error(err);
@@ -354,21 +463,42 @@ export async function exportReportAs(format) {
       const mod = await import('https://cdn.jsdelivr.net/npm/pptxgenjs@3.12.0/+esm');
       const pptx = new mod.default();
       const co = getCompanyInfo();
+      const detailSlides = tables.filter((tbl) => tbl.headers.length || tbl.rows.length);
+      const totalSlides = 1 + detailSlides.length + (summary.rows.length ? 1 : 0);
+      let slideNo = 0;
+      const stampPage = (slide) => {
+        slideNo += 1;
+        slide.addText(t('report.pageOf', { current: slideNo, total: totalSlides }), {
+          x: 0.5, y: 7.05, w: 9, h: 0.3, fontSize: 9, align: 'center', color: '666666'
+        });
+      };
+
       const slide1 = pptx.addSlide();
       slide1.addText(co.COMPANY_NAME, { x: 0.5, y: 0.8, w: 9, h: 0.6, fontSize: 24, bold: true, align: 'center' });
       slide1.addText(getCompanyLegalLine(), { x: 0.5, y: 1.5, w: 9, h: 0.4, fontSize: 12, align: 'center' });
       slide1.addText(meta.title, { x: 0.5, y: 2.2, w: 9, h: 0.5, fontSize: 16, align: 'center' });
       slide1.addText(`${meta.dateRange}\n${meta.target || ''}`, { x: 0.5, y: 3, w: 9, h: 0.8, fontSize: 11, align: 'center' });
+      stampPage(slide1);
 
-      collectReportTables(root).forEach((tbl) => {
-        if (!tbl.headers.length && !tbl.rows.length) return;
+      detailSlides.forEach((tbl) => {
         const slide = pptx.addSlide();
         slide.addText(tbl.title, { x: 0.3, y: 0.2, w: 9.4, h: 0.4, fontSize: 14, bold: true });
-        const tableRows = [tbl.headers, ...tbl.rows].filter((r) => r.length);
+        const tableRows = [tbl.headers, ...tbl.rows, ...(tbl.footerRows || [])].filter((r) => r.length);
         if (tableRows.length) {
           slide.addTable(tableRows, { x: 0.3, y: 0.7, w: 9.4, fontSize: 9, border: { type: 'solid', color: 'CCCCCC', pt: 1 } });
         }
+        stampPage(slide);
       });
+
+      if (summary.rows.length) {
+        const slide = pptx.addSlide();
+        slide.addText(t('report.exportSummarySection'), { x: 0.3, y: 0.2, w: 9.4, h: 0.4, fontSize: 14, bold: true });
+        slide.addTable(summary.rows.filter((r) => r.length), {
+          x: 0.3, y: 0.7, w: 9.4, fontSize: 10, border: { type: 'solid', color: 'CCCCCC', pt: 1 }
+        });
+        stampPage(slide);
+      }
+
       await pptx.writeFile({ fileName: `${base}.pptx` });
     } catch (err) {
       console.error(err);

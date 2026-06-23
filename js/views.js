@@ -1158,7 +1158,7 @@ export const templates = {
         <div id="report-summary-cards" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 mb-4 md:mb-6 hidden order-2 erp-report-summary-footer">
         </div>
 
-        <div class="erp-print-page-footer hidden print:block text-center text-[10px] text-gray-500 pt-2 order-3">
+        <div class="erp-print-page-footer hidden print:block text-center text-[10px] text-gray-500 pt-2 pb-8 order-3">
           <span id="report-print-footer-datetime"></span>
         </div>
 

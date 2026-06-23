@@ -657,8 +657,14 @@
     text-align: center;
     font-size: 9px;
     color: #444;
-    padding-top: 4mm;
+    padding: 4mm 0 2mm;
     border-top: 1px solid #ccc;
+  }
+
+  body.erp-print-reports .erp-print-page-footer::after {
+    display: block;
+    margin-top: 2px;
+    content: "Page " counter(page) " of " counter(pages);
   }
 
   .erp-report-table thead {
@@ -703,6 +709,67 @@
 #cust-txn-slip-body {
   overflow: visible;
   padding-bottom: 1rem;
+}
+
+.erp-creator-credit-menu {
+  position: fixed;
+  z-index: 200;
+  width: 16.5rem;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.75rem;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.18);
+  overflow: hidden;
+}
+
+.erp-creator-credit-link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  text-decoration: none;
+  transition: background-color 0.15s ease;
+}
+
+.erp-creator-credit-link:hover {
+  background: #f9fafb;
+}
+
+.erp-creator-credit-link--whatsapp:hover {
+  background: #ecfdf5;
+}
+
+.erp-creator-credit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 9999px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.erp-creator-credit-link--whatsapp .erp-creator-credit-icon {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.erp-creator-credit-trigger {
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font: inherit;
+}
+
+@media print {
+  .erp-creator-credit,
+  .erp-creator-credit-menu {
+    display: none !important;
+  }
 }
 
 @page {
