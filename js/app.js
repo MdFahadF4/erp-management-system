@@ -2421,6 +2421,83 @@ async function loadCustomerTableRecords() {
   } catch (err) { container.innerHTML = `<tr><td colspan="10" class="p-3 text-center text-red-500 font-bold">${t('cust.loadFailed')}</td></tr>`; }
 }
 
+function ensureCustRefundHelpModal() {
+  let modal = document.getElementById('modal-cust-refund-help');
+  if (modal) return modal;
+
+  modal = document.createElement('div');
+  modal.id = 'modal-cust-refund-help';
+  modal.className = 'erp-refund-help-modal fixed inset-0 z-[150] hidden';
+  modal.setAttribute('role', 'dialog');
+  modal.setAttribute('aria-modal', 'true');
+  modal.setAttribute('aria-labelledby', 'cust-refund-help-title');
+  modal.innerHTML = `
+    <div class="erp-refund-help-backdrop absolute inset-0 bg-slate-900/60 backdrop-blur-sm" aria-hidden="true"></div>
+    <div class="erp-refund-help-shell relative z-[1] flex h-full w-full items-end justify-center sm:items-center p-0 sm:p-4">
+      <div class="erp-refund-help-panel bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-gray-200 w-full max-w-lg max-h-[min(92dvh,100%)] sm:max-h-[90vh] flex flex-col min-h-0">
+        <div class="erp-refund-help-header flex shrink-0 items-start justify-between gap-3 p-4 border-b border-gray-100">
+          <h4 id="cust-refund-help-title" class="text-sm font-bold text-gray-800 uppercase tracking-wide pr-2" data-i18n="custTxn.helpTitle">Refund / Cancellation Example</h4>
+          <button type="button" id="cust-txn-refund-help-close" class="text-gray-400 hover:text-gray-700 font-bold text-lg leading-none px-1 shrink-0" aria-label="Close">&times;</button>
+        </div>
+        <div class="erp-refund-help-body flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4 text-xs text-gray-700 leading-relaxed">
+          <p data-i18n="custTxn.helpIntro">Customer bought for 1000, paid 500 advance (Cash). Due was 500. You cancel the order and refund the 500 cash.</p>
+          <div>
+            <p class="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider" data-i18n="custTxn.helpStepPost">What you enter in Refund mode (positive numbers)</p>
+            <ul class="space-y-1 bg-amber-50 border border-amber-100 rounded-lg p-3 font-mono text-[11px]">
+              <li><span class="text-gray-500" data-i18n="custTxn.helpSold">Sold (cancel):</span> <strong>1000</strong></li>
+              <li><span class="text-gray-500" data-i18n="custTxn.helpRefund">Refund to customer:</span> <strong>500</strong></li>
+              <li><span class="text-gray-500" data-i18n="field.paymentMethod">Payment Method:</span> <strong>Cash</strong></li>
+            </ul>
+          </div>
+          <div>
+            <p class="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider" data-i18n="custTxn.helpStepLedger">What appears in the ledger (audit trail)</p>
+            <div class="overflow-x-auto border rounded-lg">
+              <table class="w-full text-[11px] border-collapse">
+                <thead class="bg-gray-100 font-bold text-gray-600 uppercase">
+                  <tr><th class="p-2 text-left" data-i18n="custTxn.helpColRow">Row</th><th class="p-2 text-right" data-i18n="col.soldAmt">Sold</th><th class="p-2 text-right" data-i18n="col.receivedAmt">Received</th><th class="p-2 text-right" data-i18n="col.txnDue">Due</th></tr>
+                </thead>
+                <tbody class="font-mono divide-y">
+                  <tr><td class="p-2" data-i18n="custTxn.helpOriginal">Original sale</td><td class="p-2 text-right">1000</td><td class="p-2 text-right text-emerald-700">500</td><td class="p-2 text-right text-red-600">500</td></tr>
+                  <tr class="bg-amber-50/50"><td class="p-2" data-i18n="custTxn.helpReversal">Refund row</td><td class="p-2 text-right text-amber-800">−1000</td><td class="p-2 text-right text-amber-800">−500</td><td class="p-2 text-right">0</td></tr>
+                  <tr class="bg-gray-50 font-bold"><td class="p-2" data-i18n="custTxn.helpNet">Net total</td><td class="p-2 text-right">0</td><td class="p-2 text-right">0</td><td class="p-2 text-right text-emerald-700">0</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p class="text-[11px] text-gray-500 border-t border-gray-100 pt-3" data-i18n="custTxn.helpTip">Tip: In the ledger, click Refund on the original row to auto-fill this form. Never delete the original sale — always post a reversal.</p>
+        </div>
+        <div class="erp-refund-help-footer shrink-0 p-4 border-t border-gray-100 flex justify-end bg-white">
+          <button type="button" id="cust-txn-refund-help-ok" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded text-sm transition" data-i18n="custTxn.helpClose">Close</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+
+  const closeRefundHelp = () => setCustRefundHelpModalOpen(false);
+  modal.querySelector('#cust-txn-refund-help-close')?.addEventListener('click', closeRefundHelp);
+  modal.querySelector('#cust-txn-refund-help-ok')?.addEventListener('click', closeRefundHelp);
+  modal.querySelector('.erp-refund-help-backdrop')?.addEventListener('click', closeRefundHelp);
+  modal.querySelector('.erp-refund-help-panel')?.addEventListener('click', (e) => e.stopPropagation());
+
+  if (document.body.dataset.custRefundHelpEscBound !== 'true') {
+    document.body.dataset.custRefundHelpEscBound = 'true';
+    document.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      const openModal = document.getElementById('modal-cust-refund-help');
+      if (openModal && !openModal.classList.contains('hidden')) setCustRefundHelpModalOpen(false);
+    });
+  }
+
+  return modal;
+}
+
+function setCustRefundHelpModalOpen(open) {
+  const modal = ensureCustRefundHelpModal();
+  modal.classList.toggle('hidden', !open);
+  document.body.classList.toggle('erp-refund-help-open', open);
+  if (open) applyTranslations(modal);
+}
+
 function initCustomerTxnFormListeners() {
   const form = document.getElementById('form-cust-txn-entry'); if (!form) return;
   if (form.dataset.bound === 'true') return;
@@ -2550,17 +2627,7 @@ function initCustomerTxnFormListeners() {
   modeNormalBtn?.addEventListener('click', () => setRefundMode(false));
   modeRefundBtn?.addEventListener('click', () => setRefundMode(true));
 
-  const refundHelpModal = document.getElementById('modal-cust-refund-help');
-  const openRefundHelp = () => {
-    if (!refundHelpModal) return;
-    refundHelpModal.classList.remove('hidden');
-    applyTranslations(refundHelpModal);
-  };
-  const closeRefundHelp = () => refundHelpModal?.classList.add('hidden');
-  document.getElementById('cust-txn-refund-help-btn')?.addEventListener('click', openRefundHelp);
-  document.getElementById('cust-txn-refund-help-close')?.addEventListener('click', closeRefundHelp);
-  document.getElementById('cust-txn-refund-help-ok')?.addEventListener('click', closeRefundHelp);
-  refundHelpModal?.addEventListener('click', (e) => { if (e.target === refundHelpModal) closeRefundHelp(); });
+  document.getElementById('cust-txn-refund-help-btn')?.addEventListener('click', () => setCustRefundHelpModalOpen(true));
 
   if (methodInput && methodInput.tagName === 'SELECT') {
       let hasPrevDue = Array.from(methodInput.options).some(o => o.value === 'Previous Due');

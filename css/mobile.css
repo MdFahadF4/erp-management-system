@@ -853,6 +853,42 @@
   padding-bottom: 1rem;
 }
 
+/* Customer refund help modal — body-level overlay with scrollable content on mobile */
+body.erp-refund-help-open {
+  overflow: hidden;
+}
+
+body.erp-refund-help-open #app-body,
+body.erp-refund-help-open #main-content {
+  overflow: hidden !important;
+}
+
+.erp-refund-help-modal {
+  overscroll-behavior: contain;
+}
+
+.erp-refund-help-shell {
+  min-height: 100dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.erp-refund-help-body {
+  -webkit-overflow-scrolling: touch;
+}
+
+.erp-refund-help-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: #fff;
+}
+
+.erp-refund-help-footer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
 .erp-creator-credit-menu {
   position: fixed;
   z-index: 200;

@@ -558,44 +558,6 @@ export const templates = {
             </div>
             <button type="button" id="cust-txn-refund-help-btn" class="shrink-0 w-8 h-8 rounded-full border-2 border-amber-400 bg-amber-50 text-amber-700 font-black text-sm leading-none hover:bg-amber-100 hover:border-amber-500 transition shadow-sm" data-i18n-title="custTxn.helpTitle" title="Refund example" aria-label="Refund example">i</button>
           </div>
-          <div id="modal-cust-refund-help" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[140] flex items-center justify-center p-4 hidden">
-            <div class="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
-              <div class="flex items-start justify-between gap-3 p-4 border-b border-gray-100">
-                <h4 class="text-sm font-bold text-gray-800 uppercase tracking-wide" data-i18n="custTxn.helpTitle">Refund / Cancellation Example</h4>
-                <button type="button" id="cust-txn-refund-help-close" class="text-gray-400 hover:text-gray-700 font-bold text-lg leading-none px-1" aria-label="Close">&times;</button>
-              </div>
-              <div class="p-4 space-y-4 text-xs text-gray-700 leading-relaxed">
-                <p data-i18n="custTxn.helpIntro">Customer bought for 1000, paid 500 advance (Cash). Due was 500. You cancel the order and refund the 500 cash.</p>
-                <div>
-                  <p class="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider" data-i18n="custTxn.helpStepPost">What you enter in Refund mode (positive numbers)</p>
-                  <ul class="space-y-1 bg-amber-50 border border-amber-100 rounded-lg p-3 font-mono text-[11px]">
-                    <li><span class="text-gray-500" data-i18n="custTxn.helpSold">Sold (cancel):</span> <strong>1000</strong></li>
-                    <li><span class="text-gray-500" data-i18n="custTxn.helpRefund">Refund to customer:</span> <strong>500</strong></li>
-                    <li><span class="text-gray-500" data-i18n="field.paymentMethod">Payment Method:</span> <strong>Cash</strong></li>
-                  </ul>
-                </div>
-                <div>
-                  <p class="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider" data-i18n="custTxn.helpStepLedger">What appears in the ledger (audit trail)</p>
-                  <div class="overflow-x-auto border rounded-lg">
-                    <table class="w-full text-[11px] border-collapse">
-                      <thead class="bg-gray-100 font-bold text-gray-600 uppercase">
-                        <tr><th class="p-2 text-left" data-i18n="custTxn.helpColRow">Row</th><th class="p-2 text-right" data-i18n="col.soldAmt">Sold</th><th class="p-2 text-right" data-i18n="col.receivedAmt">Received</th><th class="p-2 text-right" data-i18n="col.txnDue">Due</th></tr>
-                      </thead>
-                      <tbody class="font-mono divide-y">
-                        <tr><td class="p-2" data-i18n="custTxn.helpOriginal">Original sale</td><td class="p-2 text-right">1000</td><td class="p-2 text-right text-emerald-700">500</td><td class="p-2 text-right text-red-600">500</td></tr>
-                        <tr class="bg-amber-50/50"><td class="p-2" data-i18n="custTxn.helpReversal">Refund row</td><td class="p-2 text-right text-amber-800">−1000</td><td class="p-2 text-right text-amber-800">−500</td><td class="p-2 text-right">0</td></tr>
-                        <tr class="bg-gray-50 font-bold"><td class="p-2" data-i18n="custTxn.helpNet">Net total</td><td class="p-2 text-right">0</td><td class="p-2 text-right">0</td><td class="p-2 text-right text-emerald-700">0</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-                <p class="text-[11px] text-gray-500 border-t border-gray-100 pt-3" data-i18n="custTxn.helpTip">Tip: In the ledger, click Refund on the original row to auto-fill this form. Never delete the original sale — always post a reversal.</p>
-              </div>
-              <div class="p-4 border-t border-gray-100 flex justify-end">
-                <button type="button" id="cust-txn-refund-help-ok" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded text-sm transition" data-i18n="custTxn.helpClose">Close</button>
-              </div>
-            </div>
-          </div>
           <div id="cust-txn-refund-banner" class="hidden bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-[11px] text-amber-900 leading-relaxed" data-i18n="custTxn.refundBanner">Enter positive amounts — they will be saved as reversals. Original rows stay in the ledger for audit.</div>
           <form id="form-cust-txn-entry" class="space-y-4 text-xs">
             <div><label class="block font-bold text-gray-600 mb-1" data-i18n="field.transactionDate">Transaction Date</label><input type="date" id="cust-txn-date" required class="w-full border rounded p-2 text-sm outline-none"></div>
