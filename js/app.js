@@ -7676,10 +7676,18 @@ function bindDashboardRefreshOnce() {
   if (window._erpDashRefreshBound) return;
   window._erpDashRefreshBound = true;
   document.addEventListener('click', (e) => {
-    const btn = e.target.closest('#btn-refresh-dash, #btn-refresh-dash-insights');
+    const btn = e.target.closest('#btn-refresh-dash');
     if (!btn || btn.disabled) return;
     refreshDashboardData(btn);
   });
+}
+
+function resetDashboardRefreshButton(btn) {
+  if (!btn) return;
+  btn.disabled = false;
+  btn.removeAttribute('aria-busy');
+  btn.textContent = btn.dataset.refreshLabel || t('common.refresh');
+  applyTranslations(btn.closest('div') || document);
 }
 
 async function refreshDashboardData(triggerBtn) {
@@ -7693,25 +7701,26 @@ async function refreshDashboardData(triggerBtn) {
   }
   try {
     await syncSessionPermissions();
-    if (!fetchSessionUser() || !userCanAccessModule(fetchSessionUser(), 'dashboard')) return;
-    await Promise.all([loadDashboardData(), updateLiveUserCashDrawerBalance()]);
+    const user = fetchSessionUser();
+    if (!user) {
+      resetDashboardRefreshButton(btn);
+      return;
+    }
+
+    const tasks = [updateLiveUserCashDrawerBalance()];
+    if (userCanAccessModule(user, 'dashboard')) {
+      tasks.push(loadDashboardData());
+    }
+    await Promise.all(tasks);
+
     if (btn) {
       btn.textContent = t('dash.refreshDone');
-      setTimeout(() => {
-        btn.disabled = false;
-        btn.removeAttribute('aria-busy');
-        btn.textContent = btn.dataset.refreshLabel || t('common.refresh');
-        applyTranslations(btn.closest('div') || document);
-      }, 900);
+      setTimeout(() => resetDashboardRefreshButton(btn), 900);
     }
   } catch (err) {
     console.error('Dashboard refresh failed:', err);
     alert(t('alert.errorLoad'));
-    if (btn) {
-      btn.disabled = false;
-      btn.removeAttribute('aria-busy');
-      btn.textContent = btn.dataset.refreshLabel || t('common.refresh');
-    }
+    resetDashboardRefreshButton(btn);
   }
 }
 
