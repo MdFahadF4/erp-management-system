@@ -426,9 +426,7 @@ export default function HrFactoryPage({ user }) {
                                           {s.type}
                                         </span>
                                       </td>
-                                      <td className="p-2.5 break-words">{s.rem}
-                                        {s.rem}
-                                      </td>
+                                      <td className="p-2.5 break-words">{s.rem}</td>
                                       <td className="p-2.5">{s.usr}</td>
                                     </tr>
                                   ))
@@ -468,9 +466,7 @@ export default function HrFactoryPage({ user }) {
                                       <td className="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">
                                         {fmtMoney(p.amt)}
                                       </td>
-                                      <td className="p-2.5 break-words">{p.rem}
-                                        {p.rem}
-                                      </td>
+                                      <td className="p-2.5 break-words">{p.rem}</td>
                                       <td className="p-2.5">{p.usr}</td>
                                     </tr>
                                   ))

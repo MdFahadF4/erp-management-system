@@ -56,8 +56,28 @@ export function formatPrintDateTime(date = new Date()) {
 }
 
 function parseMoney(text) {
-  const n = parseFloat(String(text || '').replace(/[^\d.-]/g, ''));
+  const raw = String(text || '').trim();
+  if (!raw) return null;
+  if (/\d{1,2}[\/.\-]\d{1,2}[\/.\-]\d{2,4}/.test(raw)) return null;
+  if (/\d{4}[\/.\-]\d{1,2}[\/.\-]\d{1,2}/.test(raw)) return null;
+  const n = parseFloat(raw.replace(/[^\d.-]/g, ''));
   return Number.isFinite(n) ? n : null;
+}
+
+function isNonAmountColumn(headerText) {
+  const h = String(headerText || '').toLowerCase();
+  return /date|user|remark|name|method|type|uid|memo|status|stamp|tracking|contact|permission|role/.test(h);
+}
+
+function isSummableCell(cell, headerText) {
+  if (isNonAmountColumn(headerText)) return false;
+  const val = parseMoney(cell.textContent);
+  if (val === null) return false;
+  const h = String(headerText || '').toLowerCase();
+  if (/amount|amt|sar|paid|earn|due|bill|recv|sell|balance|total|purchase|discount|cash|card|flow|profit|loss/.test(h)) {
+    return true;
+  }
+  return cell.classList.contains('font-mono');
 }
 
 function isNumericCell(text) {
@@ -265,6 +285,8 @@ function addGrandTotalToTable(table) {
     const cells = row.querySelectorAll('td');
     cells.forEach((cell, i) => {
       if (i >= colCount) return;
+      const headerText = headerCells[i]?.textContent || '';
+      if (!isSummableCell(cell, headerText)) return;
       const val = parseMoney(cell.textContent);
       if (val !== null) {
         sums[i] = (sums[i] || 0) + val;
@@ -317,6 +339,11 @@ function addGrandTotalToTable(table) {
 export function addGrandTotalRows(container) {
   if (!container) return;
   container.querySelectorAll('table').forEach(addGrandTotalToTable);
+}
+
+export function removeGrandTotalRows(container) {
+  if (!container) return;
+  container.querySelectorAll('table tfoot').forEach((el) => el.remove());
 }
 
 export function addSectionDividers(container) {
@@ -522,8 +549,8 @@ export async function finalizeReportPrintLayout(meta) {
 export async function finalizeHrFactoryPrintLayout(meta) {
   updateHrFactoryReportPrintHeader(meta);
   const tableContainer = document.getElementById(HR_FACTORY_EXPORT_PROFILE.tableContainerId);
+  removeGrandTotalRows(tableContainer);
   addSectionDividers(tableContainer);
-  addGrandTotalRows(tableContainer);
   ensureReportExportLayout(HR_FACTORY_EXPORT_PROFILE);
   await renderReportQr(meta, HR_FACTORY_EXPORT_PROFILE.headerIds.qr);
 }

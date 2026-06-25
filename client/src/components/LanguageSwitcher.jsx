@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 
-export default function LanguageSwitcher({ menuAlign = 'left' }) {
+export default function LanguageSwitcher({ menuAlign = 'left', compact = false }) {
   const { lang, setLanguage, languages, t } = useI18n();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -24,13 +24,15 @@ export default function LanguageSwitcher({ menuAlign = 'left' }) {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex items-center gap-1 p-1.5 md:px-2 md:py-1.5 mr-0 text-slate-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 bg-white rounded-lg focus:outline-none transition shrink-0 shadow-sm"
+        className={`flex items-center gap-0.5 shrink-0 text-slate-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 bg-white rounded-lg focus:outline-none transition shadow-sm ${
+          compact ? 'p-1 md:p-1.5' : 'p-1.5 md:px-2 md:py-1.5'
+        }`}
         aria-haspopup="true"
         aria-expanded={open}
         aria-label={t('header.changeLanguage')}
         title={t('header.changeLanguage')}
       >
-        <svg className="w-5 h-5 md:w-6 md:h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <svg className={`${compact ? 'w-4 h-4 md:w-5 md:h-5' : 'w-5 h-5 md:w-6 md:h-6'} shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -38,7 +40,9 @@ export default function LanguageSwitcher({ menuAlign = 'left' }) {
             d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
           />
         </svg>
-        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wide text-blue-700">{current.code}</span>
+        <span className={`font-bold uppercase tracking-wide text-blue-700 ${compact ? 'hidden md:inline text-[10px]' : 'text-[10px] md:text-xs'}`}>
+          {current.code}
+        </span>
       </button>
       {open && (
         <div
