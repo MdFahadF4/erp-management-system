@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: mehrin-erp-api
+    runtime: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: MONGODB_URI
+        sync: false
+      - key: CLIENT_TOKEN
+        sync: false
+      - key: ADMIN_ACCOUNT_STATUS
+        value: ACTIVE
+      - key: CLIENT_ORIGIN
+        sync: false

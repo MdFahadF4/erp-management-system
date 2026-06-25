@@ -1,0 +1,546 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { createRecord, fetchCustomerModuleData } from '../services/dataService.js';
+import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
+import {
+  buildRefundPrefillFromTxn,
+  canViewAllCustomers,
+  computeCustomerTxnDue,
+  computeRemainingCustomerDue,
+  filterCustomerTxnsByDate,
+  filterCustomersForUser,
+  fmtMoney,
+  getCol,
+  getCustomerDueBalance,
+  getCustomerUid,
+  getCustomerName,
+  getPaymentMethodColor,
+  isCustomerTxnRefund,
+  parseRecordDate
+} from '../lib/customerEngine.js';
+import { defaultDateRange } from '../lib/hrEngine.js';
+import { userCanEditModule } from '../utils/userSession.js';
+
+function todayIso() {
+  return new Date().toISOString().split('T')[0];
+}
+
+function RefundHelpModal({ open, onClose }) {
+  useEffect(() => {
+    if (!open) return undefined;
+    document.body.classList.add('erp-refund-help-open');
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.classList.remove('erp-refund-help-open');
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div
+      className="erp-refund-help-modal fixed inset-0 z-[150]"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="cust-refund-help-title"
+    >
+      <div className="erp-refund-help-backdrop absolute inset-0 bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onClick={onClose} />
+      <div className="erp-refund-help-shell relative z-[1] flex h-full w-full items-end justify-center sm:items-center p-0 sm:p-4">
+        <div
+          className="erp-refund-help-panel bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-gray-200 w-full max-w-lg max-h-[min(92dvh,100%)] sm:max-h-[90vh] flex flex-col min-h-0"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="erp-refund-help-header flex shrink-0 items-start justify-between gap-3 p-4 border-b border-gray-100">
+            <h4 id="cust-refund-help-title" className="text-sm font-bold text-gray-800 uppercase tracking-wide pr-2">
+              Refund / Cancellation Example
+            </h4>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-400 hover:text-gray-700 font-bold text-lg leading-none px-1 shrink-0"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+          </div>
+          <div className="erp-refund-help-body flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4 text-xs text-gray-700 leading-relaxed">
+            <p>
+              Customer bought for 1000, paid 500 advance (Cash). Due was 500. You cancel the order and refund the 500 cash.
+            </p>
+            <div>
+              <p className="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider">
+                What you enter in Refund mode (positive numbers)
+              </p>
+              <ul className="space-y-1 bg-amber-50 border border-amber-100 rounded-lg p-3 font-mono text-[11px]">
+                <li>
+                  <span className="text-gray-500">Sold (cancel):</span> <strong>1000</strong>
+                </li>
+                <li>
+                  <span className="text-gray-500">Refund to customer:</span> <strong>500</strong>
+                </li>
+                <li>
+                  <span className="text-gray-500">Payment Method:</span> <strong>Cash</strong>
+                </li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider">
+                What appears in the ledger (audit trail)
+              </p>
+              <div className="overflow-x-auto border border-gray-200 rounded-lg">
+                <table className="w-full text-[11px] border-collapse">
+                  <thead className="bg-gray-100 font-bold text-gray-600 uppercase">
+                    <tr>
+                      <th className="p-2 text-left">Row</th>
+                      <th className="p-2 text-right">Sold</th>
+                      <th className="p-2 text-right">Received</th>
+                      <th className="p-2 text-right">Due</th>
+                    </tr>
+                  </thead>
+                  <tbody className="font-mono divide-y divide-gray-100">
+                    <tr>
+                      <td className="p-2">Original sale</td>
+                      <td className="p-2 text-right">1000</td>
+                      <td className="p-2 text-right text-emerald-700">500</td>
+                      <td className="p-2 text-right text-red-600">500</td>
+                    </tr>
+                    <tr className="bg-amber-50/50">
+                      <td className="p-2">Refund row</td>
+                      <td className="p-2 text-right text-amber-800">−1000</td>
+                      <td className="p-2 text-right text-amber-800">−500</td>
+                      <td className="p-2 text-right">0</td>
+                    </tr>
+                    <tr className="bg-gray-50 font-bold">
+                      <td className="p-2">Net total</td>
+                      <td className="p-2 text-right">0</td>
+                      <td className="p-2 text-right">0</td>
+                      <td className="p-2 text-right text-emerald-700">0</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <p className="text-[11px] text-gray-500 border-t border-gray-100 pt-3">
+              Tip: In the ledger, click Refund on the original row to auto-fill this form. Never delete the original sale — always post a reversal.
+            </p>
+          </div>
+          <div className="erp-refund-help-footer shrink-0 p-4 border-t border-gray-100 flex justify-end bg-white">
+            <button
+              type="button"
+              onClick={onClose}
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded text-sm transition"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function CustomerTransactionsPage({ user, onDataChange }) {
+  const canEdit = userCanEditModule(user, 'customer_transactions');
+  const [customers, setCustomers] = useState([]);
+  const [customerTxns, setCustomerTxns] = useState([]);
+  const [loadingLedger, setLoadingLedger] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [ledgerLoaded, setLedgerLoaded] = useState(false);
+  const [refundMode, setRefundMode] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  const defaults = defaultDateRange();
+  const [txnDate, setTxnDate] = useState(todayIso());
+  const [uid, setUid] = useState('');
+  const [sell, setSell] = useState('0');
+  const [discount, setDiscount] = useState('0');
+  const [received, setReceived] = useState('0');
+  const [method, setMethod] = useState('Cash');
+  const [remarks, setRemarks] = useState('');
+  const [filterFrom, setFilterFrom] = useState(defaults.from);
+  const [filterTo, setFilterTo] = useState(defaults.to);
+  const [currentDue, setCurrentDue] = useState(0);
+  const [showDueInfo, setShowDueInfo] = useState(false);
+
+  const loadData = useCallback(async () => {
+    try {
+      const data = await fetchCustomerModuleData();
+      setCustomers(data.customers);
+      setCustomerTxns(data.customerTxns);
+    } catch (err) {
+      console.error('Failed to load customer data:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (refundMode && method === 'Previous Due') setMethod('Cash');
+  }, [refundMode, method]);
+
+  const visibleCustomers = useMemo(
+    () => filterCustomersForUser(customers, user),
+    [customers, user]
+  );
+
+  const txnDue = useMemo(() => computeCustomerTxnDue(sell, discount, received), [sell, discount, received]);
+  const remainingDue = useMemo(
+    () => computeRemainingCustomerDue(currentDue, sell, discount, received, refundMode),
+    [currentDue, sell, discount, received, refundMode]
+  );
+
+  const filteredTxns = useMemo(() => {
+    if (!ledgerLoaded) return [];
+    const filtered = filterCustomerTxnsByDate(customerTxns, filterFrom, filterTo);
+    return filtered ? [...filtered].reverse() : [];
+  }, [customerTxns, filterFrom, filterTo, ledgerLoaded]);
+
+  const resetDueInfo = () => {
+    setCurrentDue(0);
+    setShowDueInfo(false);
+  };
+
+  const handleUidChange = (nextUid) => {
+    setUid(nextUid);
+    if (!nextUid) {
+      resetDueInfo();
+      return;
+    }
+    const rec = customers.find((r) => getCustomerUid(r) === nextUid);
+    const due = getCustomerDueBalance(rec);
+    setCurrentDue(due);
+    setShowDueInfo(true);
+  };
+
+  const handleRefundFromLedger = (rec) => {
+    const prefill = buildRefundPrefillFromTxn(rec);
+    setRefundMode(true);
+    setUid(prefill.uid);
+    setTxnDate(todayIso());
+    setSell(prefill.soldAmt.toFixed(2));
+    setDiscount(prefill.discAmt.toFixed(2));
+    setReceived(prefill.recAmt.toFixed(2));
+    setMethod(prefill.method);
+    setRemarks(prefill.remarks);
+    handleUidChange(prefill.uid);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!canEdit) {
+      alert('You do not have permission to edit this module.');
+      return;
+    }
+
+    let sellVal = parseFloat(sell) || 0;
+    let discountVal = parseFloat(discount) || 0;
+    let receivedVal = parseFloat(received) || 0;
+    let remarksText = remarks.trim();
+
+    if (refundMode) {
+      if (sellVal <= 0 && discountVal <= 0 && receivedVal <= 0) {
+        alert('Enter at least one positive amount for a refund/cancellation.');
+        return;
+      }
+      if (receivedVal > 0 && method !== 'Cash' && method !== 'Card') {
+        alert('Refunds with received amount must use Cash or Card method.');
+        return;
+      }
+      sellVal = -Math.abs(sellVal);
+      discountVal = -Math.abs(discountVal);
+      receivedVal = -Math.abs(receivedVal);
+      if (!remarksText.toUpperCase().includes('[REFUND/CANCELLATION]')) {
+        remarksText = `[REFUND/CANCELLATION] ${remarksText}`.trim();
+      }
+    }
+
+    const dueVal = sellVal - discountVal - receivedVal;
+    setSubmitting(true);
+    try {
+      const rowPayload = [txnDate, uid, sellVal, discountVal, receivedVal, method, dueVal, remarksText, user.username, new Date().toLocaleString()];
+      const result = await createRecord('Customer_Transactions', rowPayload);
+      alert(result.message || (result.success ? 'Transaction saved.' : 'Failed to save.'));
+      if (result.success) {
+        setTxnDate(todayIso());
+        setUid('');
+        setSell('0');
+        setDiscount('0');
+        setReceived('0');
+        setMethod('Cash');
+        setRemarks('');
+        setRefundMode(false);
+        resetDueInfo();
+        await loadData();
+        onDataChange?.();
+      }
+    } catch {
+      alert('Error logging transaction.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleLoadLedger = () => {
+    if (!filterFrom || !filterTo) {
+      alert('Please select both From and To dates.');
+      return;
+    }
+    setLoadingLedger(true);
+    setLedgerLoaded(true);
+    setLoadingLedger(false);
+  };
+
+  const handleTxnMutate = async () => {
+    await loadData();
+    onDataChange?.();
+  };
+
+  const formContent = (
+    <>
+      <div className="flex items-center gap-2 mb-3">
+        <div className="flex flex-1 rounded-lg border border-gray-200 overflow-hidden text-[11px] font-bold min-w-0">
+          <button
+            type="button"
+            onClick={() => setRefundMode(false)}
+            className={`flex-1 px-3 py-2 transition ${!refundMode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Normal Sale / Payment
+          </button>
+          <button
+            type="button"
+            onClick={() => setRefundMode(true)}
+            className={`flex-1 px-3 py-2 transition ${refundMode ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+          >
+            Refund / Cancellation
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          className="shrink-0 w-8 h-8 rounded-full border-2 border-amber-400 bg-amber-50 text-amber-700 font-black text-sm leading-none hover:bg-amber-100"
+          title="Refund example"
+        >
+          i
+        </button>
+      </div>
+
+      {refundMode && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-[11px] text-amber-900 leading-relaxed">
+          Enter positive amounts — they will be saved as reversals. Original rows stay in the ledger for audit.
+        </div>
+      )}
+
+      <form id="form-cust-txn-entry" className="space-y-4 text-xs" onSubmit={handleSubmit}>
+        <div>
+          <label className="block font-bold text-gray-600 mb-1">Transaction Date</label>
+          <input type="date" id="cust-txn-date" required value={txnDate} onChange={(e) => setTxnDate(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
+        </div>
+        <div>
+          <label className="block font-bold text-gray-600 mb-1">System Unique ID</label>
+          <select id="cust-txn-uid" required value={uid} onChange={(e) => handleUidChange(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
+            <option value="">-- Choose Account UID --</option>
+            {visibleCustomers.length === 0 ? (
+              <option value="" disabled>
+                {canViewAllCustomers(user) ? 'No customers found' : 'No customers assigned to you'}
+              </option>
+            ) : (
+              visibleCustomers.map((c) => {
+                const cUid = getCustomerUid(c);
+                const cName = getCustomerName(c);
+                const due = getCustomerDueBalance(c);
+                return (
+                  <option key={cUid} value={cUid}>
+                    {cUid} ({cName}) — Due: {fmtMoney(due)}
+                  </option>
+                );
+              })
+            )}
+          </select>
+        </div>
+
+        <div id="cust-txn-due-info" className={`${showDueInfo ? '' : 'hidden'} bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5`}>
+          <div className="flex justify-between items-center gap-2">
+            <span className="font-bold text-red-800 text-[11px] uppercase">Current Customer Due / Balance</span>
+            <span className="font-mono font-black text-red-700 text-sm">{fmtMoney(currentDue)}</span>
+          </div>
+          <div className="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
+            <span className="font-bold text-gray-600 text-[11px] uppercase">Remaining Due After This Transaction</span>
+            <span className="font-mono font-bold text-orange-700 text-sm">{fmtMoney(remainingDue)}</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block font-bold text-gray-600 mb-1">Sold Amount (optional)</label>
+          <input type="number" step="0.01" id="cust-txn-sell" value={sell} onChange={(e) => setSell(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
+        </div>
+        {!refundMode && (
+          <p className="text-[10px] text-gray-400 -mt-2">Leave 0 when customer is only paying a previous due balance.</p>
+        )}
+
+        <div>
+          <label className="block font-bold text-purple-700 mb-1">Discount Allowed</label>
+          <input type="number" step="0.01" id="cust-txn-discount" value={discount} onChange={(e) => setDiscount(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none font-mono" />
+        </div>
+        <div>
+          <label className="block font-bold text-emerald-700 mb-1">{refundMode ? 'Refund to Customer' : 'Received Amount'}</label>
+          <input type="number" step="0.01" id="cust-txn-received" required value={received} onChange={(e) => setReceived(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
+        </div>
+        <div>
+          <label className="block font-bold text-gray-600 mb-1">Payment Method</label>
+          <select id="cust-txn-method" required value={method} onChange={(e) => setMethod(e.target.value)} disabled={!canEdit || (refundMode && method === 'Previous Due')} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
+            <option value="Cash">Cash</option>
+            <option value="Card">Card</option>
+            {!refundMode && <option value="Previous Due">Previous Due</option>}
+          </select>
+        </div>
+        <div>
+          <label className="block font-bold text-gray-500 mb-1">Transaction Due / Balance</label>
+          <input type="number" id="cust-txn-due" readOnly value={txnDue.toFixed(2)} className="w-full border border-gray-200 rounded p-2 text-sm bg-gray-50 font-bold text-red-600 outline-none" />
+        </div>
+        <div>
+          <label className="block font-bold text-gray-600 mb-1">Remarks / Reference Info</label>
+          <textarea id="cust-txn-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={!canEdit} placeholder="Invoice details, receipt #..." className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
+        </div>
+        {canEdit && (
+          <button
+            type="submit"
+            id="cust-txn-submit-btn"
+            disabled={submitting}
+            className={`erp-submit-btn w-full text-white font-bold p-2.5 rounded text-sm transition tracking-wider disabled:opacity-60 ${refundMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
+          >
+            {submitting ? 'Posting…' : refundMode ? 'POST REFUND / CANCELLATION' : 'POST TRANSACTION'}
+          </button>
+        )}
+      </form>
+      <RefundHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </>
+  );
+
+  const ledgerContent = (
+    <>
+      <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
+        <div className="flex-1 min-w-[120px]">
+          <label className="block text-gray-600 font-bold mb-1">From Date</label>
+          <input type="date" id="filter-from-cust" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none focus:border-blue-500" />
+        </div>
+        <div className="flex-1 min-w-[120px]">
+          <label className="block text-gray-600 font-bold mb-1">To Date</label>
+          <input type="date" id="filter-to-cust" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <button type="button" id="btn-filter-cust" onClick={handleLoadLedger} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">
+            Expand / Load Ledger
+          </button>
+        </div>
+      </div>
+
+      <div className="erp-ledger-wrap overflow-x-auto border border-gray-200 rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
+        <table className="w-full text-left border-collapse text-xs">
+          <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
+            <tr>
+              <th className="p-2.5">Date</th>
+              <th className="p-2.5">System UID</th>
+              <th className="p-2.5">Sold</th>
+              <th className="p-2.5">Discount</th>
+              <th className="p-2.5">Received</th>
+              <th className="p-2.5">Method</th>
+              <th className="p-2.5">Due</th>
+              <th className="p-2.5">Remarks</th>
+              <th className="p-2.5">Logged By</th>
+              <th className="p-2.5">Stamp</th>
+              <th className="p-2.5 erp-col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="table-cust-txn-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
+            {!ledgerLoaded ? (
+              <tr>
+                <td colSpan={11} className="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b border-gray-200">
+                  Select date range and click Expand / Load Ledger
+                </td>
+              </tr>
+            ) : loadingLedger ? (
+              <tr>
+                <td colSpan={11} className="p-4 text-center text-blue-500 font-bold">Querying ledger…</td>
+              </tr>
+            ) : filteredTxns.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="p-4 text-center text-gray-500 font-bold">No records in selected range.</td>
+              </tr>
+            ) : (
+              filteredTxns.map((rec) => {
+                const cUid = getCustomerUid(rec);
+                const soldAmt = parseFloat(getCol(rec, ['Sold Amount', 'Sold Amt', 'SOLDAMT'])) || 0;
+                const discAmt = parseFloat(getCol(rec, ['Discount', 'Discount Amount', 'Txn Discount'])) || 0;
+                const recAmt = parseFloat(getCol(rec, ['Received Amount', 'Received Amt', 'RECEIVEDAMT'])) || 0;
+                const payMethod = getCol(rec, ['Payment Method', 'Method', 'METHOD']) || '';
+                const dueAmt = parseFloat(getCol(rec, ['Transaction Due', 'Txn Due', 'Due'])) || 0;
+                const remarksVal = getCol(rec, ['Remarks', 'Remarks / Reference']) || '-';
+                const loggedBy = getCol(rec, ['Logged By', 'Username']) || '';
+                const stamp = getCol(rec, ['Stamp', 'Timestamp']) || '';
+                const isRefund = isCustomerTxnRefund(rec);
+                const rowClass = isRefund ? 'bg-amber-50/70 hover:bg-amber-50 border-b border-amber-100' : 'hover:bg-gray-50 border-b border-gray-100';
+                const amtClass = (n) => (n < 0 ? 'text-amber-700' : '');
+                const dateStr = rec.Date ? parseRecordDate(rec.Date)?.toLocaleDateString() || '' : '';
+
+                return (
+                  <tr key={rec.ID} className={rowClass}>
+                    <td className="p-2.5">
+                      {dateStr}
+                      {isRefund && (
+                        <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-200 text-amber-900">REFUND</span>
+                      )}
+                    </td>
+                    <td className="p-2.5 font-bold font-mono text-[11px]">{cUid}</td>
+                    <td className={`p-2.5 font-mono ${amtClass(soldAmt)}`}>{fmtMoney(soldAmt)}</td>
+                    <td className={`p-2.5 font-mono text-purple-600 ${amtClass(discAmt)}`}>{fmtMoney(discAmt)}</td>
+                    <td className={`p-2.5 font-mono font-bold text-emerald-600 ${amtClass(recAmt)}`}>{fmtMoney(recAmt)}</td>
+                    <td className="p-2.5">
+                      <span className={`px-2 py-0.5 font-bold rounded text-[10px] ${getPaymentMethodColor(payMethod)}`}>{payMethod}</span>
+                    </td>
+                    <td className={`p-2.5 font-mono text-red-600 font-bold ${amtClass(dueAmt)}`}>{fmtMoney(dueAmt)}</td>
+                    <td className="p-2.5 break-words">{remarksVal}</td>
+                    <td className="p-2.5">{loggedBy}</td>
+                    <td className="p-2.5 text-gray-400 text-[10px] font-mono">{stamp}</td>
+                    <TxnLedgerActions
+                      user={user}
+                      sheetName="Customer_Transactions"
+                      record={rec}
+                      onMutate={handleTxnMutate}
+                      extraBefore={
+                        !isRefund ? (
+                          <button
+                            type="button"
+                            onClick={() => handleRefundFromLedger(rec)}
+                            className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
+                          >
+                            Refund
+                          </button>
+                        ) : null
+                      }
+                    />
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+
+  return (
+    <ModuleLedgerLayout
+      title="Customer Transaction Logging"
+      formTitle={refundMode ? 'Refund / Cancellation' : 'Log Customer Payment'}
+      ledgerTitle="Customer Historical Ledger Log"
+      formContent={formContent}
+      ledgerContent={ledgerContent}
+    />
+  );
+}

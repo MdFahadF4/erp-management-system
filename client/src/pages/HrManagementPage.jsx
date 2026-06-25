@@ -1,0 +1,287 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { createRecord, fetchHrModuleData } from '../services/dataService.js';
+import { buildHrLedgerRow, fmtMoney } from '../lib/hrEngine.js';
+import { userCanEditModule } from '../utils/userSession.js';
+
+const STATUS_OPTIONS = ['Active', 'Vacation', 'Inactive', 'Released'];
+
+export default function HrManagementPage({ user, onDataChange }) {
+  const canEdit = userCanEditModule(user, 'hr');
+  const [hrRecords, setHrRecords] = useState([]);
+  const [hrTxns, setHrTxns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [name, setName] = useState('');
+  const [designation, setDesignation] = useState('');
+  const [joining, setJoining] = useState('');
+  const [salStart, setSalStart] = useState('0');
+  const [salInc] = useState('0');
+  const [status, setStatus] = useState('Active');
+
+  const salCurrent = useMemo(
+    () => (parseFloat(salStart) || 0) + (parseFloat(salInc) || 0),
+    [salStart, salInc]
+  );
+  const salDue = useMemo(() => 0, []);
+
+  const loadRecords = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchHrModuleData();
+      setHrRecords(data.hrRecords);
+      setHrTxns(data.hrTxns);
+    } catch (err) {
+      console.error('Failed to load HR records:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRecords();
+  }, [loadRecords]);
+
+  const rows = useMemo(
+    () => hrRecords.map((rec) => buildHrLedgerRow(rec, hrTxns, canEdit)),
+    [hrRecords, hrTxns, canEdit]
+  );
+
+  const resetForm = () => {
+    setName('');
+    setDesignation('');
+    setJoining('');
+    setSalStart('0');
+    setStatus('Active');
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!canEdit) {
+      alert('You do not have permission to edit this module.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const payloadRow = [
+        name.trim(),
+        designation.trim(),
+        joining,
+        parseFloat(salStart) || 0,
+        parseFloat(salInc) || 0,
+        salCurrent,
+        0,
+        0,
+        salDue,
+        status,
+        user.username
+      ];
+      const res = await createRecord('HR', payloadRow);
+      alert(res.message || (res.success ? 'Record saved.' : 'Failed to save.'));
+      if (res.success) {
+        resetForm();
+        await loadRecords();
+        onDataChange?.();
+      }
+    } catch {
+      alert('Error committing staff record.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const formContent = (
+    <form id="form-hr-entry" className="space-y-3 text-xs" onSubmit={handleSubmit}>
+      <div>
+        <label className="block font-bold text-gray-600 mb-0.5">Employee Name</label>
+        <input
+          type="text"
+          id="hr-name"
+          required
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={!canEdit}
+          className="w-full border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+        />
+      </div>
+      <div>
+        <label className="block font-bold text-gray-600 mb-0.5">Designation (Manual Write)</label>
+        <input
+          type="text"
+          id="hr-designation"
+          required
+          value={designation}
+          onChange={(e) => setDesignation(e.target.value)}
+          disabled={!canEdit}
+          className="w-full border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+        />
+      </div>
+      <div>
+        <label className="block font-bold text-gray-600 mb-0.5">Date of Joining</label>
+        <input
+          type="date"
+          id="hr-joining"
+          required
+          value={joining}
+          onChange={(e) => setJoining(e.target.value)}
+          disabled={!canEdit}
+          className="w-full border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block font-bold text-gray-600 mb-0.5">Salary Start</label>
+          <input
+            type="number"
+            id="hr-sal-start"
+            required
+            value={salStart}
+            onChange={(e) => setSalStart(e.target.value)}
+            disabled={!canEdit}
+            className="w-full border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
+          />
+        </div>
+        <div>
+          <label className="block font-bold text-gray-500 mb-0.5">Increment Amount</label>
+          <input
+            type="number"
+            id="hr-sal-inc"
+            value={salInc}
+            readOnly
+            tabIndex={-1}
+            className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="block font-bold text-gray-500 mb-0.5">Current Salary</label>
+        <input
+          type="number"
+          id="hr-sal-current"
+          value={salCurrent.toFixed(2)}
+          readOnly
+          className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 font-semibold text-blue-600 outline-none text-sm"
+        />
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className="block font-bold text-gray-500 mb-0.5">Total Earn Earning</label>
+          <input type="number" id="hr-earn" value="0" readOnly tabIndex={-1} className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono" />
+        </div>
+        <div>
+          <label className="block font-bold text-gray-500 mb-0.5">Paid Salary</label>
+          <input type="number" id="hr-paid" value="0" readOnly tabIndex={-1} className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono" />
+        </div>
+      </div>
+      <div>
+        <label className="block font-bold text-gray-500 mb-0.5">Due Balance Salary</label>
+        <input
+          type="number"
+          id="hr-due"
+          value={salDue.toFixed(2)}
+          readOnly
+          className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 font-semibold text-red-600 outline-none text-sm"
+        />
+      </div>
+      <div>
+        <label className="block font-bold text-gray-600 mb-0.5">Employment Status</label>
+        <select
+          id="hr-status"
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          disabled={!canEdit}
+          className="w-full border border-gray-200 rounded p-1.5 bg-white text-sm font-medium outline-none"
+        >
+          {STATUS_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>
+              {opt}
+            </option>
+          ))}
+        </select>
+      </div>
+      {canEdit && (
+        <button
+          type="submit"
+          disabled={submitting}
+          className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition disabled:opacity-60"
+        >
+          {submitting ? 'Saving…' : 'COMMIT STAFF ENTITY'}
+        </button>
+      )}
+    </form>
+  );
+
+  const ledgerContent = (
+    <div className="erp-ledger-wrap overflow-x-auto border border-gray-200 rounded-lg md:flex-1 md:min-h-0 md:max-h-[calc(100vh-14rem)] md:overflow-y-auto">
+      <table className="w-full text-left border-collapse text-xs">
+        <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
+          <tr>
+            <th className="p-2.5">Employee Name</th>
+            <th className="p-2.5">Designation</th>
+            <th className="p-2.5">Join Date</th>
+            <th className="p-2.5">Start Sal</th>
+            <th className="p-2.5">Increment</th>
+            <th className="p-2.5">Current Sal</th>
+            <th className="p-2.5">Total Earn</th>
+            <th className="p-2.5">Paid</th>
+            <th className="p-2.5">Due/Balance</th>
+            <th className="p-2.5">Status</th>
+            <th className="p-2.5 erp-col-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="table-hr-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
+          {loading ? (
+            <tr>
+              <td colSpan={11} className="p-3 text-center text-gray-400">
+                Querying personnel ledger…
+              </td>
+            </tr>
+          ) : rows.length === 0 ? (
+            <tr>
+              <td colSpan={11} className="p-3 text-center text-gray-400">
+                No HR entries found.
+              </td>
+            </tr>
+          ) : (
+            rows.map((row) => (
+              <tr key={row.id} className="hover:bg-gray-50 border-b border-gray-100">
+                <td className="p-2.5 font-bold text-gray-900">{row.empName}</td>
+                <td className="p-2.5">{row.designation}</td>
+                <td className="p-2.5">{row.joinDate}</td>
+                <td className="p-2.5 font-mono">{fmtMoney(row.baseSalary)}</td>
+                <td className="p-2.5 font-mono text-purple-600">+{fmtMoney(row.totalInc)}</td>
+                <td className="p-2.5 font-mono font-bold text-blue-600">{fmtMoney(row.currentSalary)}</td>
+                <td className="p-2.5 font-mono text-amber-600">{fmtMoney(row.dbEarned)}</td>
+                <td className="p-2.5 font-mono text-emerald-600">{fmtMoney(row.dbPaid)}</td>
+                <td className="p-2.5 font-mono font-bold text-red-600">{fmtMoney(row.dbDue)}</td>
+                <td className="p-2.5">
+                  <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${row.badgeClass}`}>
+                    {row.status}
+                  </span>
+                </td>
+                <td className="p-2.5 erp-col-actions">
+                  {row.canEdit ? (
+                    <span className="text-gray-400 text-[10px] italic">Edit (soon)</span>
+                  ) : (
+                    <span className="text-gray-300 italic text-[10px]">Locked</span>
+                  )}
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
+
+  return (
+    <ModuleLedgerLayout
+      title="HR Ledger & Payroll Management"
+      formTitle="New Employee Entry"
+      ledgerTitle="Personnel Database Records"
+      formContent={formContent}
+      ledgerContent={ledgerContent}
+    />
+  );
+}

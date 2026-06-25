@@ -1,0 +1,35 @@
+@import "tailwindcss";
+
+/* Match original Tailwind CDN — subtle gray borders, not harsh black lines */
+@layer base {
+  *,
+  ::after,
+  ::before {
+    border-color: theme(colors.gray.200);
+  }
+}
+
+@import "../../css/mobile.css";
+
+/* React app: ledger toggle shows form OR ledger — never both */
+body.erp-mobile-ledger-open #form-container {
+  display: none !important;
+}
+
+body.erp-mobile-ledger-open #ledger-container {
+  display: flex !important;
+  flex-direction: column;
+  width: 100%;
+}
+
+#ledger-container.hidden {
+  display: none !important;
+}
+
+/* Ledger cells: wrap long text (remarks, addresses, head names) */
+.erp-ledger-wrap table tbody td.break-words,
+#main-content table tbody td.break-words {
+  white-space: normal !important;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}

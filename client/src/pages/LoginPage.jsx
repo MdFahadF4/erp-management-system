@@ -1,0 +1,91 @@
+import { useState } from 'react';
+import { processLogin } from '../services/auth.js';
+import { COMPANY_NAME, companyLegalLine } from '../config/company.js';
+
+export default function LoginPage({ onLoginSuccess }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+    const result = await processLogin(username, password);
+    setLoading(false);
+    if (result.success) {
+      onLoginSuccess(result.user);
+    } else {
+      setError(result.message);
+    }
+  }
+
+  return (
+    <div className="absolute inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4">
+      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-2xl">
+        <div className="text-center mb-5 pb-4 border-b border-gray-100">
+          <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
+            {COMPANY_NAME}
+          </h1>
+          <p className="text-[11px] md:text-xs font-semibold text-slate-500 mt-1.5">
+            {companyLegalLine()}
+          </p>
+        </div>
+        <h2 className="text-2xl font-extrabold mb-2 text-center text-gray-800">System Gateway</h2>
+        <p className="text-sm text-center text-emerald-700 font-semibold mb-1">MERN App (React)</p>
+        <p className="text-sm text-center text-gray-500 mb-6">
+          Please input authorization credentials.
+        </p>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
+              className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Password</label>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className="w-full border rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 outline-none"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-3.5 text-xs font-bold uppercase text-gray-400 hover:text-blue-600 transition tracking-wider focus:outline-none"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">{error}</p>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white font-semibold p-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-60"
+          >
+            {loading ? 'Signing in…' : 'Sign In'}
+          </button>
+        </form>
+        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
+          <p className="text-[11px] text-gray-500">
+            Developed by{' '}
+            <span className="text-blue-700 font-semibold">Md. Fahad Hossain</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
