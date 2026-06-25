@@ -228,6 +228,9 @@ Ensure your repo is on GitHub (private is fine).
 
 5. Deploy → open your Vercel URL and log in.
 
+> **Vercel build error `npm install --prefix client` exited with 254:**  
+> Your **Root Directory** must be `client`. The file `client/vercel.json` must use `npm install` (not `--prefix client`). Redeploy after pulling the latest `main`.
+
 ### 8.1 Update Render CORS
 
 After Vercel gives you the final URL, update Render env:
