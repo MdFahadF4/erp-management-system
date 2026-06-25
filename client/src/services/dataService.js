@@ -156,8 +156,15 @@ export async function fetchUsers() {
   return res.success ? res.records : [];
 }
 
-export async function createUser(payload) {
-  return apiRequest({ action: 'CREATE_USER', payload });
+export async function createUser(newUser, actor) {
+  return apiRequest({
+    action: 'CREATE_USER',
+    payload: {
+      newUser,
+      actorUsername: actor.username,
+      actorRole: actor.role
+    }
+  });
 }
 
 export async function updateUser(payload) {
