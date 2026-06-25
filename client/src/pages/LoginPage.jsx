@@ -4,6 +4,7 @@ import LanguageSwitcher from '../components/LanguageSwitcher.jsx';
 import { processLogin } from '../services/auth.js';
 import { COMPANY_NAME, companyLegalLine } from '../config/company.js';
 import { useI18n } from '../i18n/I18nProvider.jsx';
+import CreatorCredit from '../components/CreatorCredit.jsx';
 
 export default function LoginPage({ onLoginSuccess }) {
   const { t } = useI18n();
@@ -72,12 +73,7 @@ export default function LoginPage({ onLoginSuccess }) {
             {loading ? t('common.loading') : t('login.signIn')}
           </button>
         </form>
-        <div className="mt-6 pt-4 border-t border-gray-100 text-center">
-          <p className="text-[11px] text-gray-500">
-            Developed by{' '}
-            <span className="text-blue-700 font-semibold">Md. Fahad Hossain</span>
-          </p>
-        </div>
+        <CreatorCredit variant="login" />
       </div>
     </div>
   );

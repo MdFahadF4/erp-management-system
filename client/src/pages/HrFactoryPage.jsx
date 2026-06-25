@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { COMPANY_NAME, companyLegalLine } from '../config/company.js';
 import { fetchHrModuleData } from '../services/dataService.js';
+import { finalizeHrFactoryPrintLayout } from '../lib/reportExport.js';
 import {
   buildHrDetailsDateRange,
   buildHrLedgerRow,
@@ -49,6 +50,15 @@ export default function HrFactoryPage({ user }) {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  useEffect(() => {
+    if (!reportVisible || !reportData || !reportMeta || reportLoading) return;
+    finalizeHrFactoryPrintLayout({
+      title: reportMeta.title,
+      dateRange: reportMeta.dateRange,
+      target: reportMeta.target
+    });
+  }, [reportVisible, reportData, reportMeta, reportLoading]);
 
   const factoryRecords = useMemo(
     () =>
@@ -288,17 +298,36 @@ export default function HrFactoryPage({ user }) {
                 <div id="hr-factory-report-print-header" className="hidden mb-4 md:mb-6 border-b border-gray-200 pb-4 print:block">
                   <div className="erp-report-print-meta flex items-start justify-between gap-4 px-2">
                     <div className="erp-report-print-center flex-1 text-center">
-                      <h1 className="text-lg md:text-2xl font-black text-gray-900 uppercase tracking-wide">
+                      <h1
+                        id="hr-factory-report-company-name"
+                        className="text-lg md:text-2xl font-black text-gray-900 uppercase tracking-wide"
+                      >
                         {COMPANY_NAME}
                       </h1>
-                      <p className="text-[10px] md:text-xs font-semibold text-gray-600 mt-1">{companyLegalLine()}</p>
-                      <h2 className="text-base md:text-xl font-bold text-gray-800 mt-3 uppercase tracking-wide">
+                      <p id="hr-factory-report-company-legal" className="text-[10px] md:text-xs font-semibold text-gray-600 mt-1">
+                        {companyLegalLine()}
+                      </p>
+                      <h2
+                        id="hr-factory-report-title-display"
+                        className="text-base md:text-xl font-bold text-gray-800 mt-3 uppercase tracking-wide"
+                      >
                         {reportMeta?.title || 'Factory Details Report'}
                       </h2>
-                      <p className="text-xs md:text-sm font-medium text-gray-500 mt-1">{reportMeta?.dateRange}</p>
-                      <p className="text-sm md:text-base font-bold text-gray-900 mt-2 break-words">{reportMeta?.target}</p>
-                      <p className="text-[10px] text-gray-500 mt-2">Printed: {reportMeta?.printedAt}</p>
+                      <p id="hr-factory-report-date-display" className="text-xs md:text-sm font-medium text-gray-500 mt-1">
+                        {reportMeta?.dateRange}
+                      </p>
+                      <p id="hr-factory-report-target-display" className="text-sm md:text-base font-bold text-gray-900 mt-2 break-words">
+                        {reportMeta?.target}
+                      </p>
+                      <p id="hr-factory-report-print-datetime" className="text-[10px] text-gray-500 mt-2">
+                        Printed: {reportMeta?.printedAt}
+                      </p>
                     </div>
+                    <div
+                      id="hr-factory-report-qr-code"
+                      className="shrink-0 w-28 h-28 md:w-32 md:h-32 flex items-center justify-center border border-gray-200 rounded bg-white print:block overflow-hidden"
+                      title="Scan for full report summary and details"
+                    />
                   </div>
                 </div>
 

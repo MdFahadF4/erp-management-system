@@ -73,18 +73,97 @@ function parseMoney(text) {
   return Number.isFinite(n) ? n : null;
 }
 
-function buildQrPayload(meta) {
+function buildQrPayload(meta, root, profile) {
+  return buildStructuredReportQrPayload(meta, root, profile);
+}
+
+function resolveExportProfile(qrHostId) {
+  if (qrHostId === HR_FACTORY_EXPORT_PROFILE.headerIds.qr) return HR_FACTORY_EXPORT_PROFILE;
+  return MAIN_REPORT_EXPORT_PROFILE;
+}
+
+function sanitizeQrCell(text) {
+  return String(text || '')
+    .replace(/\|/g, '/')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function formatTableSectionForQr(table, maxRows = 35) {
+  const lines = [];
+  if (table.title) lines.push(`[${sanitizeQrCell(table.title)}]`);
+  if (table.headers?.length) {
+    lines.push(table.headers.map(sanitizeQrCell).join(' | '));
+  }
+  const rows = table.rows || [];
+  rows.slice(0, maxRows).forEach((row) => {
+    lines.push(row.map(sanitizeQrCell).join(' | '));
+  });
+  if (rows.length > maxRows) {
+    lines.push(`...+${rows.length - maxRows} rows`);
+  }
+  (table.footerRows || []).forEach((row) => {
+    const txt = row.filter(Boolean).map(sanitizeQrCell).join(' | ');
+    if (txt) lines.push(`TOTAL: ${txt}`);
+  });
+  return lines;
+}
+
+function buildStructuredReportQrPayload(meta, root, profile) {
   const co = getCompanyInfo();
-  return [
-    co.COMPANY_NAME,
-    `CR:${co.CR_NUMBER}`,
-    `VAT:${co.VAT_NUMBER}`,
-    meta.title || '',
-    meta.dateRange || '',
-    meta.target || ''
-  ]
-    .filter(Boolean)
-    .join(' | ');
+  const lines = [
+    '=== MEHRIN ERP REPORT ===',
+    `Company: ${co.COMPANY_NAME}`,
+    getCompanyLegalLine(),
+    `Report: ${sanitizeQrCell(meta?.title)}`,
+    `Period: ${sanitizeQrCell(meta?.dateRange)}`,
+    meta?.target ? `Subject: ${sanitizeQrCell(meta.target)}` : '',
+    `Printed: ${formatPrintDateTime()}`,
+    ''
+  ].filter(Boolean);
+
+  if (root && profile) {
+    const summary = collectReportSummaryForExport(root, profile.summaryCardsId);
+    if (summary.rows?.length) {
+      lines.push('--- SUMMARY ---');
+      summary.rows.forEach((row) => {
+        if (!row?.length) return;
+        if (row.length === 1) lines.push(sanitizeQrCell(row[0]));
+        else lines.push(`${sanitizeQrCell(row[0])}: ${sanitizeQrCell(row[1])}`);
+      });
+      lines.push('');
+    }
+
+    const tables = collectReportTables(root, profile.tableContainerId);
+    if (tables.length) {
+      lines.push('--- DETAIL ---');
+      tables.forEach((table, idx) => {
+        if (idx > 0) lines.push('');
+        lines.push(...formatTableSectionForQr(table));
+      });
+    }
+  }
+
+  if (lines.length <= 7) {
+    return [
+      co.COMPANY_NAME,
+      `CR:${co.CR_NUMBER}`,
+      `VAT:${co.VAT_NUMBER}`,
+      meta?.title || '',
+      meta?.dateRange || '',
+      meta?.target || '',
+      `Printed: ${formatPrintDateTime()}`
+    ]
+      .filter(Boolean)
+      .join(' | ');
+  }
+
+  let payload = lines.join('\n').trim();
+  const MAX_CHARS = 2800;
+  if (payload.length > MAX_CHARS) {
+    payload = `${payload.slice(0, MAX_CHARS - 18)}\n...(truncated)`;
+  }
+  return payload;
 }
 
 function buildReportInfoRows(meta) {
@@ -151,16 +230,26 @@ export function updateHrFactoryReportPrintHeader({ title, dateRange, target }) {
 
 export async function renderReportQr(meta = lastReportMeta, qrHostId = 'report-qr-code') {
   const host = document.getElementById(qrHostId);
-  if (!host || !meta) return;
+  if (!host) return;
+  const profile = resolveExportProfile(qrHostId);
+  const metaResolved = meta || profile.getMeta?.();
+  if (!metaResolved) return;
   host.innerHTML = '';
-  const payload = buildQrPayload(meta);
+  const root = profile.getRoot?.();
+  const payload = buildStructuredReportQrPayload(metaResolved, root, profile);
   try {
     const QRCode = (await import('https://esm.sh/qrcode@1.5.4')).default;
+    const size = payload.length > 900 ? 128 : 96;
     const canvas = document.createElement('canvas');
-    canvas.width = 96;
-    canvas.height = 96;
+    canvas.width = size;
+    canvas.height = size;
     canvas.className = 'erp-report-qr-canvas';
-    await QRCode.toCanvas(canvas, payload, { width: 96, margin: 1 });
+    host.title = 'Scan for full report summary and details';
+    await QRCode.toCanvas(canvas, payload, {
+      width: size,
+      margin: 1,
+      errorCorrectionLevel: 'L'
+    });
     host.appendChild(canvas);
   } catch (err) {
     console.warn('QR render failed', err);

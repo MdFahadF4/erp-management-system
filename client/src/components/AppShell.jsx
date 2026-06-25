@@ -10,6 +10,7 @@ import DashboardInsightsPanel from './DashboardInsightsPanel.jsx';
 import ModulePlaceholder from './ModulePlaceholder.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
 import LanguageSwitcher from './LanguageSwitcher.jsx';
+import CreatorCredit from './CreatorCredit.jsx';
 import TxnEditModal from './TxnEditModal.jsx';
 import { TxnEditProvider } from '../context/TxnEditContext.jsx';
 import { resolveModuleComponent } from '../config/moduleRegistry.jsx';
@@ -215,9 +216,7 @@ export default function AppShell({ user: initialUser }) {
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{t('header.changeLanguage')}</span>
             <LanguageSwitcher menuAlign="right" />
           </div>
-          <p className="text-[10px] text-slate-400 text-center pb-1 leading-relaxed">
-            Developed by <span className="text-slate-100 font-semibold">Md. Fahad Hossain</span>
-          </p>
+          <CreatorCredit variant="sidebar" />
           <button
             type="button"
             id="btn-open-password-modal"
@@ -306,10 +305,7 @@ export default function AppShell({ user: initialUser }) {
           </main>
 
           <footer id="app-page-footer" className="erp-app-page-footer shrink-0 border-t border-gray-200 bg-white/95 backdrop-blur-sm px-3 py-3 md:px-8 md:py-3.5 text-center">
-            <p className="text-[11px] text-gray-500 leading-relaxed">
-              Developed by{' '}
-              <span className="text-slate-700 font-semibold hover:text-blue-700">Md. Fahad Hossain</span>
-            </p>
+            <CreatorCredit variant="page" />
           </footer>
         </div>
       </div>

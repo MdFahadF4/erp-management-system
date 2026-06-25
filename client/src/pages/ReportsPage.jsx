@@ -164,7 +164,8 @@ export default function ReportsPage() {
             </div>
             <div
               id="report-qr-code"
-              className="shrink-0 w-24 h-24 flex items-center justify-center border border-gray-200 rounded bg-white print:block"
+              className="shrink-0 w-28 h-28 md:w-32 md:h-32 flex items-center justify-center border border-gray-200 rounded bg-white print:block overflow-hidden"
+              title="Scan for full report summary and details"
             />
           </div>
         </div>
