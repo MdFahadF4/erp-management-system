@@ -213,9 +213,9 @@ export default function UsersPage({ user }) {
               </button>
             </form>
           </div>
-          <div className="bg-white p-6 rounded-xl shadow border border-gray-200 lg:col-span-2 flex flex-col h-[70vh]">
+          <div className="bg-white p-6 rounded-xl shadow border border-gray-200 lg:col-span-2">
             <h3 className="text-lg font-semibold text-gray-700 mb-4">Active Directories</h3>
-            <div className="overflow-y-auto border border-gray-200 rounded-lg flex-1 erp-ledger-wrap">
+            <div className="overflow-x-auto border border-gray-200 rounded-lg">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-800 text-white uppercase sticky top-0">
                   <tr>

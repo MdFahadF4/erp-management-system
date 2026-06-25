@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 
-export default function LanguageSwitcher() {
+export default function LanguageSwitcher({ menuAlign = 'left' }) {
   const { lang, setLanguage, languages, t } = useI18n();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -24,15 +24,26 @@ export default function LanguageSwitcher() {
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="p-1.5 md:p-2 text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg focus:outline-none transition shrink-0"
+        className="flex items-center gap-1 p-1.5 md:px-2 md:py-1.5 mr-0 text-slate-700 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 bg-white rounded-lg focus:outline-none transition shrink-0 shadow-sm"
         aria-haspopup="true"
         aria-expanded={open}
+        aria-label={t('header.changeLanguage')}
         title={t('header.changeLanguage')}
       >
-        <span className="text-base leading-none">{current.flag}</span>
+        <svg className="w-5 h-5 md:w-6 md:h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth="2"
+            d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"
+          />
+        </svg>
+        <span className="text-[10px] md:text-xs font-bold uppercase tracking-wide text-blue-700">{current.code}</span>
       </button>
       {open && (
-        <div className="absolute top-full right-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-[95] py-1 max-h-72 overflow-y-auto">
+        <div
+          className={`absolute top-full ${menuAlign === 'right' ? 'right-0' : 'left-0'} mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-xl z-[95] py-1 max-h-72 overflow-y-auto`}
+        >
           {languages.map((item) => (
             <button
               key={item.code}
