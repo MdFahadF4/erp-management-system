@@ -1,11 +1,11 @@
 import { useState } from 'react';
+import PasswordInput from '../components/PasswordInput.jsx';
 import { processLogin } from '../services/auth.js';
 import { COMPANY_NAME, companyLegalLine } from '../config/company.js';
 
 export default function LoginPage({ onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -49,25 +49,15 @@ export default function LoginPage({ onLoginSuccess }) {
               className="w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 outline-none"
             />
           </div>
-          <div>
-            <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Password</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                className="w-full border rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((v) => !v)}
-                className="absolute right-3 top-3.5 text-xs font-bold uppercase text-gray-400 hover:text-blue-600 transition tracking-wider focus:outline-none"
-              >
-                {showPassword ? 'Hide' : 'Show'}
-              </button>
-            </div>
-          </div>
+          <PasswordInput
+            id="login-password"
+            label="Password"
+            labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            inputClassName="w-full border rounded-lg p-3 pr-12 focus:ring-2 focus:ring-blue-500 outline-none"
+          />
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg p-3">{error}</p>
           )}

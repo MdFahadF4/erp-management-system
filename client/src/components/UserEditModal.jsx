@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import UserPermGrid from './UserPermGrid.jsx';
+import PasswordInput from './PasswordInput.jsx';
 import { updateUser } from '../services/dataService.js';
 import { parsePermissionMap } from '../utils/userSession.js';
 import { permissionsToString } from '../lib/userPermHelpers.js';
@@ -121,17 +122,16 @@ export default function UserEditModal({ open, record, actor, onClose, onSaved })
               </select>
             </div>
           </div>
-          <div>
-            <label className="block font-bold text-gray-600 mb-1">New Password (optional)</label>
-            <input
-              type="password"
-              minLength={6}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Leave blank to keep current"
-              className="w-full border rounded p-2 text-sm outline-none"
-            />
-          </div>
+          <PasswordInput
+            id="edit-user-password"
+            label="New Password (optional)"
+            labelClassName="block font-bold text-gray-600 mb-1"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={6}
+            placeholder="Leave blank to keep current"
+            inputClassName="w-full border rounded p-2 pr-12 text-sm outline-none"
+          />
           {role !== 'Admin' && !roleLocked && (
             <div>
               <label className="block font-bold text-gray-600 mb-2">Menu Execution Scopes</label>

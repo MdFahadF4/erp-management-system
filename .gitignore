@@ -1,11 +1,16 @@
 # Secrets and local config (never commit real client tokens)
 .env
 .env.local
+server/.env
+client/.env.local
 js/config.js
 JS/config.js
 
-# Dependencies (if you add npm later)
+# Dependencies
 node_modules/
+server/node_modules/
+client/node_modules/
+client/dist/
 dist/
 
 # OS / editor noise

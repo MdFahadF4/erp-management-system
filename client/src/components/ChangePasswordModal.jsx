@@ -1,34 +1,6 @@
 import { useState } from 'react';
 import { apiRequest } from '../services/auth.js';
-
-function PasswordField({ id, label, value, onChange, minLength }) {
-  const [show, setShow] = useState(false);
-  return (
-    <div>
-      <label htmlFor={id} className="block text-xs font-bold uppercase text-gray-600 mb-1">
-        {label}
-      </label>
-      <div className="relative">
-        <input
-          id={id}
-          type={show ? 'text' : 'password'}
-          value={value}
-          onChange={onChange}
-          required
-          minLength={minLength}
-          className="w-full border rounded-lg p-2 pr-12 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          type="button"
-          onClick={() => setShow((v) => !v)}
-          className="absolute right-3 top-2.5 text-[10px] font-bold uppercase text-gray-400 hover:text-blue-600 transition tracking-wider focus:outline-none"
-        >
-          {show ? 'Hide' : 'Show'}
-        </button>
-      </div>
-    </div>
-  );
-}
+import PasswordInput from './PasswordInput.jsx';
 
 export default function ChangePasswordModal({ open, onClose, username }) {
   const [oldPassword, setOldPassword] = useState('');
@@ -80,25 +52,34 @@ export default function ChangePasswordModal({ open, onClose, username }) {
           </button>
         </div>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <PasswordField
+          <PasswordInput
             id="cp-old"
             label="Current Password"
+            labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
+            required
+            inputClassName="w-full border rounded-lg p-2 pr-12 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <PasswordField
+          <PasswordInput
             id="cp-new"
             label="New Password"
+            labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
+            required
             minLength={6}
+            inputClassName="w-full border rounded-lg p-2 pr-12 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
-          <PasswordField
+          <PasswordInput
             id="cp-confirm"
             label="Confirm New Password"
+            labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
+            required
             minLength={6}
+            inputClassName="w-full border rounded-lg p-2 pr-12 text-sm outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             type="submit"

@@ -629,16 +629,18 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
 
   if (toggleBtn && formContainer && ledgerContainer) {
     toggleBtn.addEventListener('click', () => {
-      const isMobile = isMobileViewport();
+      const sideBySide = window.matchMedia('(min-width: 1280px)').matches;
       const isHidden = ledgerContainer.classList.toggle('hidden');
+      const ledgerVisible = !isHidden;
 
-      if (isMobile) {
+      if (!sideBySide) {
         toggleBtn.textContent = isHidden ? t('common.ledgerView') : t('common.backToForm');
         toggleBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
         toggleBtn.classList.add('bg-slate-800', 'hover:bg-slate-900');
-        document.body.classList.toggle('erp-mobile-ledger-open', !isHidden);
+        formContainer.classList.toggle('hidden', ledgerVisible);
+        document.body.classList.toggle('erp-mobile-ledger-open', ledgerVisible);
         closeMenu();
-        if (!isHidden) {
+        if (ledgerVisible) {
           mobileSnapshot?.collapse(t('mobile.viewingLedger'));
           setMobilePageMode(activeModuleTarget);
           forceChromeBarVisible('module');
@@ -650,6 +652,8 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
         }
         return;
       }
+
+      formContainer.classList.remove('hidden');
 
       if (isHidden) {
         formContainer.classList.remove('xl:col-span-1');

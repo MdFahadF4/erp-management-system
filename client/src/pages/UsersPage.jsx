@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import UserEditModal from '../components/UserEditModal.jsx';
 import UserPermGrid from '../components/UserPermGrid.jsx';
+import PasswordInput from '../components/PasswordInput.jsx';
 import { createUser, fetchUsers, updateUser } from '../services/dataService.js';
 import { getCol } from '../lib/dualHeadEngine.js';
 import { defaultCreatePermMap, permissionsToString } from '../lib/userPermHelpers.js';
@@ -155,17 +156,14 @@ export default function UsersPage({ user }) {
                   className="w-full border border-gray-200 rounded p-2 outline-none"
                 />
               </div>
-              <div>
-                <label className="block font-bold uppercase text-gray-500 mb-1">Password</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-gray-200 rounded p-2 outline-none"
-                />
-              </div>
+              <PasswordInput
+                id="new-password"
+                label="Password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
               <div>
                 <label className="block font-bold uppercase text-gray-500 mb-1">Mobile</label>
                 <input
