@@ -278,6 +278,10 @@ function getRemarks(rec) {
   return (val !== undefined && val !== null && String(val).trim() !== "") ? String(val).trim() : '-';
 }
 
+function getSupplierDueFromTxns(supplierName, txns) {
+  return rollupSupplierTxnTotals(txns, supplierName).due;
+}
+
 function accumulateExpenseTxnAmounts(txns, mainUpper, subUpper, rangeStart, rangeEnd) {
   let inc = 0;
   let paid = 0;

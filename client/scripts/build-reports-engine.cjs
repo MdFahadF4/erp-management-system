@@ -38,6 +38,7 @@ const helpers = [
   extract(969, 975),
   extract(977, 1102),
   extract(1177, 1183),
+  extract(1264, 1266),
   extract(1539, 1568)
 ].join('\n\n');
 
