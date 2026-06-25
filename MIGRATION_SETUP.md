@@ -74,18 +74,11 @@ npm install
 ### 2.4 Get connection string
 
 1. **Database** → **Connect** → **Drivers** → **Node.js**
-2. Copy the SRV string, e.g.:
+2. Copy the **SRV connection string** from Atlas (do not paste it into this repo or any markdown file).
+3. In Atlas, replace `<password>` with your database user password.
+4. Ensure the database name **`mehrin_erp`** appears in the path before the `?` query string.
 
-```
-mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
-```
-
-3. Replace `USERNAME` and `PASSWORD` with your DB user.
-4. Add database name before the `?`:
-
-```
-mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/mehrin_erp?retryWrites=true&w=majority
-```
+> **Security:** Keep the connection string only in `server/.env` (local) and in Render environment variables (production). Never commit real URIs to GitHub.
 
 ---
 
@@ -104,11 +97,13 @@ Edit `server/.env`:
 
 ```env
 PORT=5000
-MONGODB_URI=mongodb+srv://YOUR_USER:YOUR_PASS@cluster0.xxxxx.mongodb.net/mehrin_erp?retryWrites=true&w=majority
+MONGODB_URI=
 CLIENT_TOKEN=MEHRIN-MASTER_TEMPLATE_TOKEN_17062026
 ADMIN_ACCOUNT_STATUS=ACTIVE
 CLIENT_ORIGIN=http://localhost:5173
 ```
+
+Paste your Atlas SRV connection string as the value of `MONGODB_URI` (one line, no quotes).
 
 > **Important:** `CLIENT_TOKEN` must match the client env exactly.
 
@@ -294,8 +289,46 @@ Mehrin_ERP/
 
 ---
 
+## If GitHub flagged your MongoDB URI (secret scanning)
+
+GitHub may flag **example** connection strings in markdown even when they are placeholders. Your real URI should live only in `server/.env` (never committed).
+
+### 1. Fix the repo (done in this update)
+
+- Removed `mongodb+srv://...` examples from `MIGRATION_SETUP.md` and `server/.env.example`
+- Commit and push the fix (see commands below)
+
+### 2. Rotate Atlas password (recommended)
+
+Even if the alert was a false positive, rotating is quick and safe:
+
+1. MongoDB Atlas → **Database Access**
+2. Click your DB user → **Edit** → **Edit Password** → generate a new strong password
+3. Update **`server/.env`** locally: set `MONGODB_URI` to the new connection string from Atlas **Connect**
+4. Update **`MONGODB_URI`** on **Render** (if already deployed) → redeploy
+
+### 3. Close the GitHub alert
+
+1. GitHub repo → **Security** → **Secret scanning alerts**
+2. Open the alert for `MIGRATION_SETUP.md`
+3. After pushing the fix, choose **Revoke secret** (rotate password) or **Mark as false positive** if only a placeholder was detected
+4. The old string remains in git history on commit `6d592d08` but contains no real password — rotation still protects your live database
+
+### 4. Push the documentation fix
+
+```powershell
+cd "d:\Fahad\MERN\Practices\Mehrin_ERP"
+git add MIGRATION_SETUP.md server/.env.example
+git commit -m "Remove MongoDB URI examples from docs to resolve secret scanning alert"
+git push origin main
+```
+
+---
+
 ## Security checklist before go-live
 
+- [ ] **Never commit** `server/.env` or `client/.env.local` (already in `.gitignore`)
+- [ ] If GitHub flagged a MongoDB URI alert, rotate the Atlas DB user password (see below) and dismiss the alert after pushing the doc fix
 - [ ] Change `superadmin` password after first login
 - [ ] Use a strong random `CLIENT_TOKEN` in production
 - [ ] Restrict MongoDB Atlas IP allowlist if possible
