@@ -28,11 +28,7 @@ export default function AdminTxnLedgerActions({ user, sheetName, record, onMutat
 
   const handleDelete = async () => {
     if (!window.confirm('Delete this transaction? This cannot be undone.')) return;
-    const typed = window.prompt('Type DELETE to confirm:');
-    if (String(typed || '').trim().toUpperCase() !== 'DELETE') {
-      alert('Delete cancelled.');
-      return;
-    }
+    if (!window.confirm('Please confirm again to permanently delete this transaction.')) return;
     try {
       const res = await deleteRecord(sheetName, id);
       alert(res.message || (res.success ? 'Deleted.' : 'Delete failed.'));
