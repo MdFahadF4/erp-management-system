@@ -90,6 +90,16 @@ export function userCanAdminHeadActions(user) {
   return isAdminUser(user);
 }
 
+/** Edit/delete master records (HR, Customer, Supplier) — Admin and Super Admin only. */
+export function userCanAdminMasterActions(user) {
+  return isAdminUser(user);
+}
+
+/** Edit/delete from All Transaction View — Admin and Super Admin only. */
+export function userCanAdminTxnActions(user) {
+  return isAdminUser(user);
+}
+
 export const SHEET_TO_MODULE = {
   HR_Transactions: 'hr_transactions',
   Supplier_Transactions: 'supplier_transactions',

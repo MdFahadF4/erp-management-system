@@ -5,7 +5,7 @@
 
 @media (max-width: 1023px) {
   :root {
-    --erp-mobile-header-h: 3.5rem;
+    --erp-mobile-header-h: 4.25rem;
     --erp-mobile-chrome-h: 2.75rem;
   }
 
@@ -123,6 +123,7 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
     scroll-padding-top: 0.5rem;
+    scroll-padding-bottom: 1rem;
     padding-bottom: 2rem;
   }
 
@@ -888,19 +889,17 @@ body.erp-refund-help-open #main-content {
 
 .erp-refund-help-body {
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 .erp-refund-help-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
+  flex-shrink: 0;
   background: #fff;
 }
 
 .erp-refund-help-footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
+  flex-shrink: 0;
+  background: #fff;
 }
 
 .erp-creator-credit-menu {

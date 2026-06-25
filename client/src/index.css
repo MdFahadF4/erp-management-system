@@ -10,6 +10,7 @@
 }
 
 @import "../../css/mobile.css";
+@import "../../css/i18n.css";
 
 /* React app: ledger toggle shows form OR ledger — never both */
 body.erp-mobile-ledger-open #form-container {
@@ -27,9 +28,26 @@ body.erp-mobile-ledger-open #ledger-container {
 }
 
 /* Ledger cells: wrap long text (remarks, addresses, head names) */
-.erp-ledger-wrap table tbody td.break-words,
+.erp-ledger-wrap table tbody td,
+#main-content table tbody td:not(.erp-col-actions):not(.erp-cell-nowrap),
 #main-content table tbody td.break-words {
   white-space: normal !important;
   word-break: break-word;
   overflow-wrap: anywhere;
+}
+
+/* Prefer full page scroll — avoid nested clip areas hiding top/bottom content */
+@media (min-width: 1024px) {
+  #main-content .erp-ledger-wrap,
+  #main-content .erp-ledger-panel,
+  #main-content #form-container {
+    max-height: none !important;
+    overflow-y: visible !important;
+    flex: none !important;
+  }
+}
+
+#main-content .erp-module-page {
+  min-height: min-content;
+  padding-bottom: 1.5rem;
 }

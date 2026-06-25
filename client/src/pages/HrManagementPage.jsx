@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import MasterRecordActions, { runMasterDelete } from '../components/MasterRecordActions.jsx';
+import { HrEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchHrModuleData } from '../services/dataService.js';
 import { buildHrLedgerRow, fmtMoney } from '../lib/hrEngine.js';
+import { getHrMasterDeleteBlockReason } from '../lib/masterAdminEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
 const STATUS_OPTIONS = ['Active', 'Vacation', 'Inactive', 'Released'];
@@ -19,6 +22,7 @@ export default function HrManagementPage({ user, onDataChange }) {
   const [salStart, setSalStart] = useState('0');
   const [salInc] = useState('0');
   const [status, setStatus] = useState('Active');
+  const [editRecord, setEditRecord] = useState(null);
 
   const salCurrent = useMemo(
     () => (parseFloat(salStart) || 0) + (parseFloat(salInc) || 0),
@@ -244,31 +248,44 @@ export default function HrManagementPage({ user, onDataChange }) {
               </td>
             </tr>
           ) : (
-            rows.map((row) => (
+            rows.map((row) => {
+              const rec = hrRecords.find((r) => r.ID === row.id);
+              return (
               <tr key={row.id} className="hover:bg-gray-50 border-b border-gray-100">
-                <td className="p-2.5 font-bold text-gray-900">{row.empName}</td>
-                <td className="p-2.5">{row.designation}</td>
+                <td className="p-2.5 font-bold text-gray-900 break-words">{row.empName}</td>
+                <td className="p-2.5 break-words">{row.designation}</td>
                 <td className="p-2.5">{row.joinDate}</td>
-                <td className="p-2.5 font-mono">{fmtMoney(row.baseSalary)}</td>
-                <td className="p-2.5 font-mono text-purple-600">+{fmtMoney(row.totalInc)}</td>
-                <td className="p-2.5 font-mono font-bold text-blue-600">{fmtMoney(row.currentSalary)}</td>
-                <td className="p-2.5 font-mono text-amber-600">{fmtMoney(row.dbEarned)}</td>
-                <td className="p-2.5 font-mono text-emerald-600">{fmtMoney(row.dbPaid)}</td>
-                <td className="p-2.5 font-mono font-bold text-red-600">{fmtMoney(row.dbDue)}</td>
+                <td className="p-2.5 font-mono erp-cell-nowrap">{fmtMoney(row.baseSalary)}</td>
+                <td className="p-2.5 font-mono text-purple-600 erp-cell-nowrap">+{fmtMoney(row.totalInc)}</td>
+                <td className="p-2.5 font-mono font-bold text-blue-600 erp-cell-nowrap">{fmtMoney(row.currentSalary)}</td>
+                <td className="p-2.5 font-mono text-amber-600 erp-cell-nowrap">{fmtMoney(row.dbEarned)}</td>
+                <td className="p-2.5 font-mono text-emerald-600 erp-cell-nowrap">{fmtMoney(row.dbPaid)}</td>
+                <td className="p-2.5 font-mono font-bold text-red-600 erp-cell-nowrap">{fmtMoney(row.dbDue)}</td>
                 <td className="p-2.5">
                   <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${row.badgeClass}`}>
                     {row.status}
                   </span>
                 </td>
-                <td className="p-2.5 erp-col-actions">
-                  {row.canEdit ? (
-                    <span className="text-gray-400 text-[10px] italic">Edit (soon)</span>
-                  ) : (
-                    <span className="text-gray-300 italic text-[10px]">Locked</span>
-                  )}
-                </td>
+                <MasterRecordActions
+                  user={user}
+                  label={`employee "${row.empName}"`}
+                  onEdit={() => setEditRecord(rec)}
+                  onDelete={() =>
+                    runMasterDelete({
+                      blockReason: getHrMasterDeleteBlockReason(rec, hrTxns),
+                      label: `employee "${row.empName}"`,
+                      sheetName: 'HR',
+                      recordId: row.id,
+                      onDone: async () => {
+                        await loadRecords();
+                        onDataChange?.();
+                      }
+                    })
+                  }
+                />
               </tr>
-            ))
+            );
+            })
           )}
         </tbody>
       </table>
@@ -276,6 +293,7 @@ export default function HrManagementPage({ user, onDataChange }) {
   );
 
   return (
+    <>
     <ModuleLedgerLayout
       title="HR Ledger & Payroll Management"
       formTitle="New Employee Entry"
@@ -283,5 +301,17 @@ export default function HrManagementPage({ user, onDataChange }) {
       formContent={formContent}
       ledgerContent={ledgerContent}
     />
+    <HrEditModal
+      open={Boolean(editRecord)}
+      record={editRecord}
+      hrTxns={hrTxns}
+      user={user}
+      onClose={() => setEditRecord(null)}
+      onSaved={async () => {
+        await loadRecords();
+        onDataChange?.();
+      }}
+    />
+    </>
   );
 }

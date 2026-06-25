@@ -147,7 +147,7 @@ export default function HrFactoryPage({ user }) {
           <h3 className="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">
             Factory Personnel Ledger
           </h3>
-          <div className="erp-ledger-wrap overflow-x-auto border border-gray-200 rounded-lg md:max-h-[calc(100vh-16rem)] md:overflow-y-auto">
+          <div className="erp-ledger-wrap overflow-x-auto border border-gray-200 rounded-lg">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap sticky top-0 z-[1]">
                 <tr>

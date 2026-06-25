@@ -220,6 +220,14 @@ export function defaultDateRange() {
   return { from: '2020-01-01', to: todayStr };
 }
 
+/** Today only — used by All Transaction View default filter. */
+export function todayDateRange() {
+  const today = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+  return { from: todayStr, to: todayStr };
+}
+
 export function getHrTxnCategoryColor(category) {
   if (category === 'Salary Paid') return 'text-emerald-600 bg-emerald-50';
   if (category === 'Salary Increment') return 'text-purple-600 bg-purple-50';

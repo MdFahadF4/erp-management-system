@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import MasterRecordActions, { runMasterDelete } from '../components/MasterRecordActions.jsx';
+import { SupplierEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchSupplierModuleData } from '../services/dataService.js';
 import { buildSupplierLedgerRow, fmtMoney } from '../lib/supplierEngine.js';
+import { getSupplierMasterDeleteBlockReason } from '../lib/masterAdminEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
 const STATUS_OPTIONS = ['Active', 'Inactive'];
@@ -22,6 +25,7 @@ export default function SuppliersPage({ user, onDataChange }) {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [status, setStatus] = useState('Active');
+  const [editRecord, setEditRecord] = useState(null);
 
   const purchase = 0;
   const payments = 0;
@@ -251,31 +255,42 @@ export default function SuppliersPage({ user, onDataChange }) {
               </td>
             </tr>
           ) : (
-            rows.map((row) => (
+            rows.map((row) => {
+              const rec = supplierRecords.find((r) => r.ID === row.id);
+              return (
               <tr key={row.id} className="hover:bg-gray-50 border-b border-gray-100">
-                <td className="p-2.5 font-bold text-gray-900">{row.supName}</td>
-                <td className="p-2.5 font-mono">{row.mobile}</td>
-                <td className="p-2.5">{row.email}</td>
-                <td className="p-2.5 break-words">
-                  {row.address}
-                </td>
-                <td className="p-2.5 font-mono">{fmtMoney(row.totalPurchase)}</td>
-                <td className="p-2.5 font-mono text-emerald-600">{fmtMoney(row.totalPaid)}</td>
-                <td className="p-2.5 font-mono font-bold text-red-600">{fmtMoney(row.dbDue)}</td>
+                <td className="p-2.5 font-bold text-gray-900 break-words">{row.supName}</td>
+                <td className="p-2.5 font-mono break-words">{row.mobile}</td>
+                <td className="p-2.5 break-words">{row.email}</td>
+                <td className="p-2.5 break-words">{row.address}</td>
+                <td className="p-2.5 font-mono erp-cell-nowrap">{fmtMoney(row.totalPurchase)}</td>
+                <td className="p-2.5 font-mono text-emerald-600 erp-cell-nowrap">{fmtMoney(row.totalPaid)}</td>
+                <td className="p-2.5 font-mono font-bold text-red-600 erp-cell-nowrap">{fmtMoney(row.dbDue)}</td>
                 <td className="p-2.5">
                   <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${row.badgeClass}`}>
                     {row.status}
                   </span>
                 </td>
-                <td className="p-2.5 erp-col-actions">
-                  {row.canEdit ? (
-                    <span className="text-gray-400 text-[10px] italic">Edit (soon)</span>
-                  ) : (
-                    <span className="text-gray-300 italic text-[10px]">Locked</span>
-                  )}
-                </td>
+                <MasterRecordActions
+                  user={user}
+                  label={`supplier "${row.supName}"`}
+                  onEdit={() => setEditRecord(rec)}
+                  onDelete={() =>
+                    runMasterDelete({
+                      blockReason: getSupplierMasterDeleteBlockReason(rec, supplierTxns),
+                      label: `supplier "${row.supName}"`,
+                      sheetName: 'Suppliers',
+                      recordId: row.id,
+                      onDone: async () => {
+                        await loadRecords();
+                        onDataChange?.();
+                      }
+                    })
+                  }
+                />
               </tr>
-            ))
+            );
+            })
           )}
         </tbody>
       </table>
@@ -283,6 +298,7 @@ export default function SuppliersPage({ user, onDataChange }) {
   );
 
   return (
+    <>
     <ModuleLedgerLayout
       title="Supplier Ledger & Account Management"
       formTitle="New Supplier Entry"
@@ -290,5 +306,17 @@ export default function SuppliersPage({ user, onDataChange }) {
       formContent={formContent}
       ledgerContent={ledgerContent}
     />
+    <SupplierEditModal
+      open={Boolean(editRecord)}
+      record={editRecord}
+      supplierTxns={supplierTxns}
+      user={user}
+      onClose={() => setEditRecord(null)}
+      onSaved={async () => {
+        await loadRecords();
+        onDataChange?.();
+      }}
+    />
+    </>
   );
 }

@@ -61,7 +61,7 @@ export default function ModuleLedgerLayout({ title, formTitle, ledgerTitle, form
         {!ledgerOpen && (
           <div
             id="form-container"
-            className="bg-white p-5 rounded-xl shadow border border-gray-200 w-full max-w-2xl mx-auto max-h-none md:max-h-[85vh] overflow-y-auto pb-24 md:pb-5"
+            className="bg-white p-5 rounded-xl shadow border border-gray-200 w-full max-w-2xl mx-auto overflow-y-auto pb-24 md:pb-5"
           >
             {formTitle && (
               <h3 className="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">{formTitle}</h3>
@@ -74,7 +74,7 @@ export default function ModuleLedgerLayout({ title, formTitle, ledgerTitle, form
           <div
             ref={ledgerRef}
             id="ledger-container"
-            className="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col w-full overflow-visible md:overflow-hidden"
+            className="erp-ledger-panel bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col w-full overflow-visible"
           >
             {ledgerTitle && (
               <h3 className="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">{ledgerTitle}</h3>

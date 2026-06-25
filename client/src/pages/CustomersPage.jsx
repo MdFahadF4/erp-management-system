@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import MasterRecordActions, { runMasterDelete } from '../components/MasterRecordActions.jsx';
+import { CustomerEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchCustomerModuleData } from '../services/dataService.js';
 import {
   buildCustomerLedgerRow,
@@ -7,6 +9,7 @@ import {
   formatCustomDateString,
   generateCustomerUniqueId
 } from '../lib/customerEngine.js';
+import { getCustomerMasterDeleteBlockReason } from '../lib/masterAdminEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
 function todayIso() {
@@ -16,8 +19,10 @@ function todayIso() {
 export default function CustomersPage({ user, onDataChange }) {
   const canEdit = userCanEditModule(user, 'customers');
   const [customers, setCustomers] = useState([]);
+  const [customerTxns, setCustomerTxns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [editRecord, setEditRecord] = useState(null);
 
   const [issueDate, setIssueDate] = useState(todayIso());
   const [memo, setMemo] = useState('');
@@ -38,6 +43,7 @@ export default function CustomersPage({ user, onDataChange }) {
     try {
       const data = await fetchCustomerModuleData();
       setCustomers(data.customers);
+      setCustomerTxns(data.customerTxns);
     } catch (err) {
       console.error('Failed to load customers:', err);
     } finally {
@@ -256,28 +262,41 @@ export default function CustomersPage({ user, onDataChange }) {
               </td>
             </tr>
           ) : (
-            rows.map((row) => (
+            rows.map((row) => {
+              const rec = customers.find((r) => r.ID === row.id);
+              return (
               <tr key={row.id} className="hover:bg-gray-50 border-b border-gray-100">
-                <td className="p-2.5 font-mono text-[11px] text-gray-500">{row.uid}</td>
-                <td className="p-2.5 font-bold text-gray-900">{row.name}</td>
-                <td className="p-2.5">{row.memo}</td>
-                <td className="p-2.5 font-mono text-gray-900">{fmtMoney(row.sell)}</td>
-                <td className="p-2.5 font-mono text-emerald-600">{fmtMoney(row.cash)}</td>
-                <td className="p-2.5 font-mono text-blue-600">{fmtMoney(row.card)}</td>
-                <td className="p-2.5 font-mono font-bold text-gray-700">{fmtMoney(row.received)}</td>
-                <td className="p-2.5 font-mono text-purple-600">{fmtMoney(row.discount)}</td>
-                <td className={`p-2.5 font-mono font-bold ${row.due > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                <td className="p-2.5 font-mono text-[11px] text-gray-500 break-all">{row.uid}</td>
+                <td className="p-2.5 font-bold text-gray-900 break-words">{row.name}</td>
+                <td className="p-2.5 break-words">{row.memo}</td>
+                <td className="p-2.5 font-mono text-gray-900 erp-cell-nowrap">{fmtMoney(row.sell)}</td>
+                <td className="p-2.5 font-mono text-emerald-600 erp-cell-nowrap">{fmtMoney(row.cash)}</td>
+                <td className="p-2.5 font-mono text-blue-600 erp-cell-nowrap">{fmtMoney(row.card)}</td>
+                <td className="p-2.5 font-mono font-bold text-gray-700 erp-cell-nowrap">{fmtMoney(row.received)}</td>
+                <td className="p-2.5 font-mono text-purple-600 erp-cell-nowrap">{fmtMoney(row.discount)}</td>
+                <td className={`p-2.5 font-mono font-bold erp-cell-nowrap ${row.due > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
                   {fmtMoney(row.due)}
                 </td>
-                <td className="p-2.5 erp-col-actions">
-                  {row.canEdit ? (
-                    <span className="text-gray-400 text-[10px] italic">Edit (soon)</span>
-                  ) : (
-                    <span className="text-gray-300 italic text-[10px]">Locked</span>
-                  )}
-                </td>
+                <MasterRecordActions
+                  user={user}
+                  label={`customer "${row.name}"`}
+                  onEdit={() => setEditRecord(rec)}
+                  onDelete={() =>
+                    runMasterDelete({
+                      blockReason: getCustomerMasterDeleteBlockReason(rec, customerTxns),
+                      label: `customer "${row.name}"`,
+                      sheetName: 'Customers',
+                      recordId: row.id,
+                      onDone: async () => {
+                        await loadRecords();
+                        onDataChange?.();
+                      }
+                    })
+                  }
+                />
               </tr>
-            ))
+            );
+            })
           )}
         </tbody>
       </table>
@@ -285,6 +304,7 @@ export default function CustomersPage({ user, onDataChange }) {
   );
 
   return (
+    <>
     <ModuleLedgerLayout
       title="Customer Accounts Matrix"
       formTitle="New Customer Sales Entry"
@@ -292,5 +312,16 @@ export default function CustomersPage({ user, onDataChange }) {
       formContent={formContent}
       ledgerContent={ledgerContent}
     />
+    <CustomerEditModal
+      open={Boolean(editRecord)}
+      record={editRecord}
+      user={user}
+      onClose={() => setEditRecord(null)}
+      onSaved={async () => {
+        await loadRecords();
+        onDataChange?.();
+      }}
+    />
+    </>
   );
 }

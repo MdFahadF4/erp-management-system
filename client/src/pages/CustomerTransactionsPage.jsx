@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import ModalPortal from '../components/ModalPortal.jsx';
 import { createRecord, fetchCustomerModuleData } from '../services/dataService.js';
 import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
 import {
@@ -42,16 +43,17 @@ function RefundHelpModal({ open, onClose }) {
   if (!open) return null;
 
   return (
+    <ModalPortal>
     <div
-      className="erp-refund-help-modal fixed inset-0 z-[150]"
+      className="erp-refund-help-modal fixed inset-0 z-[200]"
       role="dialog"
       aria-modal="true"
       aria-labelledby="cust-refund-help-title"
     >
       <div className="erp-refund-help-backdrop absolute inset-0 bg-slate-900/60 backdrop-blur-sm" aria-hidden="true" onClick={onClose} />
-      <div className="erp-refund-help-shell relative z-[1] flex h-full w-full items-end justify-center sm:items-center p-0 sm:p-4">
+      <div className="erp-refund-help-shell absolute inset-0 flex items-end justify-center sm:items-center p-0 sm:p-4 pointer-events-none">
         <div
-          className="erp-refund-help-panel bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-gray-200 w-full max-w-lg max-h-[min(92dvh,100%)] sm:max-h-[90vh] flex flex-col min-h-0"
+          className="erp-refund-help-panel pointer-events-auto bg-white rounded-t-2xl sm:rounded-xl shadow-2xl border border-gray-200 w-full max-w-lg flex flex-col min-h-0 max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-bottom,0px)-1rem))] sm:max-h-[min(90dvh,calc(100dvh-2rem))]"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="erp-refund-help-header flex shrink-0 items-start justify-between gap-3 p-4 border-b border-gray-100">
@@ -128,18 +130,19 @@ function RefundHelpModal({ open, onClose }) {
               Tip: In the ledger, click Refund on the original row to auto-fill this form. Never delete the original sale — always post a reversal.
             </p>
           </div>
-          <div className="erp-refund-help-footer shrink-0 p-4 border-t border-gray-100 flex justify-end bg-white">
+          <div className="erp-refund-help-footer shrink-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-gray-100 flex justify-end bg-white">
             <button
               type="button"
               onClick={onClose}
-              className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-5 py-2 rounded text-sm transition"
+              className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2.5 rounded text-sm transition min-h-[44px] min-w-[6rem] touch-manipulation"
             >
-              Close
+              OK
             </button>
           </div>
         </div>
       </div>
     </div>
+    </ModalPortal>
   );
 }
 

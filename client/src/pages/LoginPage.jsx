@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import PasswordInput from '../components/PasswordInput.jsx';
+import LanguageSwitcher from '../components/LanguageSwitcher.jsx';
 import { processLogin } from '../services/auth.js';
 import { COMPANY_NAME, companyLegalLine } from '../config/company.js';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 
 export default function LoginPage({ onLoginSuccess }) {
+  const { t } = useI18n();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -23,7 +26,10 @@ export default function LoginPage({ onLoginSuccess }) {
   }
 
   return (
-    <div className="absolute inset-0 z-[100] bg-slate-900 flex items-center justify-center p-4">
+    <div id="login-screen" className="absolute inset-0 z-[100] bg-slate-900 flex items-start sm:items-center justify-center p-4 overflow-y-auto">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
       <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-2xl">
         <div className="text-center mb-5 pb-4 border-b border-gray-100">
           <h1 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
@@ -33,14 +39,11 @@ export default function LoginPage({ onLoginSuccess }) {
             {companyLegalLine()}
           </p>
         </div>
-        <h2 className="text-2xl font-extrabold mb-2 text-center text-gray-800">System Gateway</h2>
-        <p className="text-sm text-center text-emerald-700 font-semibold mb-1">MERN App (React)</p>
-        <p className="text-sm text-center text-gray-500 mb-6">
-          Please input authorization credentials.
-        </p>
+        <h2 className="text-2xl font-extrabold mb-2 text-center text-gray-800">{t('login.title')}</h2>
+        <p className="text-sm text-center text-gray-500 mb-6">{t('login.subtitle')}</p>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Username</label>
+            <label className="block text-xs font-bold uppercase text-gray-600 mb-1">{t('login.username')}</label>
             <input
               type="text"
               value={username}
@@ -51,7 +54,7 @@ export default function LoginPage({ onLoginSuccess }) {
           </div>
           <PasswordInput
             id="login-password"
-            label="Password"
+            label={t('login.password')}
             labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -66,7 +69,7 @@ export default function LoginPage({ onLoginSuccess }) {
             disabled={loading}
             className="w-full bg-blue-600 text-white font-semibold p-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-60"
           >
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? t('common.loading') : t('login.signIn')}
           </button>
         </form>
         <div className="mt-6 pt-4 border-t border-gray-100 text-center">

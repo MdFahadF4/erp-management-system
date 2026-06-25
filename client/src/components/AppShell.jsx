@@ -9,15 +9,19 @@ import { getDefaultModuleForUser, getVisibleNavItems, userCanAccessModule } from
 import DashboardInsightsPanel from './DashboardInsightsPanel.jsx';
 import ModulePlaceholder from './ModulePlaceholder.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
+import LanguageSwitcher from './LanguageSwitcher.jsx';
 import TxnEditModal from './TxnEditModal.jsx';
 import { TxnEditProvider } from '../context/TxnEditContext.jsx';
 import { resolveModuleComponent } from '../config/moduleRegistry.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
+import { NAV_ITEMS } from '../utils/userSession.js';
 
 function isMobileViewport() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
 }
 
 export default function AppShell({ user: initialUser }) {
+  const { t } = useI18n();
   const [user] = useState(initialUser);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
@@ -28,6 +32,34 @@ export default function AppShell({ user: initialUser }) {
   const [cashDrawerBalance, setCashDrawerBalance] = useState(0);
 
   const visibleNav = useMemo(() => getVisibleNavItems(user), [user]);
+
+  const navLabel = (item) => {
+    const keyMap = {
+      dashboard: 'nav.dashboard',
+      delivery_dashboard: 'nav.deliveryDashboard',
+      hr: 'nav.hr',
+      hr_transactions: 'nav.hrTransactions',
+      hr_factory: 'nav.hrFactory',
+      customers: 'nav.customers',
+      customer_transactions: 'nav.customerTransactions',
+      internal_transfer: 'nav.internalTransfer',
+      suppliers: 'nav.suppliers',
+      supplier_transactions: 'nav.supplierTransactions',
+      expense_heads: 'nav.expenseHeads',
+      expense_transactions: 'nav.expenseTransactions',
+      creditors: 'nav.creditorHeads',
+      creditor_transactions: 'nav.creditorTransactions',
+      income_heads: 'nav.incomeHeads',
+      income_transactions: 'nav.incomeTransactions',
+      capital_heads: 'nav.capitalHeads',
+      capital_transactions: 'nav.capitalTransactions',
+      all_transactions: 'nav.allTransactions',
+      reports: 'nav.reports',
+      users: 'nav.users'
+    };
+    const key = keyMap[item.id];
+    return key ? t(key) : item.label;
+  };
 
   const metrics = useMemo(() => {
     if (!rawData) return null;
@@ -67,6 +99,10 @@ export default function AppShell({ user: initialUser }) {
       cancelled = true;
     };
   }, [loadData]);
+
+  useEffect(() => {
+    document.getElementById('main-content')?.scrollTo(0, 0);
+  }, [activeModule]);
 
   useEffect(() => {
     document.body.classList.remove('erp-mobile-dashboard', 'erp-mobile-module', 'erp-sidebar-open', 'erp-page-footer-visible', 'erp-mobile-ledger-open');
@@ -144,7 +180,7 @@ export default function AppShell({ user: initialUser }) {
         }`}
       >
         <div className="p-5 text-xl font-black tracking-wider border-b border-slate-700 flex justify-between items-center">
-          <span>CORE PANEL</span>
+          <span>{t('sidebar.corePanel')}</span>
           <button
             type="button"
             id="close-sidebar"
@@ -169,7 +205,7 @@ export default function AppShell({ user: initialUser }) {
                   item.accent || ''
                 } ${activeModule === item.id ? 'bg-slate-700' : ''}`}
               >
-                {item.label}
+                {navLabel(item)}
               </button>
             ))
           )}
@@ -187,7 +223,7 @@ export default function AppShell({ user: initialUser }) {
             }}
             className="w-full bg-slate-700 hover:bg-slate-600 font-medium p-2 rounded-lg transition text-center text-sm text-white shadow-sm"
           >
-            Change Password
+            {t('sidebar.changePassword')}
           </button>
           <button
             type="button"
@@ -195,7 +231,7 @@ export default function AppShell({ user: initialUser }) {
             onClick={processLogout}
             className="w-full bg-red-600 hover:bg-red-700 font-medium p-2.5 rounded-lg transition text-center text-white shadow-sm"
           >
-            Sign Out
+            {t('sidebar.signOut')}
           </button>
         </div>
       </aside>
@@ -228,6 +264,7 @@ export default function AppShell({ user: initialUser }) {
           </div>
 
           <div className="flex items-center gap-1.5 md:gap-4 shrink-0">
+            <LanguageSwitcher />
             <div id="user-profile-badge" className="flex flex-col text-right leading-tight">
               <span
                 id="header-username"
@@ -251,7 +288,7 @@ export default function AppShell({ user: initialUser }) {
                   : 'border-emerald-200 text-emerald-700'
               }`}
             >
-              <span className="hidden sm:inline">Cash Drawer: </span>
+              <span className="hidden sm:inline">{t('header.cashDrawer')} </span>
               SAR <span id="header-user-balance">{fmtMoney(cashDrawerBalance)}</span>
             </div>
           </div>
@@ -260,7 +297,7 @@ export default function AppShell({ user: initialUser }) {
         <div id="app-body" className="flex flex-col flex-1 min-h-0 overflow-hidden md:pt-0">
           <DashboardInsightsPanel metrics={metrics} loading={loading} visible={showDashboardInsights} />
 
-          <main id="main-content" className="flex-1 p-3 md:p-8 overflow-y-auto min-h-0" key={activeModule}>
+          <main id="main-content" className="flex-1 p-3 md:p-8 overflow-y-auto min-h-0 scroll-pt-2" key={activeModule}>
             {renderModule()}
           </main>
 

@@ -71,7 +71,7 @@ export function resolveModuleComponent(moduleId, ctx) {
     case 'delivery_dashboard':
       return <DeliveryDashboardPage user={user} />;
     case 'all_transactions':
-      return <AllTransactionsPage />;
+      return <AllTransactionsPage user={user} onDataChange={onDataChange} />;
     case 'reports':
       return <ReportsPage />;
     case 'users':
