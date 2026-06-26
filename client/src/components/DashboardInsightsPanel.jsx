@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { fmtMoney } from '../lib/recordHelpers.js';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 
 export default function DashboardInsightsPanel({ metrics, loading, visible }) {
+  const { t } = useI18n();
   const [expanded, setExpanded] = useState(false);
 
   if (!visible) return null;
@@ -10,12 +12,14 @@ export default function DashboardInsightsPanel({ metrics, loading, visible }) {
   const globalBalance = metrics?.globalBalance;
   const summaryParts = [];
   if (globalBalance !== null && globalBalance !== undefined) {
-    summaryParts.push(`Balance SAR ${fmtMoney(globalBalance)}`);
+    summaryParts.push(t('dash.balanceSummary', { amount: fmtMoney(globalBalance) }));
   }
   if (drawerCount > 0) {
-    summaryParts.push(`${drawerCount} active drawer${drawerCount === 1 ? '' : 's'}`);
+    summaryParts.push(
+      t(drawerCount === 1 ? 'dash.drawerCount' : 'dash.drawerCountPlural', { count: drawerCount })
+    );
   }
-  const summaryText = summaryParts.length ? summaryParts.join(' · ') : 'Tap to view balance & cash drawers';
+  const summaryText = summaryParts.length ? summaryParts.join(' · ') : t('chrome.dashboardSummary');
 
   return (
     <div id="dashboard-insights-panel" className="shrink-0 border-b border-gray-200 bg-gray-50/80 z-10">
@@ -29,7 +33,7 @@ export default function DashboardInsightsPanel({ metrics, loading, visible }) {
           aria-controls="dashboard-insights-body"
         >
           <div className="min-w-0 flex-1">
-            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Dashboard Snapshot</div>
+            <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{t('chrome.dashboardSnapshot')}</div>
             <div id="insights-toggle-summary" className="text-xs text-gray-600 leading-snug break-words">
               {summaryText}
             </div>
@@ -64,7 +68,7 @@ export default function DashboardInsightsPanel({ metrics, loading, visible }) {
                         d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
                       />
                     </svg>
-                    <span className="truncate">Global Enterprise Balance</span>
+                    <span className="truncate">{t('dash.globalBalance')}</span>
                   </div>
                   <div className="text-xl sm:text-2xl md:text-3xl font-black font-mono text-teal-400 truncate">
                     SAR {fmtMoney(globalBalance)}
@@ -72,13 +76,13 @@ export default function DashboardInsightsPanel({ metrics, loading, visible }) {
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:flex sm:gap-3 shrink-0">
                   <div className="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2">
-                    <div className="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Inflows</div>
+                    <div className="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">{t('dash.inflows')}</div>
                     <div className="text-emerald-400 font-mono font-bold text-xs md:text-base">
                       SAR {fmtMoney(metrics.globalInflows)}
                     </div>
                   </div>
                   <div className="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2">
-                    <div className="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">Outflows</div>
+                    <div className="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">{t('dash.outflows')}</div>
                     <div className="text-red-400 font-mono font-bold text-xs md:text-base">
                       SAR {fmtMoney(metrics.globalOutflows)}
                     </div>
@@ -92,7 +96,7 @@ export default function DashboardInsightsPanel({ metrics, loading, visible }) {
         <div id="dash-user-drawers-section">
           <div className="flex items-center justify-between gap-2 mb-1.5 md:mb-2">
             <h3 className="text-[10px] md:text-xs font-bold text-gray-500 uppercase tracking-wider">
-              Live User Cash Drawers
+              {t('chrome.liveDrawers')}
             </h3>
           </div>
           <div
@@ -101,11 +105,11 @@ export default function DashboardInsightsPanel({ metrics, loading, visible }) {
           >
             {loading ? (
               <div className="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">
-                Calculating enterprise drawer balances…
+                {t('dash.calculatingBalances')}
               </div>
             ) : drawerCount === 0 ? (
               <div className="snap-start w-full md:col-span-full p-2.5 md:p-3 text-center text-gray-400 text-xs font-semibold border border-gray-100 rounded-lg bg-white">
-                All cash drawers balanced at 0.00
+                {t('dash.allDrawersBalanced')}
               </div>
             ) : (
               metrics.drawers.map(({ username, balance }) => {

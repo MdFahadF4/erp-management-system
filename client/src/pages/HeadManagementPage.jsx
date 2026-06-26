@@ -1,12 +1,50 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
+import { resolveModuleText } from '../i18n/moduleI18n.js';
 import HeadEditModal from '../components/HeadEditModal.jsx';
 import { createRecord, deleteRecord, fetchHeadModuleData } from '../services/dataService.js';
 import { buildHeadLedgerRows, fmtMoney } from '../lib/dualHeadEngine.js';
 import { getHeadDeleteBlockReason } from '../lib/headAdminEngine.js';
 import { userCanAdminMasterActions, userCanEditModule } from '../utils/userSession.js';
 
+const PARENT_FIELD_KEY = {
+  expense_heads: 'field.expenseParentHead',
+  creditors: 'field.creditorParentHead',
+  income_heads: 'field.incomeParentHead',
+  capital_heads: 'field.capitalParentHead'
+};
+
+const PARENT_COL_KEY = {
+  expense_heads: 'col.expenseParentHead',
+  creditors: 'col.creditorParentHead',
+  income_heads: 'field.incomeParentHead',
+  capital_heads: 'field.capitalParentHead'
+};
+
+const BILL_PAY_COL_KEY = {
+  expense_heads: ['col.totalIncurred', 'col.totalPaid'],
+  creditors: ['col.received', 'col.totalReturned'],
+  income_heads: ['col.totalReceivable', 'col.received'],
+  capital_heads: ['col.totalCapitalIn', 'col.totalCapitalOut']
+};
+
+const EMPTY_KEY = {
+  expense_heads: 'heads.noStructures',
+  creditors: 'heads.noCreditors',
+  income_heads: 'heads.noStructures',
+  capital_heads: 'heads.noCapitalHeads'
+};
+
+const SUBMIT_KEY = {
+  expense_heads: 'form.exp.registerCategory',
+  creditors: 'form.cred.register',
+  income_heads: 'form.inc.registerCategory',
+  capital_heads: 'form.cap.register'
+};
+
 export default function HeadManagementPage({ user, config, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, config.moduleId);
   const canAdminHead = userCanAdminMasterActions(user);
   const [heads, setHeads] = useState([]);
@@ -16,6 +54,12 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
   const [mainHead, setMainHead] = useState('');
   const [subHead, setSubHead] = useState('');
   const [editRow, setEditRow] = useState(null);
+
+  const parentFieldKey = PARENT_FIELD_KEY[config.moduleId] || 'field.expenseParentHead';
+  const parentColKey = PARENT_COL_KEY[config.moduleId] || 'col.parentCategory';
+  const [billColKey, payColKey] = BILL_PAY_COL_KEY[config.moduleId] || ['col.totalIncurred', 'col.totalPaid'];
+  const emptyKey = EMPTY_KEY[config.moduleId] || 'heads.noStructures';
+  const submitKey = SUBMIT_KEY[config.moduleId] || 'form.exp.registerCategory';
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -44,7 +88,7 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
     setSubmitting(true);
@@ -60,7 +104,7 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error saving head entry.');
+      alert(t('alert.errorCommit'));
     } finally {
       setSubmitting(false);
     }
@@ -94,14 +138,14 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error deleting head structure.');
+      alert(t('alert.errorDeletingTxn'));
     }
   };
 
   const formContent = (
     <form className="space-y-3 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Parent Head / Main Category</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t(parentFieldKey)}</label>
         <input
           type="text"
           required
@@ -112,7 +156,7 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Sub Head</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.subHeadName')}</label>
         <input
           type="text"
           required
@@ -128,7 +172,7 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
           disabled={submitting}
           className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition disabled:opacity-60"
         >
-          {submitting ? 'Saving…' : 'COMMIT HEAD STRUCTURE'}
+          {submitting ? t('common.saving') : t(submitKey)}
         </button>
       )}
     </form>
@@ -139,28 +183,28 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
       <table className="w-full text-left border-collapse text-xs">
         <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
           <tr>
-            <th className="p-2.5">Tracking ID</th>
-            <th className="p-2.5">Parent Head</th>
-            <th className="p-2.5">Sub Head</th>
-            <th className="p-2.5">{config.billLabel}</th>
-            <th className="p-2.5">{config.payLabel}</th>
-            <th className="p-2.5">Due/Balance</th>
-            <th className="p-2.5">User</th>
-            <th className="p-2.5">Stamp</th>
-            {canAdminHead && <th className="p-2.5 erp-col-actions">Actions</th>}
+            <th className="p-2.5">{t('col.trackingId')}</th>
+            <th className="p-2.5">{t(parentColKey)}</th>
+            <th className="p-2.5">{t('col.subHeadName')}</th>
+            <th className="p-2.5">{t(billColKey)}</th>
+            <th className="p-2.5">{t(payColKey)}</th>
+            <th className="p-2.5">{t('col.dueBalance')}</th>
+            <th className="p-2.5">{t('col.authorizedBy')}</th>
+            <th className="p-2.5">{t('col.creationStamp')}</th>
+            {canAdminHead && <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 text-gray-600 font-medium">
           {loading ? (
             <tr>
               <td colSpan={colSpan} className="p-3 text-center text-gray-400">
-                Loading structures…
+                {t('heads.loadingStructures')}
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={colSpan} className="p-3 text-center text-gray-400">
-                No head structures found.
+                {t(emptyKey)}
               </td>
             </tr>
           ) : (
@@ -181,14 +225,14 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
                       className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
                       onClick={() => setEditRow(row)}
                     >
-                      Edit
+                      {t('common.edit')}
                     </button>
                     <button
                       type="button"
                       className="bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]"
                       onClick={() => handleDelete(row)}
                     >
-                      Delete
+                      {t('common.delete')}
                     </button>
                   </td>
                 )}
@@ -203,9 +247,9 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
   return (
     <>
       <ModuleLedgerLayout
-        title={config.title}
-        formTitle={config.formTitle}
-        ledgerTitle={config.ledgerTitle}
+        title={resolveModuleText(t, config, 'titleKey')}
+        formTitle={resolveModuleText(t, config, 'formTitleKey')}
+        ledgerTitle={resolveModuleText(t, config, 'ledgerTitleKey')}
         formContent={formContent}
         ledgerContent={ledgerContent}
       />

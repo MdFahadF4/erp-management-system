@@ -28,7 +28,7 @@ export default function MasterRecordActions({ user, label, onEdit, onDelete }) {
         className="bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]"
         onClick={onDelete}
       >
-        Delete
+        {t('common.delete')}
       </button>
     </td>
   );

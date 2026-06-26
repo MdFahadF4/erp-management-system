@@ -1,8 +1,10 @@
 import { useState } from 'react';
 import { apiRequest } from '../services/auth.js';
 import PasswordInput from './PasswordInput.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 
 export default function ChangePasswordModal({ open, onClose, username }) {
+  const { t } = useI18n();
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -42,7 +44,7 @@ export default function ChangePasswordModal({ open, onClose, username }) {
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[150] flex items-center justify-center p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-sm p-6 border border-gray-100">
         <div className="flex justify-between items-center border-b pb-3 mb-4">
-          <h3 className="text-lg font-bold text-gray-800">Update Credentials</h3>
+          <h3 className="text-lg font-bold text-gray-800">{t('modal.updateCredentials')}</h3>
           <button
             type="button"
             onClick={handleClose}
@@ -54,7 +56,7 @@ export default function ChangePasswordModal({ open, onClose, username }) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <PasswordInput
             id="cp-old"
-            label="Current Password"
+            label={t('modal.currentPassword')}
             labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
@@ -63,7 +65,7 @@ export default function ChangePasswordModal({ open, onClose, username }) {
           />
           <PasswordInput
             id="cp-new"
-            label="New Password"
+            label={t('modal.newPassword')}
             labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
@@ -73,7 +75,7 @@ export default function ChangePasswordModal({ open, onClose, username }) {
           />
           <PasswordInput
             id="cp-confirm"
-            label="Confirm New Password"
+            label={t('modal.confirmPassword')}
             labelClassName="block text-xs font-bold uppercase text-gray-600 mb-1"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -86,7 +88,7 @@ export default function ChangePasswordModal({ open, onClose, username }) {
             disabled={submitting}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white font-bold p-2.5 rounded text-sm transition tracking-wider mt-2 shadow-md"
           >
-            {submitting ? 'Saving…' : 'OVERWRITE PASSWORD'}
+            {submitting ? t('common.loading') : t('modal.overwritePassword')}
           </button>
         </form>
       </div>

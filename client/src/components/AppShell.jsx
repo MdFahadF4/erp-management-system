@@ -138,7 +138,7 @@ export default function AppShell({ user: initialUser }) {
       await loadData();
     } catch (err) {
       console.error('Refresh failed:', err);
-      alert('Failed to refresh data. Check that the server is running.');
+      alert(t('alert.refreshFailed'));
     } finally {
       setRefreshing(false);
     }
@@ -193,7 +193,7 @@ export default function AppShell({ user: initialUser }) {
         </div>
         <nav className="flex-1 overflow-y-auto p-4 space-y-1">
           {visibleNav.length === 0 ? (
-            <p className="text-sm text-slate-400 p-3">No modules assigned to your account.</p>
+            <p className="text-sm text-slate-400 p-3">{t('sidebar.noModules')}</p>
           ) : (
             visibleNav.map((item) => (
               <button

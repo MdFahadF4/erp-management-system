@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import ModalPortal from '../components/ModalPortal.jsx';
 import { createRecord, fetchCustomerModuleData } from '../services/dataService.js';
 import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
@@ -27,6 +29,8 @@ function todayIso() {
 }
 
 function RefundHelpModal({ open, onClose }) {
+  const { t } = useI18n();
+
   useEffect(() => {
     if (!open) return undefined;
     document.body.classList.add('erp-refund-help-open');
@@ -58,66 +62,64 @@ function RefundHelpModal({ open, onClose }) {
         >
           <div className="erp-refund-help-header flex shrink-0 items-start justify-between gap-3 p-4 border-b border-gray-100">
             <h4 id="cust-refund-help-title" className="text-sm font-bold text-gray-800 uppercase tracking-wide pr-2">
-              Refund / Cancellation Example
+              {t('custTxn.helpTitle')}
             </h4>
             <button
               type="button"
               onClick={onClose}
               className="text-gray-400 hover:text-gray-700 font-bold text-lg leading-none px-1 shrink-0"
-              aria-label="Close"
+              aria-label={t('common.cancel')}
             >
               &times;
             </button>
           </div>
           <div className="erp-refund-help-body flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 space-y-4 text-xs text-gray-700 leading-relaxed">
-            <p>
-              Customer bought for 1000, paid 500 advance (Cash). Due was 500. You cancel the order and refund the 500 cash.
-            </p>
+            <p>{t('custTxn.helpIntro')}</p>
             <div>
               <p className="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider">
-                What you enter in Refund mode (positive numbers)
+                {t('custTxn.helpStepPost')}
               </p>
               <ul className="space-y-1 bg-amber-50 border border-amber-100 rounded-lg p-3 font-mono text-[11px]">
                 <li>
-                  <span className="text-gray-500">Sold (cancel):</span> <strong>1000</strong>
+                  <span className="text-gray-500">{t('custTxn.helpSold')}</span> <strong>1000</strong>
                 </li>
                 <li>
-                  <span className="text-gray-500">Refund to customer:</span> <strong>500</strong>
+                  <span className="text-gray-500">{t('custTxn.helpRefund')}</span> <strong>500</strong>
                 </li>
                 <li>
-                  <span className="text-gray-500">Payment Method:</span> <strong>Cash</strong>
+                  <span className="text-gray-500">{t('field.paymentMethod')}:</span> <strong>{t('option.cash')}</strong>
                 </li>
               </ul>
             </div>
             <div>
               <p className="font-bold text-gray-800 mb-2 uppercase text-[10px] tracking-wider">
-                What appears in the ledger (audit trail)
+                {t('custTxn.helpStepLedger')}
               </p>
               <div className="overflow-x-auto border border-gray-200 rounded-lg">
                 <table className="w-full text-[11px] border-collapse">
                   <thead className="bg-gray-100 font-bold text-gray-600 uppercase">
                     <tr>
-                      <th className="p-2 text-left">Row</th>
-                      <th className="p-2 text-right">Sold</th>
-                      <th className="p-2 text-right">Received</th>
-                      <th className="p-2 text-right">Due</th>
+                      <th className="p-2 text-left">{t('custTxn.helpColRow')}</th>
+                      <th className="p-2 text-right">{t('col.soldAmt')}</th>
+                      <th className="p-2 text-right">{t('col.receivedAmt')}</th>
+                      <th className="p-2 text-right">{t('col.txnDue')}</th>
                     </tr>
                   </thead>
                   <tbody className="font-mono divide-y divide-gray-100">
                     <tr>
-                      <td className="p-2">Original sale</td>
+                      <td className="p-2">{t('custTxn.helpOriginal')}</td>
                       <td className="p-2 text-right">1000</td>
                       <td className="p-2 text-right text-emerald-700">500</td>
                       <td className="p-2 text-right text-red-600">500</td>
                     </tr>
                     <tr className="bg-amber-50/50">
-                      <td className="p-2">Refund row</td>
+                      <td className="p-2">{t('custTxn.helpReversal')}</td>
                       <td className="p-2 text-right text-amber-800">−1000</td>
                       <td className="p-2 text-right text-amber-800">−500</td>
                       <td className="p-2 text-right">0</td>
                     </tr>
                     <tr className="bg-gray-50 font-bold">
-                      <td className="p-2">Net total</td>
+                      <td className="p-2">{t('custTxn.helpNet')}</td>
                       <td className="p-2 text-right">0</td>
                       <td className="p-2 text-right">0</td>
                       <td className="p-2 text-right text-emerald-700">0</td>
@@ -126,9 +128,7 @@ function RefundHelpModal({ open, onClose }) {
                 </table>
               </div>
             </div>
-            <p className="text-[11px] text-gray-500 border-t border-gray-100 pt-3">
-              Tip: In the ledger, click Refund on the original row to auto-fill this form. Never delete the original sale — always post a reversal.
-            </p>
+            <p className="text-[11px] text-gray-500 border-t border-gray-100 pt-3">{t('custTxn.helpTip')}</p>
           </div>
           <div className="erp-refund-help-footer shrink-0 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-gray-100 flex justify-end bg-white">
             <button
@@ -136,7 +136,7 @@ function RefundHelpModal({ open, onClose }) {
               onClick={onClose}
               className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-6 py-2.5 rounded text-sm transition min-h-[44px] min-w-[6rem] touch-manipulation"
             >
-              OK
+              {t('custTxn.helpClose')}
             </button>
           </div>
         </div>
@@ -147,6 +147,7 @@ function RefundHelpModal({ open, onClose }) {
 }
 
 export default function CustomerTransactionsPage({ user, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'customer_transactions');
   const [customers, setCustomers] = useState([]);
   const [customerTxns, setCustomerTxns] = useState([]);
@@ -237,7 +238,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
 
@@ -248,11 +249,11 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
 
     if (refundMode) {
       if (sellVal <= 0 && discountVal <= 0 && receivedVal <= 0) {
-        alert('Enter at least one positive amount for a refund/cancellation.');
+        alert(t('custTxn.fullCancelHint'));
         return;
       }
       if (receivedVal > 0 && method !== 'Cash' && method !== 'Card') {
-        alert('Refunds with received amount must use Cash or Card method.');
+        alert(t('custTxn.refundBanner'));
         return;
       }
       sellVal = -Math.abs(sellVal);
@@ -283,7 +284,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error logging transaction.');
+      alert(t('alert.errorLog'));
     } finally {
       setSubmitting(false);
     }
@@ -291,7 +292,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
 
   const handleLoadLedger = () => {
     if (!filterFrom || !filterTo) {
-      alert('Please select both From and To dates.');
+      alert(t('alert.selectBothDates'));
       return;
     }
     setLoadingLedger(true);
@@ -313,21 +314,21 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
             onClick={() => setRefundMode(false)}
             className={`flex-1 px-3 py-2 transition ${!refundMode ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
           >
-            Normal Sale / Payment
+            {t('custTxn.modeNormal')}
           </button>
           <button
             type="button"
             onClick={() => setRefundMode(true)}
             className={`flex-1 px-3 py-2 transition ${refundMode ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
           >
-            Refund / Cancellation
+            {t('custTxn.modeRefund')}
           </button>
         </div>
         <button
           type="button"
           onClick={() => setHelpOpen(true)}
           className="shrink-0 w-8 h-8 rounded-full border-2 border-amber-400 bg-amber-50 text-amber-700 font-black text-sm leading-none hover:bg-amber-100"
-          title="Refund example"
+          title={t('custTxn.helpTitle')}
         >
           i
         </button>
@@ -335,22 +336,22 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
 
       {refundMode && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3 text-[11px] text-amber-900 leading-relaxed">
-          Enter positive amounts — they will be saved as reversals. Original rows stay in the ledger for audit.
+          {t('custTxn.refundBanner')}
         </div>
       )}
 
       <form id="form-cust-txn-entry" className="space-y-4 text-xs" onSubmit={handleSubmit}>
         <div>
-          <label className="block font-bold text-gray-600 mb-1">Transaction Date</label>
+          <label className="block font-bold text-gray-600 mb-1">{t('field.transactionDate')}</label>
           <input type="date" id="cust-txn-date" required value={txnDate} onChange={(e) => setTxnDate(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
         </div>
         <div>
-          <label className="block font-bold text-gray-600 mb-1">System Unique ID</label>
+          <label className="block font-bold text-gray-600 mb-1">{t('field.systemUniqueId')}</label>
           <select id="cust-txn-uid" required value={uid} onChange={(e) => handleUidChange(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
-            <option value="">-- Choose Account UID --</option>
+            <option value="">{t('dropdown.chooseAccountUid')}</option>
             {visibleCustomers.length === 0 ? (
               <option value="" disabled>
-                {canViewAllCustomers(user) ? 'No customers found' : 'No customers assigned to you'}
+                {canViewAllCustomers(user) ? t('dropdown.noCustomers') : t('dropdown.noOwnCustomers')}
               </option>
             ) : (
               visibleCustomers.map((c) => {
@@ -359,7 +360,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
                 const due = getCustomerDueBalance(c);
                 return (
                   <option key={cUid} value={cUid}>
-                    {cUid} ({cName}) — Due: {fmtMoney(due)}
+                    {cUid} ({cName}) — {t('col.dueBalance')}: {fmtMoney(due)}
                   </option>
                 );
               })
@@ -369,46 +370,46 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
 
         <div id="cust-txn-due-info" className={`${showDueInfo ? '' : 'hidden'} bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5`}>
           <div className="flex justify-between items-center gap-2">
-            <span className="font-bold text-red-800 text-[11px] uppercase">Current Customer Due / Balance</span>
+            <span className="font-bold text-red-800 text-[11px] uppercase">{t('field.currentCustomerDue')}</span>
             <span className="font-mono font-black text-red-700 text-sm">{fmtMoney(currentDue)}</span>
           </div>
           <div className="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
-            <span className="font-bold text-gray-600 text-[11px] uppercase">Remaining Due After This Transaction</span>
+            <span className="font-bold text-gray-600 text-[11px] uppercase">{t('field.remainingDueAfterTxn')}</span>
             <span className="font-mono font-bold text-orange-700 text-sm">{fmtMoney(remainingDue)}</span>
           </div>
         </div>
 
         <div>
-          <label className="block font-bold text-gray-600 mb-1">Sold Amount (optional)</label>
+          <label className="block font-bold text-gray-600 mb-1">{t('field.soldAmountOptional')}</label>
           <input type="number" step="0.01" id="cust-txn-sell" value={sell} onChange={(e) => setSell(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
         </div>
         {!refundMode && (
-          <p className="text-[10px] text-gray-400 -mt-2">Leave 0 when customer is only paying a previous due balance.</p>
+          <p className="text-[10px] text-gray-400 -mt-2">{t('field.soldAmountOptionalHint')}</p>
         )}
 
         <div>
-          <label className="block font-bold text-purple-700 mb-1">Discount Allowed</label>
+          <label className="block font-bold text-purple-700 mb-1">{t('field.discountAllowed')}</label>
           <input type="number" step="0.01" id="cust-txn-discount" value={discount} onChange={(e) => setDiscount(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none font-mono" />
         </div>
         <div>
-          <label className="block font-bold text-emerald-700 mb-1">{refundMode ? 'Refund to Customer' : 'Received Amount'}</label>
+          <label className="block font-bold text-emerald-700 mb-1">{refundMode ? t('custTxn.refundRecvLabel') : t('field.receivedAmount')}</label>
           <input type="number" step="0.01" id="cust-txn-received" required value={received} onChange={(e) => setReceived(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
         </div>
         <div>
-          <label className="block font-bold text-gray-600 mb-1">Payment Method</label>
+          <label className="block font-bold text-gray-600 mb-1">{t('field.paymentMethod')}</label>
           <select id="cust-txn-method" required value={method} onChange={(e) => setMethod(e.target.value)} disabled={!canEdit || (refundMode && method === 'Previous Due')} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
-            <option value="Cash">Cash</option>
-            <option value="Card">Card</option>
-            {!refundMode && <option value="Previous Due">Previous Due</option>}
+            <option value="Cash">{t('option.cash')}</option>
+            <option value="Card">{t('option.card')}</option>
+            {!refundMode && <option value="Previous Due">{getCategoryLabel('Previous Due', t)}</option>}
           </select>
         </div>
         <div>
-          <label className="block font-bold text-gray-500 mb-1">Transaction Due / Balance</label>
+          <label className="block font-bold text-gray-500 mb-1">{t('field.transactionDueBalance')}</label>
           <input type="number" id="cust-txn-due" readOnly value={txnDue.toFixed(2)} className="w-full border border-gray-200 rounded p-2 text-sm bg-gray-50 font-bold text-red-600 outline-none" />
         </div>
         <div>
-          <label className="block font-bold text-gray-600 mb-1">Remarks / Reference Info</label>
-          <textarea id="cust-txn-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={!canEdit} placeholder="Invoice details, receipt #..." className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
+          <label className="block font-bold text-gray-600 mb-1">{t('field.remarksReferenceInfo')}</label>
+          <textarea id="cust-txn-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={!canEdit} placeholder={t('placeholder.invoiceDetails')} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
         </div>
         {canEdit && (
           <button
@@ -417,7 +418,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
             disabled={submitting}
             className={`erp-submit-btn w-full text-white font-bold p-2.5 rounded text-sm transition tracking-wider disabled:opacity-60 ${refundMode ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-600 hover:bg-blue-700'}`}
           >
-            {submitting ? 'Posting…' : refundMode ? 'POST REFUND / CANCELLATION' : 'POST TRANSACTION'}
+            {submitting ? t('common.posting') : refundMode ? t('custTxn.postRefund') : t('form.postTransaction')}
           </button>
         )}
       </form>
@@ -429,16 +430,16 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
     <>
       <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">From Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
           <input type="date" id="filter-from-cust" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none focus:border-blue-500" />
         </div>
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">To Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.toDate')}</label>
           <input type="date" id="filter-to-cust" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none focus:border-blue-500" />
         </div>
         <div>
           <button type="button" id="btn-filter-cust" onClick={handleLoadLedger} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">
-            Expand / Load Ledger
+            {t('common.expandLoadLedger')}
           </button>
         </div>
       </div>
@@ -447,33 +448,33 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
         <table className="w-full text-left border-collapse text-xs">
           <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
             <tr>
-              <th className="p-2.5">Date</th>
-              <th className="p-2.5">System UID</th>
-              <th className="p-2.5">Sold</th>
-              <th className="p-2.5">Discount</th>
-              <th className="p-2.5">Received</th>
-              <th className="p-2.5">Method</th>
-              <th className="p-2.5">Due</th>
-              <th className="p-2.5">Remarks</th>
-              <th className="p-2.5">Logged By</th>
-              <th className="p-2.5">Stamp</th>
-              <th className="p-2.5 erp-col-actions">Actions</th>
+              <th className="p-2.5">{t('col.date')}</th>
+              <th className="p-2.5">{t('col.systemUniqueId')}</th>
+              <th className="p-2.5">{t('col.soldAmt')}</th>
+              <th className="p-2.5">{t('col.discount')}</th>
+              <th className="p-2.5">{t('col.receivedAmt')}</th>
+              <th className="p-2.5">{t('col.method')}</th>
+              <th className="p-2.5">{t('col.txnDue')}</th>
+              <th className="p-2.5">{t('col.remarks')}</th>
+              <th className="p-2.5">{t('col.loggedBy')}</th>
+              <th className="p-2.5">{t('col.stamp')}</th>
+              <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
             </tr>
           </thead>
           <tbody id="table-cust-txn-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
             {!ledgerLoaded ? (
               <tr>
                 <td colSpan={11} className="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b border-gray-200">
-                  Select date range and click Expand / Load Ledger
+                  {t('ledger.selectDatesPrompt')}
                 </td>
               </tr>
             ) : loadingLedger ? (
               <tr>
-                <td colSpan={11} className="p-4 text-center text-blue-500 font-bold">Querying ledger…</td>
+                <td colSpan={11} className="p-4 text-center text-blue-500 font-bold">{t('ledger.querying')}</td>
               </tr>
             ) : filteredTxns.length === 0 ? (
               <tr>
-                <td colSpan={11} className="p-4 text-center text-gray-500 font-bold">No records in selected range.</td>
+                <td colSpan={11} className="p-4 text-center text-gray-500 font-bold">{t('ledger.noRecordsInRange')}</td>
               </tr>
             ) : (
               filteredTxns.map((rec) => {
@@ -496,7 +497,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
                     <td className="p-2.5">
                       {dateStr}
                       {isRefund && (
-                        <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-200 text-amber-900">REFUND</span>
+                        <span className="ml-1 px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-200 text-amber-900">{t('custTxn.refundBadge')}</span>
                       )}
                     </td>
                     <td className="p-2.5 font-bold font-mono text-[11px]">{cUid}</td>
@@ -504,7 +505,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
                     <td className={`p-2.5 font-mono text-purple-600 ${amtClass(discAmt)}`}>{fmtMoney(discAmt)}</td>
                     <td className={`p-2.5 font-mono font-bold text-emerald-600 ${amtClass(recAmt)}`}>{fmtMoney(recAmt)}</td>
                     <td className="p-2.5">
-                      <span className={`px-2 py-0.5 font-bold rounded text-[10px] ${getPaymentMethodColor(payMethod)}`}>{payMethod}</span>
+                      <span className={`px-2 py-0.5 font-bold rounded text-[10px] ${getPaymentMethodColor(payMethod)}`}>{getCategoryLabel(payMethod, t)}</span>
                     </td>
                     <td className={`p-2.5 font-mono text-red-600 font-bold ${amtClass(dueAmt)}`}>{fmtMoney(dueAmt)}</td>
                     <td className="p-2.5 break-words">{remarksVal}</td>
@@ -522,7 +523,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
                             onClick={() => handleRefundFromLedger(rec)}
                             className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
                           >
-                            Refund
+                            {t('custTxn.refundFromLedger')}
                           </button>
                         ) : null
                       }
@@ -539,9 +540,9 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
 
   return (
     <ModuleLedgerLayout
-      title="Customer Transaction Logging"
-      formTitle={refundMode ? 'Refund / Cancellation' : 'Log Customer Payment'}
-      ledgerTitle="Customer Historical Ledger Log"
+      title={t('page.customerTransactions.title')}
+      formTitle={refundMode ? t('custTxn.modeRefund') : t('form.cust.logPayment')}
+      ledgerTitle={t('form.cust.historicalLedger')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

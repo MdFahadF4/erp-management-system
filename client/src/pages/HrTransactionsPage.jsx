@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import { createRecord, fetchHrModuleData } from '../services/dataService.js';
 import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
 import {
@@ -23,6 +25,7 @@ function todayIso() {
 }
 
 export default function HrTransactionsPage({ user, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'hr_transactions');
   const [hrRecords, setHrRecords] = useState([]);
   const [hrTxns, setHrTxns] = useState([]);
@@ -112,7 +115,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
     setSubmitting(true);
@@ -146,7 +149,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error logging transaction.');
+      alert(t('alert.errorLog'));
     } finally {
       setSubmitting(false);
     }
@@ -154,7 +157,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
 
   const handleLoadLedger = () => {
     if (!filterFrom || !filterTo) {
-      alert('Please select both From and To dates.');
+      alert(t('alert.selectBothDates'));
       return;
     }
     setLoadingLedger(true);
@@ -170,7 +173,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
   const formContent = (
     <form id="form-txn-entry" className="space-y-4 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Transaction Date</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.transactionDate')}</label>
         <input
           type="date"
           id="txn-date"
@@ -182,7 +185,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Category Classification</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.categoryClassification')}</label>
         <select
           id="txn-category"
           required
@@ -193,13 +196,13 @@ export default function HrTransactionsPage({ user, onDataChange }) {
         >
           {TXN_CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
-              {cat}
+              {getCategoryLabel(cat, t)}
             </option>
           ))}
         </select>
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Employee Name</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.employeeName')}</label>
         <select
           id="txn-employee"
           required
@@ -208,15 +211,15 @@ export default function HrTransactionsPage({ user, onDataChange }) {
           disabled={!canEdit}
           className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none"
         >
-          <option value="">-- Choose Employee --</option>
+          <option value="">{t('dropdown.chooseEmployee')}</option>
           {employeeOptions.length === 0 ? (
             <option value="" disabled>
-              {category === 'Salary Paid' ? 'No employees with due balance' : 'No employees found'}
+              {category === 'Salary Paid' ? t('dropdown.noEmployeesWithDue') : t('dropdown.noEmployees')}
             </option>
           ) : (
             employeeOptions.map((opt) => (
               <option key={opt.name} value={opt.name}>
-                {opt.name} ({opt.designation}) — Due: {fmtMoney(opt.due)}
+                {opt.name} ({opt.designation}) — {t('col.dueBalance')}: {fmtMoney(opt.due)}
               </option>
             ))
           )}
@@ -228,13 +231,13 @@ export default function HrTransactionsPage({ user, onDataChange }) {
         className={`${showDueInfo ? '' : 'hidden'} bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5`}
       >
         <div className="flex justify-between items-center gap-2">
-          <span className="font-bold text-red-800 text-[11px] uppercase">Current Due / Balance</span>
+          <span className="font-bold text-red-800 text-[11px] uppercase">{t('field.currentAccountDue')}</span>
           <span id="txn-current-due" className="font-mono font-black text-red-700 text-sm">
             {fmtMoney(currentDue)}
           </span>
         </div>
         <div className="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
-          <span className="font-bold text-gray-600 text-[11px] uppercase">Remaining Due After This Transaction</span>
+          <span className="font-bold text-gray-600 text-[11px] uppercase">{t('field.remainingDueAfterTxn')}</span>
           <span id="txn-remaining-due" className="font-mono font-bold text-orange-700 text-sm">
             {fmtMoney(remainingDue)}
           </span>
@@ -243,7 +246,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
 
       <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
         <div>
-          <label className="block font-bold text-gray-700 mb-1">Amount</label>
+          <label className="block font-bold text-gray-700 mb-1">{t('field.amount')}</label>
           <input
             type="number"
             step="0.01"
@@ -256,11 +259,9 @@ export default function HrTransactionsPage({ user, onDataChange }) {
             className="w-full border border-gray-200 rounded p-2 text-sm font-bold font-mono outline-none"
           />
         </div>
-        <p className="text-[10px] text-gray-400 -mt-1">
-          Salary Earn and Previous Due increase due; Salary Paid decreases due; Increment updates salary only.
-        </p>
+        <p className="text-[10px] text-gray-400 -mt-1">{t('field.hrAmountHint')}</p>
         <div className="pt-2 border-t border-gray-200">
-          <label className="block font-bold text-red-600 mb-1">Transaction Due / Balance</label>
+          <label className="block font-bold text-red-600 mb-1">{t('field.transactionDueBalance')}</label>
           <input
             type="number"
             id="txn-delta"
@@ -272,14 +273,14 @@ export default function HrTransactionsPage({ user, onDataChange }) {
       </div>
 
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Remarks / Reference</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.remarksReference')}</label>
         <textarea
           id="txn-remarks"
           rows={2}
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           disabled={!canEdit}
-          placeholder="Optional notes..."
+          placeholder={t('placeholder.optionalNotes')}
           className="w-full border border-gray-200 rounded p-2 text-sm outline-none"
         />
       </div>
@@ -290,7 +291,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
           disabled={submitting}
           className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition disabled:opacity-60"
         >
-          {submitting ? 'Posting…' : 'POST TRANSACTION'}
+          {submitting ? t('common.posting') : t('form.postTransaction')}
         </button>
       )}
     </form>
@@ -300,7 +301,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
     <>
       <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">From Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
           <input
             type="date"
             id="filter-from-hr"
@@ -310,7 +311,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
           />
         </div>
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">To Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.toDate')}</label>
           <input
             type="date"
             id="filter-to-hr"
@@ -326,7 +327,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
             onClick={handleLoadLedger}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm"
           >
-            Expand / Load Ledger
+            {t('common.expandLoadLedger')}
           </button>
         </div>
       </div>
@@ -335,33 +336,33 @@ export default function HrTransactionsPage({ user, onDataChange }) {
         <table className="w-full text-left border-collapse text-xs">
           <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
             <tr>
-              <th className="p-2.5">Date</th>
-              <th className="p-2.5">Employee Name</th>
-              <th className="p-2.5">Amount</th>
-              <th className="p-2.5">Category</th>
-              <th className="p-2.5">Remarks</th>
-              <th className="p-2.5">Logged By</th>
-              <th className="p-2.5">System Stamp</th>
-              <th className="p-2.5 erp-col-actions">Actions</th>
+              <th className="p-2.5">{t('col.date')}</th>
+              <th className="p-2.5">{t('col.employeeName')}</th>
+              <th className="p-2.5">{t('col.amount')}</th>
+              <th className="p-2.5">{t('col.category')}</th>
+              <th className="p-2.5">{t('col.remarks')}</th>
+              <th className="p-2.5">{t('col.loggedBy')}</th>
+              <th className="p-2.5">{t('col.systemStamp')}</th>
+              <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
             </tr>
           </thead>
           <tbody id="table-txn-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
             {!ledgerLoaded ? (
               <tr>
                 <td colSpan={8} className="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b border-gray-200">
-                  Select date range and click Expand / Load Ledger
+                  {t('ledger.selectDatesPrompt')}
                 </td>
               </tr>
             ) : loadingLedger ? (
               <tr>
                 <td colSpan={8} className="p-4 text-center text-blue-500 font-bold">
-                  Querying transaction ledger…
+                  {t('ledger.querying')}
                 </td>
               </tr>
             ) : filteredTxns.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-4 text-center text-gray-500 font-bold">
-                  No transactions in selected date range.
+                  {t('ledger.noResultsInRange')}
                 </td>
               </tr>
             ) : (
@@ -380,7 +381,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
                     <td className="p-2.5 font-bold text-gray-900">{empName}</td>
                     <td className="p-2.5 font-mono font-bold">{fmtMoney(amt)}</td>
                     <td className="p-2.5">
-                      <span className={`px-2 py-0.5 font-bold rounded ${getHrTxnCategoryColor(cat)}`}>{cat}</span>
+                      <span className={`px-2 py-0.5 font-bold rounded ${getHrTxnCategoryColor(cat)}`}>{getCategoryLabel(cat, t)}</span>
                     </td>
                     <td className="p-2.5 break-words">
                       {remarksVal}
@@ -405,9 +406,9 @@ export default function HrTransactionsPage({ user, onDataChange }) {
 
   return (
     <ModuleLedgerLayout
-      title="HR Transaction Ledger"
-      formTitle="Log Transaction"
-      ledgerTitle="Transaction History Log"
+      title={t('page.hrTransactions.title')}
+      formTitle={t('form.logTransaction')}
+      ledgerTitle={t('form.txnHistoryLog')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

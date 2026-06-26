@@ -27,14 +27,14 @@ export default function AdminTxnLedgerActions({ user, sheetName, record, onMutat
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this transaction? This cannot be undone.')) return;
-    if (!window.confirm('Please confirm again to permanently delete this transaction.')) return;
+    if (!window.confirm(t('common.confirmDelete'))) return;
+    if (!window.confirm(t('alert.deleteTxnConfirm2'))) return;
     try {
       const res = await deleteRecord(sheetName, id);
-      alert(res.message || (res.success ? 'Deleted.' : 'Delete failed.'));
+      alert(res.message || (res.success ? t('alert.deleteSuccess') : t('alert.deleteFailed')));
       if (res.success) await onMutate?.();
     } catch {
-      alert('Error deleting transaction.');
+      alert(t('alert.errorDeletingTxn'));
     }
   };
 
@@ -52,7 +52,7 @@ export default function AdminTxnLedgerActions({ user, sheetName, record, onMutat
         className="btn-txn-delete bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]"
         onClick={handleDelete}
       >
-        Delete
+        {t('common.delete')}
       </button>
     </td>
   );

@@ -10,6 +10,7 @@ import {
   EXPENSE_TXN_FIELDS,
   INCOME_TXN_FIELDS
 } from '../lib/txnFields.js';
+import { getAllTxnModuleLabel } from '../../../js/i18n.js';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 
 const MODULE_COLORS = {
@@ -34,7 +35,7 @@ export default function AllTransactionsPage({ user, onDataChange }) {
 
   const load = useCallback(async () => {
     if (!from || !to) {
-      alert('Select both dates.');
+      alert(t('alert.selectBothDates'));
       return;
     }
     setLoading(true);
@@ -44,7 +45,7 @@ export default function AllTransactionsPage({ user, onDataChange }) {
     } finally {
       setLoading(false);
     }
-  }, [from, to]);
+  }, [from, to, t]);
 
   useEffect(() => {
     load();
@@ -72,7 +73,7 @@ export default function AllTransactionsPage({ user, onDataChange }) {
     <div className="space-y-4 erp-module-page pb-6">
       <div className="border-b border-gray-200 pb-3">
         <h2 className="text-2xl font-bold text-gray-800">{t('page.allTransactions.title')}</h2>
-        <p className="text-xs text-gray-500 mt-1">Combined audit view — defaults to today. Edit/Delete: Admin & Super Admin only.</p>
+        <p className="text-xs text-gray-500 mt-1">{t('allTxn.auditSubtitle')}</p>
       </div>
       <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg flex flex-wrap items-end gap-3 text-xs shadow-inner">
         <div>
@@ -91,27 +92,27 @@ export default function AllTransactionsPage({ user, onDataChange }) {
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-800 text-white uppercase">
             <tr>
-              <th className="p-2.5">Date</th>
-              <th className="p-2.5">Module</th>
-              <th className="p-2.5">Details</th>
-              <th className="p-2.5">Financial</th>
-              <th className="p-2.5">Remarks</th>
-              <th className="p-2.5">User</th>
-              <th className="p-2.5">Stamp</th>
-              <th className="p-2.5 erp-col-actions">Actions</th>
+              <th className="p-2.5">{t('allTxn.colDate')}</th>
+              <th className="p-2.5">{t('allTxn.colModule')}</th>
+              <th className="p-2.5">{t('allTxn.colDetails')}</th>
+              <th className="p-2.5">{t('allTxn.colFinancial')}</th>
+              <th className="p-2.5">{t('allTxn.colRemarks')}</th>
+              <th className="p-2.5">{t('allTxn.colLoggedBy')}</th>
+              <th className="p-2.5">{t('allTxn.colStamp')}</th>
+              <th className="p-2.5 erp-col-actions">{t('allTxn.colActions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {loading && !loaded ? (
               <tr>
                 <td colSpan={8} className="p-6 text-center text-blue-500 animate-pulse">
-                  Aggregating transactions…
+                  {t('allTxn.aggregating')}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-6 text-center text-gray-500">
-                  No transactions in selected date range
+                  {t('allTxn.noResultsRange')}
                 </td>
               </tr>
             ) : (
@@ -120,7 +121,7 @@ export default function AllTransactionsPage({ user, onDataChange }) {
                   <td className="p-2.5 erp-cell-nowrap">{row.rawDate ? row.rawDate.toLocaleDateString() : ''}</td>
                   <td className="p-2.5">
                     <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${MODULE_COLORS[row.module] || 'bg-gray-100 text-gray-700'}`}>
-                      {row.module}
+                      {getAllTxnModuleLabel(row.module)}
                     </span>
                   </td>
                   <td className="p-2.5 font-bold text-gray-800 break-words">{row.details}</td>

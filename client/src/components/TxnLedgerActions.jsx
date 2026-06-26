@@ -2,16 +2,18 @@ import { deleteRecord } from '../services/dataService.js';
 import { userCanEditTxnSheet } from '../utils/userSession.js';
 import { getRecordId } from '../lib/txnAdminEngine.js';
 import { useTxnEdit } from '../context/TxnEditContext.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 
 export default function TxnLedgerActions({ user, sheetName, record, onMutate, extraBefore }) {
   const { openTxnEdit } = useTxnEdit();
+  const { t } = useI18n();
   const canEdit = userCanEditTxnSheet(user, sheetName);
   const id = getRecordId(record);
 
   if (!canEdit) {
     return (
       <td className="p-2.5 erp-col-actions">
-        <span className="text-gray-300 italic text-[10px]">Locked</span>
+        <span className="text-gray-300 italic text-[10px]">{t('common.locked')}</span>
       </td>
     );
   }
@@ -25,13 +27,13 @@ export default function TxnLedgerActions({ user, sheetName, record, onMutate, ex
   }
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this transaction?')) return;
+    if (!window.confirm(t('common.confirmDelete'))) return;
     try {
       const res = await deleteRecord(sheetName, id);
-      alert(res.message || (res.success ? 'Deleted.' : 'Delete failed.'));
+      alert(res.message || (res.success ? t('alert.deleteSuccess') : t('alert.deleteFailed')));
       if (res.success) await onMutate?.();
     } catch {
-      alert('Error deleting transaction.');
+      alert(t('alert.errorDeletingTxn'));
     }
   };
 
@@ -43,14 +45,14 @@ export default function TxnLedgerActions({ user, sheetName, record, onMutate, ex
         className="btn-txn-edit bg-orange-500 hover:bg-orange-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
         onClick={() => openTxnEdit(sheetName, record)}
       >
-        Edit
+        {t('common.edit')}
       </button>
       <button
         type="button"
         className="btn-txn-delete bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]"
         onClick={handleDelete}
       >
-        Delete
+        {t('common.delete')}
       </button>
     </td>
   );

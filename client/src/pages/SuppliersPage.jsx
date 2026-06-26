@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import MasterRecordActions, { runMasterDelete } from '../components/MasterRecordActions.jsx';
 import { SupplierEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchSupplierModuleData } from '../services/dataService.js';
@@ -14,6 +16,7 @@ function todayIso() {
 }
 
 export default function SuppliersPage({ user, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'suppliers');
   const [supplierRecords, setSupplierRecords] = useState([]);
   const [supplierTxns, setSupplierTxns] = useState([]);
@@ -64,7 +67,7 @@ export default function SuppliersPage({ user, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
     setSubmitting(true);
@@ -110,7 +113,7 @@ export default function SuppliersPage({ user, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error committing supplier record.');
+      alert(t('alert.errorCommit'));
     } finally {
       setSubmitting(false);
     }
@@ -119,7 +122,7 @@ export default function SuppliersPage({ user, onDataChange }) {
   const formContent = (
     <form id="form-sup-entry" className="space-y-3 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Supplier Name</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.supplierName')}</label>
         <input
           type="text"
           id="sup-name"
@@ -131,7 +134,7 @@ export default function SuppliersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Mobile</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('col.mobile')}</label>
         <input
           type="text"
           id="sup-mobile"
@@ -142,7 +145,7 @@ export default function SuppliersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Email</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('col.email')}</label>
         <input
           type="email"
           id="sup-email"
@@ -153,7 +156,7 @@ export default function SuppliersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Address</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('col.address')}</label>
         <textarea
           id="sup-address"
           rows={2}
@@ -165,7 +168,7 @@ export default function SuppliersPage({ user, onDataChange }) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Total Purchase</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.totalPurchase')}</label>
           <input
             type="number"
             id="sup-purchase"
@@ -176,7 +179,7 @@ export default function SuppliersPage({ user, onDataChange }) {
           />
         </div>
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Total Payments</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.totalPayments')}</label>
           <input
             type="number"
             id="sup-payments"
@@ -188,7 +191,7 @@ export default function SuppliersPage({ user, onDataChange }) {
         </div>
       </div>
       <div>
-        <label className="block font-bold text-gray-500 mb-0.5">Due Balance</label>
+        <label className="block font-bold text-gray-500 mb-0.5">{t('field.dueBalanceCalc')}</label>
         <input
           type="number"
           id="sup-due"
@@ -198,7 +201,7 @@ export default function SuppliersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Status</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.accountStatus')}</label>
         <select
           id="sup-status"
           value={status}
@@ -208,7 +211,7 @@ export default function SuppliersPage({ user, onDataChange }) {
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>
-              {opt}
+              {getCategoryLabel(opt, t)}
             </option>
           ))}
         </select>
@@ -219,7 +222,7 @@ export default function SuppliersPage({ user, onDataChange }) {
           disabled={submitting}
           className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition disabled:opacity-60"
         >
-          {submitting ? 'Saving…' : 'COMMIT SUPPLIER ENTITY'}
+          {submitting ? t('common.saving') : t('form.sup.register')}
         </button>
       )}
     </form>
@@ -230,28 +233,28 @@ export default function SuppliersPage({ user, onDataChange }) {
       <table className="w-full text-left border-collapse text-xs">
         <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
           <tr>
-            <th className="p-2.5">Supplier Name</th>
-            <th className="p-2.5">Mobile</th>
-            <th className="p-2.5">Email</th>
-            <th className="p-2.5">Address</th>
-            <th className="p-2.5">Total Purchase</th>
-            <th className="p-2.5">Total Payments</th>
-            <th className="p-2.5">Due Balance</th>
-            <th className="p-2.5">Status</th>
-            <th className="p-2.5 erp-col-actions">Actions</th>
+            <th className="p-2.5">{t('col.supplierName')}</th>
+            <th className="p-2.5">{t('col.mobile')}</th>
+            <th className="p-2.5">{t('col.email')}</th>
+            <th className="p-2.5">{t('col.address')}</th>
+            <th className="p-2.5">{t('col.totalPurchase')}</th>
+            <th className="p-2.5">{t('col.totalPayments')}</th>
+            <th className="p-2.5">{t('col.dueBalance')}</th>
+            <th className="p-2.5">{t('col.status')}</th>
+            <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
           </tr>
         </thead>
         <tbody id="table-sup-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
           {loading ? (
             <tr>
               <td colSpan={9} className="p-3 text-center text-gray-400">
-                Querying supplier ledger…
+                {t('sup.queryingList')}
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={9} className="p-3 text-center text-gray-400">
-                No suppliers registered.
+                {t('sup.noRegistered')}
               </td>
             </tr>
           ) : (
@@ -268,7 +271,7 @@ export default function SuppliersPage({ user, onDataChange }) {
                 <td className="p-2.5 font-mono font-bold text-red-600 erp-cell-nowrap">{fmtMoney(row.dbDue)}</td>
                 <td className="p-2.5">
                   <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${row.badgeClass}`}>
-                    {row.status}
+                    {getCategoryLabel(row.status, t)}
                   </span>
                 </td>
                 <MasterRecordActions
@@ -300,9 +303,9 @@ export default function SuppliersPage({ user, onDataChange }) {
   return (
     <>
     <ModuleLedgerLayout
-      title="Supplier Ledger & Account Management"
-      formTitle="New Supplier Entry"
-      ledgerTitle="Supplier Database Records"
+      title={t('page.suppliers.title')}
+      formTitle={t('form.sup.newEntry')}
+      ledgerTitle={t('form.sup.masterAccounts')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

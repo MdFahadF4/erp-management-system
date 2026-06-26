@@ -1,5 +1,13 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { getLanguage, LANGUAGES, onLanguageChange, setLanguage, t as translate } from '../../../js/i18n.js';
+import {
+  applyTranslations,
+  getLanguage,
+  LANGUAGES,
+  onLanguageChange,
+  setLanguage,
+  t as translate
+} from '../../../js/i18n.js';
+import { COMPANY_NAME } from '../config/company.js';
 
 const I18nContext = createContext({
   lang: 'en',
@@ -17,7 +25,8 @@ export function I18nProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    document.title = translate('app.title');
+    document.title = COMPANY_NAME || translate('app.title');
+    applyTranslations(document);
   }, [lang]);
 
   const t = useCallback((key, vars) => translate(key, vars), [lang]);

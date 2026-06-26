@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
+import { resolveModuleText } from '../i18n/moduleI18n.js';
 import { createRecord, fetchHeadModuleData } from '../services/dataService.js';
 import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
 import {
@@ -19,12 +22,37 @@ import {
 import { defaultDateRange } from '../lib/hrEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
+const TXN_FIELD_LABELS = {
+  expense_transactions: {
+    bill: 'field.totalDepositIncurred',
+    discount: 'field.discountAllowed',
+    pay: 'field.actuallyPaidAmount'
+  },
+  creditor_transactions: {
+    bill: 'field.receivedAmountCashIn',
+    discount: 'field.discountAllowed',
+    pay: 'field.returnAmountCashOut'
+  },
+  income_transactions: {
+    bill: 'field.receivableAmountBilled',
+    discount: 'field.discountAllowed',
+    pay: 'field.actuallyReceivedCashIn'
+  },
+  capital_transactions: {
+    bill: 'field.capitalInAmount',
+    discount: 'field.discountAllowed',
+    pay: 'field.capitalOutAmount'
+  }
+};
+
 function todayIso() {
   return new Date().toISOString().split('T')[0];
 }
 
 export default function DualTxnPage({ user, config, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, config.moduleId);
+  const fieldLabels = TXN_FIELD_LABELS[config.moduleId] || TXN_FIELD_LABELS.expense_transactions;
   const [heads, setHeads] = useState([]);
   const [txns, setTxns] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -119,7 +147,7 @@ export default function DualTxnPage({ user, config, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
     const prepared = prepareDualTxnSubmit(category, bill, discount, pay, remarks);
@@ -154,7 +182,7 @@ export default function DualTxnPage({ user, config, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error logging transaction.');
+      alert(t('alert.errorLog'));
     } finally {
       setSubmitting(false);
     }
@@ -162,7 +190,7 @@ export default function DualTxnPage({ user, config, onDataChange }) {
 
   const handleLoadLedger = () => {
     if (!filterFrom || !filterTo) {
-      alert('Please select both From and To dates.');
+      alert(t('alert.selectBothDates'));
       return;
     }
     setLedgerLoaded(true);
@@ -176,23 +204,23 @@ export default function DualTxnPage({ user, config, onDataChange }) {
   const formContent = (
     <form className="space-y-4 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Transaction Date</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.transactionDate')}</label>
         <input type="date" required value={txnDate} onChange={(e) => setTxnDate(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Category</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('col.category')}</label>
         <select required value={category} onChange={(e) => handleCategoryChange(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
           {config.categories.map((c) => (
             <option key={c.value} value={c.value}>
-              {c.label}
+              {getCategoryLabel(c.value, t) || c.label}
             </option>
           ))}
         </select>
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Parent Head</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('col.parentCategory')}</label>
         <select required value={main} onChange={(e) => handleMainChange(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
-          <option value="">-- Choose Category --</option>
+          <option value="">{t('dropdown.chooseCategory')}</option>
           {mainOptions.map((m) => (
             <option key={m} value={m}>
               {m}
@@ -201,9 +229,9 @@ export default function DualTxnPage({ user, config, onDataChange }) {
         </select>
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Sub Head</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('col.subHead')}</label>
         <select required value={sub} onChange={(e) => handleSubChange(e.target.value)} disabled={!canEdit || !main} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
-          <option value="">-- Choose Sub Head --</option>
+          <option value="">{t('dropdown.chooseSubHead')}</option>
           {subOptions.map((s) => (
             <option key={s} value={s}>
               {s}
@@ -214,42 +242,42 @@ export default function DualTxnPage({ user, config, onDataChange }) {
 
       <div className={`${showDueInfo ? '' : 'hidden'} bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5`}>
         <div className="flex justify-between items-center gap-2">
-          <span className="font-bold text-red-800 text-[11px] uppercase">Current Due / Balance</span>
+          <span className="font-bold text-red-800 text-[11px] uppercase">{t('field.currentAccountDue')}</span>
           <span className="font-mono font-black text-red-700 text-sm">{fmtMoney(currentDue)}</span>
         </div>
         <div className="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
-          <span className="font-bold text-gray-600 text-[11px] uppercase">Remaining Due After Transaction</span>
+          <span className="font-bold text-gray-600 text-[11px] uppercase">{t('field.remainingDueAfterTxn')}</span>
           <span className="font-mono font-bold text-orange-700 text-sm">{fmtMoney(remainingDue)}</span>
         </div>
       </div>
 
       <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
         <div>
-          <label className="block font-bold text-gray-700 mb-1">{config.billLabel}</label>
+          <label className="block font-bold text-gray-700 mb-1">{t(fieldLabels.bill)}</label>
           <input type="number" step="0.01" min="0" value={bill} onChange={(e) => setBill(e.target.value)} readOnly={isPayOnly} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm font-bold font-mono outline-none" />
         </div>
         <div>
-          <label className="block font-bold text-purple-700 mb-1">{config.discountLabel}</label>
+          <label className="block font-bold text-purple-700 mb-1">{t(fieldLabels.discount)}</label>
           <input type="number" step="0.01" value={discount} onChange={(e) => setDiscount(e.target.value)} readOnly={isPrev || isPayOnly} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm font-mono outline-none" />
         </div>
         <div>
-          <label className="block font-bold text-emerald-700 mb-1">{config.payLabel}</label>
+          <label className="block font-bold text-emerald-700 mb-1">{t(fieldLabels.pay)}</label>
           <input type="number" step="0.01" min="0" value={pay} onChange={(e) => setPay(e.target.value)} readOnly={isPrev} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm font-mono outline-none" />
         </div>
         <div className="pt-2 border-t border-gray-200">
-          <label className="block font-bold text-red-600 mb-1">Transaction Due / Balance</label>
+          <label className="block font-bold text-red-600 mb-1">{t('field.transactionDueBalance')}</label>
           <input type="number" readOnly value={txnDue.toFixed(2)} className="w-full border border-gray-200 rounded p-2 text-sm bg-white font-bold text-red-600 outline-none" />
         </div>
       </div>
 
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Remarks / Reference</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.remarksReference')}</label>
         <textarea rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
       </div>
 
       {canEdit && (
         <button type="submit" disabled={submitting} className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition disabled:opacity-60">
-          {submitting ? 'Posting…' : 'POST TRANSACTION'}
+          {submitting ? t('common.posting') : t('form.postTransaction')}
         </button>
       )}
     </form>
@@ -259,16 +287,16 @@ export default function DualTxnPage({ user, config, onDataChange }) {
     <>
       <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">From Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
           <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none" />
         </div>
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">To Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.toDate')}</label>
           <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none" />
         </div>
         <div>
           <button type="button" onClick={handleLoadLedger} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">
-            Expand / Load Ledger
+            {t('common.expandLoadLedger')}
           </button>
         </div>
       </div>
@@ -277,31 +305,31 @@ export default function DualTxnPage({ user, config, onDataChange }) {
         <table className="w-full text-left border-collapse text-xs">
           <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
             <tr>
-              <th className="p-2.5">Date</th>
-              <th className="p-2.5">Txn ID</th>
-              <th className="p-2.5">Parent</th>
-              <th className="p-2.5">Sub</th>
-              <th className="p-2.5">Bill</th>
-              <th className="p-2.5">Discount</th>
-              <th className="p-2.5">Paid</th>
-              <th className="p-2.5">Due</th>
-              <th className="p-2.5">Category</th>
-              <th className="p-2.5">Remarks</th>
-              <th className="p-2.5">User</th>
-              <th className="p-2.5 erp-col-actions">Actions</th>
+              <th className="p-2.5">{t('col.date')}</th>
+              <th className="p-2.5">{t('col.trackingId')}</th>
+              <th className="p-2.5">{t('col.parentCategory')}</th>
+              <th className="p-2.5">{t('col.subHead')}</th>
+              <th className="p-2.5">{t('col.deposit')}</th>
+              <th className="p-2.5">{t('col.discount')}</th>
+              <th className="p-2.5">{t('col.paidAmt')}</th>
+              <th className="p-2.5">{t('col.txnDue')}</th>
+              <th className="p-2.5">{t('col.category')}</th>
+              <th className="p-2.5">{t('col.remarksVouchers')}</th>
+              <th className="p-2.5">{t('col.loggedBy')}</th>
+              <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 text-gray-600 font-medium">
             {!ledgerLoaded ? (
               <tr>
                 <td colSpan={12} className="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b border-gray-200">
-                  Select date range and load ledger
+                  {t('ledger.selectDatesPrompt')}
                 </td>
               </tr>
             ) : filteredTxns.length === 0 ? (
               <tr>
                 <td colSpan={12} className="p-4 text-center text-gray-500 font-bold">
-                  No records in range.
+                  {t('ledger.noRecordsInRange')}
                 </td>
               </tr>
             ) : (
@@ -318,7 +346,7 @@ export default function DualTxnPage({ user, config, onDataChange }) {
                     <td className="p-2.5 font-mono text-purple-600">{fmtMoney(amounts.discount)}</td>
                     <td className="p-2.5 font-mono text-emerald-600">{fmtMoney(amounts.pay)}</td>
                     <td className="p-2.5 font-mono text-red-600 font-bold">{fmtMoney(amounts.txnDue)}</td>
-                    <td className="p-2.5">{amounts.category}</td>
+                    <td className="p-2.5">{getCategoryLabel(amounts.category, t)}</td>
                     <td className="p-2.5 break-words">{getCol(rec, config.fieldMap.remarks) || '-'}</td>
                     <td className="p-2.5">{getCol(rec, ['Logged By', 'Username']) || ''}</td>
                     <TxnLedgerActions
@@ -339,9 +367,9 @@ export default function DualTxnPage({ user, config, onDataChange }) {
 
   return (
     <ModuleLedgerLayout
-      title={config.title}
-      formTitle={config.formTitle}
-      ledgerTitle={config.ledgerTitle}
+      title={resolveModuleText(t, config, 'titleKey')}
+      formTitle={resolveModuleText(t, config, 'formTitleKey')}
+      ledgerTitle={resolveModuleText(t, config, 'ledgerTitleKey')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

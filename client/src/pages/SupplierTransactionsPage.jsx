@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import { createRecord, fetchSupplierModuleData } from '../services/dataService.js';
 import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
 import {
@@ -15,13 +17,18 @@ import { parseSupplierTxnAmounts } from '../lib/txnParsers.js';
 import { defaultDateRange, filterRecordsByDateRange, parseRecordDate } from '../lib/hrEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
-const TXN_CATEGORIES = ['Purchase', 'Payment Paid', 'Previous Due'];
+const TXN_CATEGORIES = [
+  { value: 'Purchase', labelKey: 'category.purchaseIncreases' },
+  { value: 'Payment Paid', labelKey: 'category.paymentDecreases' },
+  { value: 'Previous Due', labelKey: 'category.previousDue' }
+];
 
 function todayIso() {
   return new Date().toISOString().split('T')[0];
 }
 
 export default function SupplierTransactionsPage({ user, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'supplier_transactions');
   const [supplierRecords, setSupplierRecords] = useState([]);
   const [supplierTxns, setSupplierTxns] = useState([]);
@@ -128,7 +135,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
     setSubmitting(true);
@@ -179,7 +186,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error logging transaction.');
+      alert(t('alert.errorLog'));
     } finally {
       setSubmitting(false);
     }
@@ -187,7 +194,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
 
   const handleLoadLedger = () => {
     if (!filterFrom || !filterTo) {
-      alert('Please select both From and To dates.');
+      alert(t('alert.selectBothDates'));
       return;
     }
     setLoadingLedger(true);
@@ -203,7 +210,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
   const formContent = (
     <form id="form-sup-txn-entry" className="space-y-4 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Transaction Date</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.transactionDate')}</label>
         <input
           type="date"
           id="sup-txn-date"
@@ -215,7 +222,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Category Classification</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.categoryClassification')}</label>
         <select
           id="sup-txn-category"
           required
@@ -225,14 +232,14 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
           className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none"
         >
           {TXN_CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {cat}
+            <option key={cat.value} value={cat.value}>
+              {t(cat.labelKey)}
             </option>
           ))}
         </select>
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Supplier Name</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.supplierName')}</label>
         <select
           id="sup-txn-supplier"
           required
@@ -241,15 +248,15 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
           disabled={!canEdit}
           className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none"
         >
-          <option value="">-- Choose Supplier --</option>
+          <option value="">{t('dropdown.chooseSupplier')}</option>
           {supplierOptions.length === 0 ? (
             <option value="" disabled>
-              {isPay ? 'No suppliers with due balance' : 'No suppliers found'}
+              {isPay ? t('dropdown.noSuppliersWithDue') : t('dropdown.noSuppliersRegistry')}
             </option>
           ) : (
             supplierOptions.map((opt) => (
               <option key={opt.name} value={opt.name}>
-                {opt.name} — Due: {fmtMoney(opt.due)}
+                {opt.name} — {t('col.dueBalance')}: {fmtMoney(opt.due)}
               </option>
             ))
           )}
@@ -261,13 +268,13 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
         className={`${showDueInfo ? '' : 'hidden'} bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5`}
       >
         <div className="flex justify-between items-center gap-2">
-          <span className="font-bold text-red-800 text-[11px] uppercase">Current Due / Balance</span>
+          <span className="font-bold text-red-800 text-[11px] uppercase">{t('field.currentAccountDue')}</span>
           <span id="sup-txn-current-due" className="font-mono font-black text-red-700 text-sm">
             {fmtMoney(currentDue)}
           </span>
         </div>
         <div className="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
-          <span className="font-bold text-gray-600 text-[11px] uppercase">Remaining Due After This Transaction</span>
+          <span className="font-bold text-gray-600 text-[11px] uppercase">{t('field.remainingDueAfterTxn')}</span>
           <span id="sup-txn-remaining-due" className="font-mono font-bold text-orange-700 text-sm">
             {fmtMoney(remainingDue)}
           </span>
@@ -276,7 +283,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
 
       <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg space-y-3">
         <div>
-          <label className="block font-bold text-gray-700 mb-1">Purchase Amount</label>
+          <label className="block font-bold text-gray-700 mb-1">{t('field.purchaseAmount')}</label>
           <input
             type="number"
             step="0.01"
@@ -290,7 +297,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
           />
         </div>
         <div>
-          <label className="block font-bold text-purple-700 mb-1">Discount</label>
+          <label className="block font-bold text-purple-700 mb-1">{t('field.discountAllowed')}</label>
           <input
             type="number"
             step="0.01"
@@ -304,7 +311,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
           />
         </div>
         <div>
-          <label className="block font-bold text-emerald-700 mb-1">Payment Paid</label>
+          <label className="block font-bold text-emerald-700 mb-1">{t('field.paymentPaidAmount')}</label>
           <input
             type="number"
             step="0.01"
@@ -318,7 +325,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
           />
         </div>
         <div className="pt-2 border-t border-gray-200">
-          <label className="block font-bold text-red-600 mb-1">Transaction Due / Balance</label>
+          <label className="block font-bold text-red-600 mb-1">{t('field.transactionDueBalance')}</label>
           <input
             type="number"
             id="sup-txn-due"
@@ -330,14 +337,14 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
       </div>
 
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Remarks / Reference</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.remarksReferenceInfo')}</label>
         <textarea
           id="sup-txn-remarks"
           rows={2}
           value={remarks}
           onChange={(e) => setRemarks(e.target.value)}
           disabled={!canEdit}
-          placeholder="Optional notes..."
+          placeholder={t('placeholder.optionalNotes')}
           className="w-full border border-gray-200 rounded p-2 text-sm outline-none"
         />
       </div>
@@ -348,7 +355,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
           disabled={submitting}
           className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2.5 rounded text-sm transition disabled:opacity-60"
         >
-          {submitting ? 'Posting…' : 'POST TRANSACTION'}
+          {submitting ? t('common.posting') : t('form.postTransaction')}
         </button>
       )}
     </form>
@@ -358,7 +365,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
     <>
       <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">From Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
           <input
             type="date"
             id="filter-from-sup"
@@ -368,7 +375,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
           />
         </div>
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">To Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.toDate')}</label>
           <input
             type="date"
             id="filter-to-sup"
@@ -384,7 +391,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
             onClick={handleLoadLedger}
             className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm"
           >
-            Expand / Load Ledger
+            {t('common.expandLoadLedger')}
           </button>
         </div>
       </div>
@@ -393,36 +400,36 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
         <table className="w-full text-left border-collapse text-xs">
           <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
             <tr>
-              <th className="p-2.5">Date</th>
-              <th className="p-2.5">Supplier Name</th>
-              <th className="p-2.5">Purchase</th>
-              <th className="p-2.5">Discount</th>
-              <th className="p-2.5">Paid</th>
-              <th className="p-2.5">Txn Due</th>
-              <th className="p-2.5">Category</th>
-              <th className="p-2.5">Remarks</th>
-              <th className="p-2.5">Logged By</th>
-              <th className="p-2.5">System Stamp</th>
-              <th className="p-2.5 erp-col-actions">Actions</th>
+              <th className="p-2.5">{t('col.date')}</th>
+              <th className="p-2.5">{t('col.supplierName')}</th>
+              <th className="p-2.5">{t('field.purchaseAmount')}</th>
+              <th className="p-2.5">{t('col.discount')}</th>
+              <th className="p-2.5">{t('field.paymentPaidAmount')}</th>
+              <th className="p-2.5">{t('col.txnDue')}</th>
+              <th className="p-2.5">{t('col.category')}</th>
+              <th className="p-2.5">{t('field.remarksReference')}</th>
+              <th className="p-2.5">{t('col.loggedBy')}</th>
+              <th className="p-2.5">{t('col.systemStamp')}</th>
+              <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
             </tr>
           </thead>
           <tbody id="table-sup-txn-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
             {!ledgerLoaded ? (
               <tr>
                 <td colSpan={11} className="p-6 text-center text-gray-500 italic bg-gray-50 border-dashed border-b border-gray-200">
-                  Select date range and click Expand / Load Ledger
+                  {t('ledger.selectDatesPrompt')}
                 </td>
               </tr>
             ) : loadingLedger ? (
               <tr>
                 <td colSpan={11} className="p-4 text-center text-blue-500 font-bold">
-                  Querying transaction ledger…
+                  {t('ledger.querying')}
                 </td>
               </tr>
             ) : filteredTxns.length === 0 ? (
               <tr>
                 <td colSpan={11} className="p-4 text-center text-gray-500 font-bold">
-                  No transactions in selected date range.
+                  {t('ledger.noResultsInRange')}
                 </td>
               </tr>
             ) : (
@@ -448,7 +455,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
                     <td className="p-2.5 font-mono font-bold text-red-600">{fmtMoney(p.txnDue)}</td>
                     <td className="p-2.5">
                       <span className={`px-2 py-0.5 font-bold rounded text-[10px] ${getSupplierTxnCategoryColor(cat)}`}>
-                        {typeLabel}
+                        {getCategoryLabel(typeLabel, t)}
                       </span>
                     </td>
                     <td className="p-2.5 break-words">
@@ -474,9 +481,9 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
 
   return (
     <ModuleLedgerLayout
-      title="Supplier Transaction Ledger"
-      formTitle="Log Supplier Transaction"
-      ledgerTitle="Transaction History Log"
+      title={t('page.supplierTransactions.title')}
+      formTitle={t('form.sup.logTransaction')}
+      ledgerTitle={t('form.sup.historicalLedger')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

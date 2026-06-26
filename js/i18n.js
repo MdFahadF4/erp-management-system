@@ -954,6 +954,7 @@ export const REPORT_OPTION_I18N = {
   receivable_payable: 'report.receivablePayable',
   expense_report: 'report.expenseReport',
   customer_details: 'report.customerDetails',
+  customer_due_balance: 'report.customerDueBalance',
   supplier_details: 'report.supplierDetails',
   hr_details: 'report.hrDetails',
   user_transaction: 'report.userPerformance',

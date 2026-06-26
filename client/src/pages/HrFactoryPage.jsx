@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import { COMPANY_NAME, companyLegalLine } from '../config/company.js';
 import { fetchHrModuleData } from '../services/dataService.js';
 import { finalizeHrFactoryPrintLayout } from '../lib/reportExport.js';
@@ -19,6 +21,7 @@ function formatPrintDateTime() {
 }
 
 export default function HrFactoryPage({ user }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'hr_factory');
   const [activeTab, setActiveTab] = useState('ledger');
   const [hrRecords, setHrRecords] = useState([]);
@@ -84,11 +87,11 @@ export default function HrFactoryPage({ user }) {
 
   const handleExecuteQuery = async () => {
     if (!employee) {
-      alert('Please select an employee.');
+      alert(t('report.alertSelectTarget'));
       return;
     }
     if (!fromDate || !toDate) {
-      alert('Please select both From and To dates.');
+      alert(t('alert.selectBothDates'));
       return;
     }
 
@@ -104,13 +107,13 @@ export default function HrFactoryPage({ user }) {
       const label = selected ? `${selected.name} (${selected.designation})` : employee;
       const { fDate, tDate } = buildHrDetailsDateRange(fromDate, toDate);
       setReportMeta({
-        title: 'Factory Details Report',
-        dateRange: `${fDate.toLocaleDateString()} to ${tDate.toLocaleDateString()}`,
+        title: t('hrFactory.tabDetails'),
+        dateRange: t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() }),
         target: label,
         printedAt: formatPrintDateTime()
       });
     } catch {
-      alert('Failed to load factory details report.');
+      alert(t('hrFactory.detailsLoadFailed'));
       setReportData(null);
     } finally {
       setReportLoading(false);
@@ -119,7 +122,7 @@ export default function HrFactoryPage({ user }) {
 
   const handlePrint = () => {
     if (!reportVisible || !reportData) {
-      alert('Run a query first.');
+      alert(t('report.runQueryFirst'));
       return;
     }
     document.body.classList.add('erp-print-hr-factory');
@@ -138,16 +141,14 @@ export default function HrFactoryPage({ user }) {
   return (
     <div id="hr-factory-root" className="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div className="border-b border-gray-200 pb-3">
-        <h2 className="text-2xl font-bold text-gray-800">HR Factory</h2>
-        <p className="text-xs text-gray-500 mt-1">
-          Factory-designation personnel — master ledger list and date-wise details report.
-        </p>
+        <h2 className="text-2xl font-bold text-gray-800">{t('page.hrFactory.title')}</h2>
+        <p className="text-xs text-gray-500 mt-1">{t('page.hrFactory.subtitle')}</p>
         <div className="hr-factory-tab-bar flex flex-wrap gap-2 mt-4">
           <button type="button" className={tabClass('ledger')} onClick={() => setActiveTab('ledger')}>
-            Factory Ledger
+            {t('hrFactory.tabLedger')}
           </button>
           <button type="button" className={tabClass('details')} onClick={() => setActiveTab('details')}>
-            Factory Details Report
+            {t('hrFactory.tabDetails')}
           </button>
         </div>
       </div>
@@ -155,36 +156,36 @@ export default function HrFactoryPage({ user }) {
       {activeTab === 'ledger' && (
         <div id="hr-factory-panel-ledger" className="bg-white p-4 md:p-5 rounded-xl shadow border border-gray-200 flex flex-col w-full">
           <h3 className="text-md font-bold text-gray-700 mb-3 uppercase tracking-wider">
-            Factory Personnel Ledger
+            {t('page.hrFactory.ledgerTitle')}
           </h3>
           <div className="erp-ledger-wrap overflow-x-auto border border-gray-200 rounded-lg">
             <table className="w-full text-left border-collapse text-xs">
               <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap sticky top-0 z-[1]">
                 <tr>
-                  <th className="p-2.5">Employee Name</th>
-                  <th className="p-2.5">Designation</th>
-                  <th className="p-2.5">Join Date</th>
-                  <th className="p-2.5">Start Sal</th>
-                  <th className="p-2.5">Increment</th>
-                  <th className="p-2.5">Current Sal</th>
-                  <th className="p-2.5">Total Earn</th>
-                  <th className="p-2.5">Paid</th>
-                  <th className="p-2.5">Due/Balance</th>
-                  <th className="p-2.5">Status</th>
-                  <th className="p-2.5 erp-col-actions">Actions</th>
+                  <th className="p-2.5">{t('col.employeeName')}</th>
+                  <th className="p-2.5">{t('col.designation')}</th>
+                  <th className="p-2.5">{t('col.joinDate')}</th>
+                  <th className="p-2.5">{t('col.startSal')}</th>
+                  <th className="p-2.5">{t('col.increment')}</th>
+                  <th className="p-2.5">{t('col.currentSal')}</th>
+                  <th className="p-2.5">{t('col.totalEarn')}</th>
+                  <th className="p-2.5">{t('col.paid')}</th>
+                  <th className="p-2.5">{t('col.dueBalance')}</th>
+                  <th className="p-2.5">{t('col.status')}</th>
+                  <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
                 </tr>
               </thead>
               <tbody id="table-hr-factory-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
                 {loading ? (
                   <tr>
                     <td colSpan={11} className="p-3 text-center text-gray-400">
-                      Querying factory ledger…
+                      {t('hrFactory.queryingLedger')}
                     </td>
                   </tr>
                 ) : factoryRows.length === 0 ? (
                   <tr>
                     <td colSpan={11} className="p-3 text-center text-gray-400">
-                      No factory-designation employees found. Add staff with &quot;factory&quot; in designation.
+                      {t('hrFactory.noEntries')}
                     </td>
                   </tr>
                 ) : (
@@ -201,14 +202,14 @@ export default function HrFactoryPage({ user }) {
                       <td className="p-2.5 font-mono font-bold text-red-600">{fmtMoney(row.dbDue)}</td>
                       <td className="p-2.5">
                         <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full ${row.badgeClass}`}>
-                          {row.status}
+                          {getCategoryLabel(row.status, t)}
                         </span>
                       </td>
                       <td className="p-2.5 erp-col-actions">
                         {row.canEdit ? (
-                          <span className="text-gray-400 text-[10px] italic">Edit (soon)</span>
+                          <span className="text-gray-400 text-[10px] italic">{t('common.edit')}</span>
                         ) : (
-                          <span className="text-gray-300 italic text-[10px]">Locked</span>
+                          <span className="text-gray-300 italic text-[10px]">{t('common.locked')}</span>
                         )}
                       </td>
                     </tr>
@@ -218,7 +219,7 @@ export default function HrFactoryPage({ user }) {
             </table>
           </div>
           <p id="hr-factory-count" className="text-[11px] text-gray-500 mt-2 font-medium">
-            {!loading && factoryRows.length > 0 ? `Total factory workers: ${factoryRows.length}` : ''}
+            {!loading && factoryRows.length > 0 ? t('hrFactory.totalWorkers', { total: factoryRows.length }) : ''}
           </p>
         </div>
       )}
@@ -227,7 +228,7 @@ export default function HrFactoryPage({ user }) {
         <div id="hr-factory-panel-details" className="space-y-4">
           <div className="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-mobile-filter-bar">
             <div className="w-full md:flex-1 md:min-w-[180px]">
-              <label className="block text-gray-600 font-bold mb-1">Select Employee</label>
+              <label className="block text-gray-600 font-bold mb-1">{t('report.selectEmployee')}</label>
               <select
                 id="hr-factory-details-employee"
                 value={employee}
@@ -235,7 +236,7 @@ export default function HrFactoryPage({ user }) {
                 className="w-full border border-gray-200 rounded p-2.5 outline-none bg-white focus:border-amber-500 text-sm font-medium"
               >
                 <option value="">
-                  {employeeOptions.length === 0 ? 'No factory employees' : '-- Select Employee --'}
+                  {employeeOptions.length === 0 ? t('hrFactory.noEntries') : t('dropdown.chooseEmployee')}
                 </option>
                 {employeeOptions.map((opt) => (
                   <option key={opt.name} value={opt.name}>
@@ -245,7 +246,7 @@ export default function HrFactoryPage({ user }) {
               </select>
             </div>
             <div className="w-full md:flex-1 md:min-w-[120px]">
-              <label className="block text-gray-600 font-bold mb-1">From Date</label>
+              <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
               <input
                 type="date"
                 id="hr-factory-details-from"
@@ -255,7 +256,7 @@ export default function HrFactoryPage({ user }) {
               />
             </div>
             <div className="w-full md:flex-1 md:min-w-[120px]">
-              <label className="block text-gray-600 font-bold mb-1">To Date</label>
+              <label className="block text-gray-600 font-bold mb-1">{t('common.toDate')}</label>
               <input
                 type="date"
                 id="hr-factory-details-to"
@@ -271,7 +272,7 @@ export default function HrFactoryPage({ user }) {
                 onClick={handleExecuteQuery}
                 className="w-full md:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]"
               >
-                Execute Query
+                {t('common.executeQuery')}
               </button>
             </div>
           </div>
@@ -287,7 +288,7 @@ export default function HrFactoryPage({ user }) {
                   onClick={handlePrint}
                   className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-2 rounded text-xs transition shadow-sm"
                 >
-                  Print
+                  {t('common.print')}
                 </button>
               </div>
 
@@ -311,7 +312,7 @@ export default function HrFactoryPage({ user }) {
                         id="hr-factory-report-title-display"
                         className="text-base md:text-xl font-bold text-gray-800 mt-3 uppercase tracking-wide"
                       >
-                        {reportMeta?.title || 'Factory Details Report'}
+                        {reportMeta?.title || t('hrFactory.tabDetails')}
                       </h2>
                       <p id="hr-factory-report-date-display" className="text-xs md:text-sm font-medium text-gray-500 mt-1">
                         {reportMeta?.dateRange}
@@ -320,7 +321,7 @@ export default function HrFactoryPage({ user }) {
                         {reportMeta?.target}
                       </p>
                       <p id="hr-factory-report-print-datetime" className="text-[10px] text-gray-500 mt-2">
-                        Printed: {reportMeta?.printedAt}
+                        {t('report.printedOn')}: {reportMeta?.printedAt}
                       </p>
                     </div>
                     <div
@@ -332,7 +333,7 @@ export default function HrFactoryPage({ user }) {
                 </div>
 
                 {reportLoading ? (
-                  <div className="p-6 text-center text-blue-500 font-bold animate-pulse">Running query…</div>
+                  <div className="p-6 text-center text-blue-500 font-bold animate-pulse">{t('report.runningQuery')}</div>
                 ) : reportData ? (
                   <>
                     <div id="hr-factory-details-summary" className="grid grid-cols-1 mb-6">
@@ -340,7 +341,7 @@ export default function HrFactoryPage({ user }) {
                         <div className="flex flex-wrap justify-between border-b border-gray-100 pb-4 gap-4">
                           <div className="text-left">
                             <div className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-                              Lifetime Total Earned
+                              {t('report.lifetimeTotalEarnedDue')}
                             </div>
                             <div className="text-2xl font-black text-blue-600 font-mono mt-1">
                               SAR {fmtMoney(reportData.globalEarn)}
@@ -348,7 +349,7 @@ export default function HrFactoryPage({ user }) {
                           </div>
                           <div className="text-center">
                             <div className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-                              Lifetime Salary Paid
+                              {t('report.lifetimeSalaryPaid')}
                             </div>
                             <div className="text-2xl font-black text-emerald-600 font-mono mt-1">
                               SAR {fmtMoney(reportData.globalPaid)}
@@ -356,7 +357,7 @@ export default function HrFactoryPage({ user }) {
                           </div>
                           <div className="text-right">
                             <div className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-                              Current Due Balance
+                              {t('report.currentDueBalance')}
                             </div>
                             <div
                               className={`text-2xl font-black font-mono mt-1 ${
@@ -370,8 +371,10 @@ export default function HrFactoryPage({ user }) {
                         <div className="flex justify-around bg-gray-50 p-4 rounded-lg flex-wrap gap-4">
                           <div className="text-center">
                             <div className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-                              Range Earned ({reportData.fDate.toLocaleDateString()} –{' '}
-                              {reportData.tDate.toLocaleDateString()})
+                              {t('report.rangeEarnedTo', {
+                                from: reportData.fDate.toLocaleDateString(),
+                                to: reportData.tDate.toLocaleDateString()
+                              })}
                             </div>
                             <div className="text-lg font-bold text-blue-500 font-mono mt-1">
                               SAR {fmtMoney(reportData.hrRangeEarn)}
@@ -379,8 +382,10 @@ export default function HrFactoryPage({ user }) {
                           </div>
                           <div className="text-center">
                             <div className="text-gray-500 text-[10px] font-bold uppercase tracking-wider">
-                              Range Paid ({reportData.fDate.toLocaleDateString()} –{' '}
-                              {reportData.tDate.toLocaleDateString()})
+                              {t('report.rangePaidTo', {
+                                from: reportData.fDate.toLocaleDateString(),
+                                to: reportData.tDate.toLocaleDateString()
+                              })}
                             </div>
                             <div className="text-lg font-bold text-emerald-500 font-mono mt-1">
                               SAR {fmtMoney(reportData.hrRangePaid)}
@@ -394,23 +399,23 @@ export default function HrFactoryPage({ user }) {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start p-3 md:p-4">
                         <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                           <div className="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">
-                            Salary Earned Ledger
+                            {t('report.salaryEarnedLedger')}
                           </div>
                           <div className="erp-report-ledger-wrap overflow-x-auto">
                             <table className="w-full text-left text-xs">
                               <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
                                 <tr>
-                                  <th className="p-2.5 font-semibold">Earned Date</th>
-                                  <th className="p-2.5 font-semibold">Amount</th>
-                                  <th className="p-2.5 font-semibold">Remarks</th>
-                                  <th className="p-2.5 font-semibold">User</th>
+                                  <th className="p-2.5 font-semibold">{t('report.earnedDate')}</th>
+                                  <th className="p-2.5 font-semibold">{t('col.amount')}</th>
+                                  <th className="p-2.5 font-semibold">{t('col.remarks')}</th>
+                                  <th className="p-2.5 font-semibold">{t('report.colUser')}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
                                 {reportData.hrEarns.length === 0 ? (
                                   <tr>
                                     <td colSpan={4} className="p-6 text-center text-gray-400">
-                                      No earnings in selected range.
+                                      {t('report.noEarningsInRange')}
                                     </td>
                                   </tr>
                                 ) : (
@@ -423,7 +428,7 @@ export default function HrFactoryPage({ user }) {
                                         {fmtMoney(s.amt)}
                                         <br />
                                         <span className="text-[9px] text-gray-400 font-normal leading-none">
-                                          {s.type}
+                                          {getCategoryLabel(s.type, t)}
                                         </span>
                                       </td>
                                       <td className="p-2.5 break-words">{s.rem}</td>
@@ -438,23 +443,23 @@ export default function HrFactoryPage({ user }) {
 
                         <div className="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
                           <div className="bg-emerald-50 text-emerald-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-emerald-100 text-center">
-                            Salary Paid Ledger
+                            {t('report.salaryPaidLedger')}
                           </div>
                           <div className="erp-report-ledger-wrap overflow-x-auto">
                             <table className="w-full text-left text-xs">
                               <thead className="bg-gray-50 text-gray-500 border-b border-gray-200">
                                 <tr>
-                                  <th className="p-2.5 font-semibold">Payment Date</th>
-                                  <th className="p-2.5 font-semibold">Amount</th>
-                                  <th className="p-2.5 font-semibold">Remarks</th>
-                                  <th className="p-2.5 font-semibold">User</th>
+                                  <th className="p-2.5 font-semibold">{t('report.paymentDate')}</th>
+                                  <th className="p-2.5 font-semibold">{t('col.amount')}</th>
+                                  <th className="p-2.5 font-semibold">{t('col.remarks')}</th>
+                                  <th className="p-2.5 font-semibold">{t('report.colUser')}</th>
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
                                 {reportData.hrPayments.length === 0 ? (
                                   <tr>
                                     <td colSpan={4} className="p-6 text-center text-gray-400">
-                                      No payments in selected range.
+                                      {t('report.noPaymentsInRange')}
                                     </td>
                                   </tr>
                                 ) : (
@@ -479,7 +484,7 @@ export default function HrFactoryPage({ user }) {
                     </div>
                   </>
                 ) : (
-                  <div className="p-6 text-center text-red-500 font-bold">Failed to load report.</div>
+                  <div className="p-6 text-center text-red-500 font-bold">{t('hrFactory.detailsLoadFailed')}</div>
                 )}
               </div>
             </>

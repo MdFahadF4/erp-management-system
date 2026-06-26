@@ -287,6 +287,9 @@ export const REPORT_EN = {
   'alert.unauthorizedModule': 'You no longer have access to this module. Redirecting to your allowed workspace.',
   'alert.viewOnlyModule': 'You have view-only access to this module. Editing is not permitted.',
   'alert.updateSuccess': 'Transaction updated successfully.',
+  'alert.updateFailed': 'Failed to update transaction.',
+  'alert.recordIdMissing': 'Could not resolve record ID.',
+  'alert.errorSavingTxn': 'Error saving transaction.',
   'alert.deleteSuccess': 'Transaction deleted successfully.',
   'alert.deleteFailed': 'Failed to delete transaction.',
 

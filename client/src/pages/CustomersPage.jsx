@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import MasterRecordActions, { runMasterDelete } from '../components/MasterRecordActions.jsx';
 import { CustomerEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchCustomerModuleData } from '../services/dataService.js';
@@ -17,6 +19,7 @@ function todayIso() {
 }
 
 export default function CustomersPage({ user, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'customers');
   const [customers, setCustomers] = useState([]);
   const [customerTxns, setCustomerTxns] = useState([]);
@@ -72,7 +75,7 @@ export default function CustomersPage({ user, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
     setSubmitting(true);
@@ -106,7 +109,7 @@ export default function CustomersPage({ user, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error committing customer sale.');
+      alert(t('alert.errorCommit'));
     } finally {
       setSubmitting(false);
     }
@@ -115,7 +118,7 @@ export default function CustomersPage({ user, onDataChange }) {
   const formContent = (
     <form id="form-cust-entry" className="space-y-2.5 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Sale / Issue Date</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.saleIssueDate')}</label>
         <input
           type="date"
           id="cust-issue-date"
@@ -127,7 +130,7 @@ export default function CustomersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Invoice / Memo Number</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.invoiceMemoNumber')}</label>
         <input
           type="text"
           id="cust-memo"
@@ -135,12 +138,12 @@ export default function CustomersPage({ user, onDataChange }) {
           value={memo}
           onChange={(e) => setMemo(e.target.value)}
           disabled={!canEdit}
-          placeholder="e.g. INV-5501"
+          placeholder={t('placeholder.memoExample')}
           className="w-full border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Customer Name</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.customerName')}</label>
         <input
           type="text"
           id="cust-name"
@@ -152,7 +155,7 @@ export default function CustomersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Mobile Contact</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.mobileContact')}</label>
         <input
           type="text"
           id="cust-mobile"
@@ -163,7 +166,7 @@ export default function CustomersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Email Address</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.emailAddress')}</label>
         <input
           type="email"
           id="cust-email"
@@ -174,7 +177,7 @@ export default function CustomersPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Physical Address</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.physicalAddress')}</label>
         <input
           type="text"
           id="cust-address"
@@ -185,7 +188,7 @@ export default function CustomersPage({ user, onDataChange }) {
         />
       </div>
       <div className="border-t border-gray-100 pt-2 mt-2">
-        <label className="block font-bold text-gray-500 mb-0.5">Total Gross Sell Amount</label>
+        <label className="block font-bold text-gray-500 mb-0.5">{t('field.totalGrossSell')}</label>
         <input
           type="number"
           id="cust-sell"
@@ -197,26 +200,26 @@ export default function CustomersPage({ user, onDataChange }) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Cash Paid Amt</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.cashPaidAmt')}</label>
           <input type="number" id="cust-cash" value={cash.toFixed(2)} readOnly tabIndex={-1} className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono" />
         </div>
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Card Paid Amt</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.cardPaidAmt')}</label>
           <input type="number" id="cust-card" value={card.toFixed(2)} readOnly tabIndex={-1} className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono" />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Total Received</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.totalReceived')}</label>
           <input type="number" id="cust-received" value={received.toFixed(2)} readOnly className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 font-semibold text-gray-700 outline-none text-sm font-mono" />
         </div>
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Discount Issued</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.discountIssued')}</label>
           <input type="number" id="cust-discount" value={discount.toFixed(2)} readOnly tabIndex={-1} className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono" />
         </div>
       </div>
       <div>
-        <label className="block font-bold text-red-600 mb-0.5">Outstanding Balance Due</label>
+        <label className="block font-bold text-red-600 mb-0.5">{t('field.outstandingBalanceDue')}</label>
         <input type="number" id="cust-due" value={due.toFixed(2)} readOnly className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 font-bold text-red-600 outline-none text-sm font-mono" />
       </div>
       {canEdit && (
@@ -225,7 +228,7 @@ export default function CustomersPage({ user, onDataChange }) {
           disabled={submitting}
           className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-2 rounded text-sm transition tracking-wider disabled:opacity-60"
         >
-          {submitting ? 'Saving…' : 'COMMIT CUSTOMER SALE'}
+          {submitting ? t('common.saving') : t('form.cust.commitSale')}
         </button>
       )}
     </form>
@@ -236,29 +239,29 @@ export default function CustomersPage({ user, onDataChange }) {
       <table className="w-full text-left border-collapse text-xs">
         <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
           <tr>
-            <th className="p-2.5">System Unique ID</th>
-            <th className="p-2.5">Customer Name</th>
-            <th className="p-2.5">Memo #</th>
-            <th className="p-2.5">Total Sell</th>
-            <th className="p-2.5">Cash Amt</th>
-            <th className="p-2.5">Card Amt</th>
-            <th className="p-2.5">Received</th>
-            <th className="p-2.5">Discount</th>
-            <th className="p-2.5">Due Balance</th>
-            <th className="p-2.5 erp-col-actions">Actions</th>
+            <th className="p-2.5">{t('col.systemUniqueId')}</th>
+            <th className="p-2.5">{t('field.customerName')}</th>
+            <th className="p-2.5">{t('col.memo')}</th>
+            <th className="p-2.5">{t('col.totalSell')}</th>
+            <th className="p-2.5">{t('col.cashAmt')}</th>
+            <th className="p-2.5">{t('col.cardAmt')}</th>
+            <th className="p-2.5">{t('col.received')}</th>
+            <th className="p-2.5">{t('col.discount')}</th>
+            <th className="p-2.5">{t('col.dueBalance')}</th>
+            <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
           </tr>
         </thead>
         <tbody id="table-cust-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
           {loading ? (
             <tr>
               <td colSpan={10} className="p-3 text-center text-gray-400">
-                Loading customer matrix…
+                {t('cust.loadingMatrix')}
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={10} className="p-3 text-center text-gray-400">
-                No customer invoices found.
+                {t('cust.noInvoices')}
               </td>
             </tr>
           ) : (
@@ -306,9 +309,9 @@ export default function CustomersPage({ user, onDataChange }) {
   return (
     <>
     <ModuleLedgerLayout
-      title="Customer Accounts Matrix"
-      formTitle="New Customer Sales Entry"
-      ledgerTitle="Customer Master Invoice Ledger"
+      title={t('page.customers.title')}
+      formTitle={t('form.cust.newSalesEntry')}
+      ledgerTitle={t('form.cust.masterLedger')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

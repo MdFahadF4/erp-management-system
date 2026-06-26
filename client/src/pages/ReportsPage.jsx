@@ -1,4 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { REPORT_OPTION_I18N } from '../../../js/i18n.js';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import { COMPANY_NAME, getCompanyLegalLine } from '../config/company.js';
 import { initReportsSystem } from '../lib/reportsEngine.js';
 import { initReportExportButtons } from '../lib/reportExport.js';
@@ -9,7 +11,14 @@ function todayIsoDate() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
+const REPORT_OPTIONS = [
+  ...Object.entries(REPORT_OPTION_I18N).map(([value, key]) => ({ value, key })),
+  { value: 'customer_due_balance', key: 'report.customerDueBalance' }
+];
+
 export default function ReportsPage() {
+  const { t } = useI18n();
+
   useEffect(() => {
     const fromEl = document.getElementById('report-from');
     const toEl = document.getElementById('report-to');
@@ -20,18 +29,20 @@ export default function ReportsPage() {
     initReportExportButtons();
   }, []);
 
+  const reportOptions = useMemo(() => REPORT_OPTIONS, []);
+
   return (
     <div className="space-y-4 md:space-y-6 erp-module-page pb-6">
       <div className="erp-report-tools print:hidden">
         <div className="border-b pb-3 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
-          <h2 className="text-lg md:text-2xl font-bold text-gray-800">Enterprise Reporting System</h2>
+          <h2 className="text-lg md:text-2xl font-bold text-gray-800">{t('page.reports.title')}</h2>
           <div className="flex flex-wrap gap-2 w-full sm:w-auto">
             <button
               id="btn-report-print"
               type="button"
               className="flex-1 sm:flex-none bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-2 rounded text-xs transition shadow-sm"
             >
-              Print
+              {t('common.print')}
             </button>
             <button
               id="btn-report-pdf"
@@ -69,39 +80,28 @@ export default function ReportsPage() {
           className="bg-gray-50 border border-gray-200 p-3 md:p-4 rounded-lg mt-3 md:mt-4 mb-2 md:mb-0 flex flex-col md:flex-row md:flex-wrap md:items-end gap-3 md:gap-4 text-xs shadow-inner erp-report-filters"
         >
           <div className="w-full md:flex-1 md:min-w-[200px]">
-            <label className="block text-gray-600 font-bold mb-1">Select Master Report</label>
+            <label className="block text-gray-600 font-bold mb-1">{t('common.selectMasterReport')}</label>
             <select
               id="report-type"
               className="w-full border rounded p-2.5 outline-none bg-white focus:border-blue-500 font-medium text-sm"
               defaultValue=""
             >
-              <option value="">-- Choose Report Type --</option>
-              <option value="daily_monthly">Daily / Monthly Aggregate Report</option>
-              <option value="daily_cashflow">Daily Accounts Cash Flow (IN &amp; OUT)</option>
-              <option value="pnl">Profit &amp; Loss Report</option>
-              <option value="receivable_payable">Receivable and Payable Report</option>
-              <option value="expense_report">Expense Report</option>
-              <option value="customer_details" className="font-bold text-blue-600">
-                Customer Details Report (Statement)
-              </option>
-              <option value="customer_due_balance" className="font-bold text-red-600">
-                Customer Due/Balance Report
-              </option>
-              <option value="supplier_details">Supplier Details Report</option>
-              <option value="hr_details">HR Details Report</option>
-              <option value="user_transaction">User Sells Performance Report</option>
-              <option value="individual_user">Individual User Report</option>
-              <option value="expense_details">Expense Details Report</option>
-              <option value="creditor_details">Creditor Details Report</option>
-              <option value="master_executive">Master Executive Dashboard</option>
-              <option value="income_details">Income Details Report</option>
-              <option value="capital_details">Capital Details Report</option>
+              <option value="">{t('common.chooseReport')}</option>
+              {reportOptions.map((opt) => (
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  className={opt.value === 'customer_details' || opt.value === 'customer_due_balance' ? 'font-bold' : undefined}
+                >
+                  {t(opt.key)}
+                </option>
+              ))}
             </select>
           </div>
 
           <div className="w-full md:flex-1 md:min-w-[150px] hidden" id="report-secondary-filter-container">
             <label className="block text-gray-600 font-bold mb-1" id="report-secondary-label">
-              Specific Target
+              {t('report.specificTarget')}
             </label>
             <select
               id="report-secondary-filter"
@@ -110,7 +110,7 @@ export default function ReportsPage() {
           </div>
 
           <div className="w-full md:flex-1 md:min-w-[120px]">
-            <label className="block text-gray-600 font-bold mb-1">From Date</label>
+            <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
             <input
               type="date"
               id="report-from"
@@ -119,14 +119,14 @@ export default function ReportsPage() {
             />
           </div>
           <div className="w-full md:flex-1 md:min-w-[120px]">
-            <label className="block text-gray-600 font-bold mb-1">To Date</label>
+            <label className="block text-gray-600 font-bold mb-1">{t('common.toDate')}</label>
             <input type="date" id="report-to" defaultValue={todayIsoDate()} className="w-full border rounded p-2.5 outline-none focus:border-blue-500 text-sm" />
           </div>
           <div id="report-date-filter-wrap" className="w-full md:flex-1 md:min-w-[170px] hidden">
-            <label className="block text-gray-600 font-bold mb-1">Date Filter</label>
+            <label className="block text-gray-600 font-bold mb-1">{t('report.dateFilter')}</label>
             <label className="flex items-center gap-2 border rounded p-2.5 bg-white cursor-pointer min-h-[44px]">
               <input type="checkbox" id="report-use-date-filter" className="rounded" />
-              <span className="text-gray-600 font-bold text-[11px] leading-tight">Apply date range filter</span>
+              <span className="text-gray-600 font-bold text-[11px] leading-tight">{t('report.applyDateRangeFilter')}</span>
             </label>
           </div>
           <div className="w-full md:w-auto">
@@ -135,7 +135,7 @@ export default function ReportsPage() {
               type="button"
               className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2.5 rounded transition shadow-sm min-h-[44px]"
             >
-              Execute Query
+              {t('common.executeQuery')}
             </button>
           </div>
         </div>
@@ -154,10 +154,10 @@ export default function ReportsPage() {
                 {getCompanyLegalLine()}
               </p>
               <h2 className="text-base md:text-xl font-bold text-gray-800 mt-3 uppercase tracking-wide" id="report-title-display">
-                Report Name
+                {t('report.reportName')}
               </h2>
               <p className="text-xs md:text-sm font-medium text-gray-500 mt-1" id="report-date-display">
-                Date Range:{' '}
+                {t('report.dateRangeLabel')}{' '}
               </p>
               <p className="text-[10px] md:text-xs text-gray-400 mt-1 break-words" id="report-target-display" />
               <p className="text-[10px] text-gray-500 mt-2" id="report-print-datetime" />
@@ -179,7 +179,7 @@ export default function ReportsPage() {
               >
                 <tr>
                   <th className="p-3 text-center text-gray-300 font-normal normal-case">
-                    Select parameters and execute query to build report.
+                    {t('report.selectParamsExecute')}
                   </th>
                 </tr>
               </thead>

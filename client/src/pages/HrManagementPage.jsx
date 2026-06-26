@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getCategoryLabel } from '../../../js/i18n.js';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import MasterRecordActions, { runMasterDelete } from '../components/MasterRecordActions.jsx';
 import { HrEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchHrModuleData } from '../services/dataService.js';
@@ -10,6 +12,7 @@ import { userCanEditModule } from '../utils/userSession.js';
 const STATUS_OPTIONS = ['Active', 'Vacation', 'Inactive', 'Released'];
 
 export default function HrManagementPage({ user, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'hr');
   const [hrRecords, setHrRecords] = useState([]);
   const [hrTxns, setHrTxns] = useState([]);
@@ -63,7 +66,7 @@ export default function HrManagementPage({ user, onDataChange }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!canEdit) {
-      alert('You do not have permission to edit this module.');
+      alert(t('alert.noPermission'));
       return;
     }
     setSubmitting(true);
@@ -98,7 +101,7 @@ export default function HrManagementPage({ user, onDataChange }) {
   const formContent = (
     <form id="form-hr-entry" className="space-y-3 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Employee Name</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.employeeName')}</label>
         <input
           type="text"
           id="hr-name"
@@ -110,7 +113,7 @@ export default function HrManagementPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Designation (Manual Write)</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.designationManual')}</label>
         <input
           type="text"
           id="hr-designation"
@@ -122,7 +125,7 @@ export default function HrManagementPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Date of Joining</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.dateOfJoining')}</label>
         <input
           type="date"
           id="hr-joining"
@@ -135,7 +138,7 @@ export default function HrManagementPage({ user, onDataChange }) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block font-bold text-gray-600 mb-0.5">Salary Start</label>
+          <label className="block font-bold text-gray-600 mb-0.5">{t('field.salaryStart')}</label>
           <input
             type="number"
             id="hr-sal-start"
@@ -147,7 +150,7 @@ export default function HrManagementPage({ user, onDataChange }) {
           />
         </div>
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Increment Amount</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.incrementAmount')}</label>
           <input
             type="number"
             id="hr-sal-inc"
@@ -159,7 +162,7 @@ export default function HrManagementPage({ user, onDataChange }) {
         </div>
       </div>
       <div>
-        <label className="block font-bold text-gray-500 mb-0.5">Current Salary</label>
+        <label className="block font-bold text-gray-500 mb-0.5">{t('field.currentSalary')}</label>
         <input
           type="number"
           id="hr-sal-current"
@@ -170,16 +173,16 @@ export default function HrManagementPage({ user, onDataChange }) {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Total Earn Earning</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.totalEarnEarning')}</label>
           <input type="number" id="hr-earn" value="0" readOnly tabIndex={-1} className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono" />
         </div>
         <div>
-          <label className="block font-bold text-gray-500 mb-0.5">Paid Salary</label>
+          <label className="block font-bold text-gray-500 mb-0.5">{t('field.paidSalary')}</label>
           <input type="number" id="hr-paid" value="0" readOnly tabIndex={-1} className="w-full border border-gray-200 rounded p-1.5 bg-gray-50 outline-none text-sm font-mono" />
         </div>
       </div>
       <div>
-        <label className="block font-bold text-gray-500 mb-0.5">Due Balance Salary</label>
+        <label className="block font-bold text-gray-500 mb-0.5">{t('field.dueBalanceSalary')}</label>
         <input
           type="number"
           id="hr-due"
@@ -189,7 +192,7 @@ export default function HrManagementPage({ user, onDataChange }) {
         />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-0.5">Employment Status</label>
+        <label className="block font-bold text-gray-600 mb-0.5">{t('field.employmentStatus')}</label>
         <select
           id="hr-status"
           value={status}
@@ -199,7 +202,7 @@ export default function HrManagementPage({ user, onDataChange }) {
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt} value={opt}>
-              {opt}
+              {getCategoryLabel(opt, t)}
             </option>
           ))}
         </select>
@@ -210,7 +213,7 @@ export default function HrManagementPage({ user, onDataChange }) {
           disabled={submitting}
           className="erp-submit-btn w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold p-2 rounded text-sm transition disabled:opacity-60"
         >
-          {submitting ? 'Saving…' : 'COMMIT STAFF ENTITY'}
+          {submitting ? t('common.saving') : t('form.hr.commitStaff')}
         </button>
       )}
     </form>
@@ -221,30 +224,30 @@ export default function HrManagementPage({ user, onDataChange }) {
       <table className="w-full text-left border-collapse text-xs">
         <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
           <tr>
-            <th className="p-2.5">Employee Name</th>
-            <th className="p-2.5">Designation</th>
-            <th className="p-2.5">Join Date</th>
-            <th className="p-2.5">Start Sal</th>
-            <th className="p-2.5">Increment</th>
-            <th className="p-2.5">Current Sal</th>
-            <th className="p-2.5">Total Earn</th>
-            <th className="p-2.5">Paid</th>
-            <th className="p-2.5">Due/Balance</th>
-            <th className="p-2.5">Status</th>
-            <th className="p-2.5 erp-col-actions">Actions</th>
+            <th className="p-2.5">{t('col.employeeName')}</th>
+            <th className="p-2.5">{t('col.designation')}</th>
+            <th className="p-2.5">{t('col.joinDate')}</th>
+            <th className="p-2.5">{t('col.startSal')}</th>
+            <th className="p-2.5">{t('col.increment')}</th>
+            <th className="p-2.5">{t('col.currentSal')}</th>
+            <th className="p-2.5">{t('col.totalEarn')}</th>
+            <th className="p-2.5">{t('col.paid')}</th>
+            <th className="p-2.5">{t('col.dueBalance')}</th>
+            <th className="p-2.5">{t('col.status')}</th>
+            <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
           </tr>
         </thead>
         <tbody id="table-hr-rows" className="divide-y divide-gray-100 text-gray-600 font-medium">
           {loading ? (
             <tr>
               <td colSpan={11} className="p-3 text-center text-gray-400">
-                Querying personnel ledger…
+                {t('hr.queryingLedger')}
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
               <td colSpan={11} className="p-3 text-center text-gray-400">
-                No HR entries found.
+                {t('hr.noEntries')}
               </td>
             </tr>
           ) : (
@@ -295,9 +298,9 @@ export default function HrManagementPage({ user, onDataChange }) {
   return (
     <>
     <ModuleLedgerLayout
-      title="HR Ledger & Payroll Management"
-      formTitle="New Employee Entry"
-      ledgerTitle="Personnel Database Records"
+      title={t('page.hr.title')}
+      formTitle={t('page.hr.newEmployee')}
+      ledgerTitle={t('page.hr.personnelRecords')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

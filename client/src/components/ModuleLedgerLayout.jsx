@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 
 function isMobileViewport() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
 }
 
 export default function ModuleLedgerLayout({ title, formTitle, ledgerTitle, formContent, ledgerContent }) {
+  const { t } = useI18n();
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(isMobileViewport);
   const ledgerRef = useRef(null);
@@ -34,12 +36,12 @@ export default function ModuleLedgerLayout({ title, formTitle, ledgerTitle, form
     setLedgerOpen((prev) => !prev);
   };
 
-  let toggleLabel = 'Ledger View';
+  let toggleLabel = t('common.ledgerView');
   let toggleClass = 'bg-slate-800 hover:bg-slate-900';
   if (isMobile || ledgerOpen) {
-    toggleLabel = ledgerOpen ? 'Back to Form' : 'Ledger View';
+    toggleLabel = ledgerOpen ? t('common.backToForm') : t('common.ledgerView');
   } else if (ledgerOpen) {
-    toggleLabel = 'Hide Ledger';
+    toggleLabel = t('common.hideLedger');
     toggleClass = 'bg-blue-600 hover:bg-blue-700';
   }
 

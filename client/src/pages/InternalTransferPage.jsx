@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import { createRecord, fetchInternalTransfers, fetchUsers } from '../services/dataService.js';
 import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
 import { filterRecordsByDateRange, defaultDateRange } from '../lib/hrEngine.js';
@@ -11,6 +12,7 @@ function todayIso() {
 }
 
 export default function InternalTransferPage({ user, onDataChange }) {
+  const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'internal_transfer');
   const [records, setRecords] = useState([]);
   const [users, setUsers] = useState([]);
@@ -42,7 +44,7 @@ export default function InternalTransferPage({ user, onDataChange }) {
     if (!canEdit) return;
     const norm = (s) => String(s || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     if (toUser && norm(toUser) === norm(user.username)) {
-      alert('Cannot transfer to yourself.');
+      alert(t('alert.cannotTransferToSelf'));
       return;
     }
     setSubmitting(true);
@@ -65,7 +67,7 @@ export default function InternalTransferPage({ user, onDataChange }) {
         onDataChange?.();
       }
     } catch {
-      alert('Error logging transfer.');
+      alert(t('alert.errorLog'));
     } finally {
       setSubmitting(false);
     }
@@ -76,20 +78,28 @@ export default function InternalTransferPage({ user, onDataChange }) {
     onDataChange?.();
   };
 
+  const handleLoadLedger = () => {
+    if (!filterFrom || !filterTo) {
+      alert(t('alert.selectBothDates'));
+      return;
+    }
+    setLedgerLoaded(true);
+  };
+
   const formContent = (
     <form className="space-y-4 text-xs" onSubmit={handleSubmit}>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Transfer Date</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.transferDate')}</label>
         <input type="date" required value={txnDate} onChange={(e) => setTxnDate(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
       </div>
       <div>
-        <label className="block font-bold text-emerald-700 mb-1">Transfer Cash Amount</label>
+        <label className="block font-bold text-emerald-700 mb-1">{t('field.transferCashAmount')}</label>
         <input type="number" step="0.01" required value={amount} onChange={(e) => setAmount(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm font-mono font-bold outline-none" />
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Transfer To User</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.transferToUser')}</label>
         <select value={toUser} onChange={(e) => setToUser(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 bg-white text-sm outline-none">
-          <option value="">Owner / external handover (optional)</option>
+          <option value="">{t('placeholder.transferToUserOptional')}</option>
           {users.map((u) => {
             const name = getCol(u, ['Username', 'User Name']) || '';
             return (
@@ -101,12 +111,12 @@ export default function InternalTransferPage({ user, onDataChange }) {
         </select>
       </div>
       <div>
-        <label className="block font-bold text-gray-600 mb-1">Description / Narrative Note</label>
+        <label className="block font-bold text-gray-600 mb-1">{t('field.descriptionNarrative')}</label>
         <textarea rows={3} required value={desc} onChange={(e) => setDesc(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
       </div>
       {canEdit && (
         <button type="submit" disabled={submitting} className="erp-submit-btn w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold p-2.5 rounded text-sm transition disabled:opacity-60">
-          EXECUTE CASH HANDOVER
+          {t('form.int.executeHandover')}
         </button>
       )}
     </form>
@@ -116,16 +126,16 @@ export default function InternalTransferPage({ user, onDataChange }) {
     <>
       <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">From Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
           <input type="date" value={filterFrom} onChange={(e) => setFilterFrom(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none" />
         </div>
         <div className="flex-1 min-w-[120px]">
-          <label className="block text-gray-600 font-bold mb-1">To Date</label>
+          <label className="block text-gray-600 font-bold mb-1">{t('common.toDate')}</label>
           <input type="date" value={filterTo} onChange={(e) => setFilterTo(e.target.value)} className="w-full border border-gray-200 rounded p-2 outline-none" />
         </div>
         <div>
-          <button type="button" onClick={() => setLedgerLoaded(true)} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">
-            Expand / Load Ledger
+          <button type="button" onClick={handleLoadLedger} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded transition shadow-sm">
+            {t('common.expandLoadLedger')}
           </button>
         </div>
       </div>
@@ -133,20 +143,26 @@ export default function InternalTransferPage({ user, onDataChange }) {
         <table className="w-full text-left border-collapse text-xs">
           <thead className="bg-gray-100 font-bold text-gray-600 uppercase border-b border-gray-200 whitespace-nowrap">
             <tr>
-              <th className="p-2.5">Date</th>
-              <th className="p-2.5">Amount</th>
-              <th className="p-2.5">Description</th>
-              <th className="p-2.5">From</th>
-              <th className="p-2.5">To</th>
-              <th className="p-2.5">Stamp</th>
-              <th className="p-2.5 erp-col-actions">Actions</th>
+              <th className="p-2.5">{t('col.date')}</th>
+              <th className="p-2.5">{t('col.transferAmount')}</th>
+              <th className="p-2.5">{t('col.descriptionPurpose')}</th>
+              <th className="p-2.5">{t('col.transferredBy')}</th>
+              <th className="p-2.5">{t('col.transferToUser')}</th>
+              <th className="p-2.5">{t('col.systemStamp')}</th>
+              <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {!ledgerLoaded ? (
               <tr>
                 <td colSpan={7} className="p-6 text-center text-gray-500 italic">
-                  Select dates and load ledger
+                  {t('ledger.selectDatesPrompt')}
+                </td>
+              </tr>
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="p-4 text-center text-gray-500 font-bold">
+                  {t('ledger.noHandovers')}
                 </td>
               </tr>
             ) : (
@@ -175,9 +191,9 @@ export default function InternalTransferPage({ user, onDataChange }) {
 
   return (
     <ModuleLedgerLayout
-      title="Internal Cash Handover Transfer"
-      formTitle="Log Transfer to Owner"
-      ledgerTitle="Historical Cash Transfer Ledger"
+      title={t('page.internalTransfer.title')}
+      formTitle={t('form.int.logTransfer')}
+      ledgerTitle={t('form.int.historicalTransfer')}
       formContent={formContent}
       ledgerContent={ledgerContent}
     />

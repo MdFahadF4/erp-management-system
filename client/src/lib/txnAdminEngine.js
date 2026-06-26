@@ -87,11 +87,11 @@ export function getTxnEditForm(sheetName, record) {
           remarks: getCol(record, ['Remarks', 'Remarks / Reference']) || ''
         },
         fields: [
-          { key: 'date', label: 'Transaction Date', type: 'date' },
-          { key: 'employee', label: 'Employee Name', type: 'text' },
-          { key: 'amount', label: 'Amount', type: 'number' },
-          { key: 'category', label: 'Category Classification', type: 'select', options: HR_TXN_CATEGORIES },
-          { key: 'remarks', label: 'Remarks / Reference', type: 'textarea' }
+          { key: 'date', labelKey: 'field.transactionDate', type: 'date' },
+          { key: 'employee', labelKey: 'field.employeeName', type: 'text' },
+          { key: 'amount', labelKey: 'field.amount', type: 'number' },
+          { key: 'category', labelKey: 'field.categoryClassification', type: 'select', options: HR_TXN_CATEGORIES },
+          { key: 'remarks', labelKey: 'field.remarksReference', type: 'textarea' }
         ]
       };
 
@@ -110,14 +110,14 @@ export function getTxnEditForm(sheetName, record) {
           remarks: getCol(record, ['Remarks / Reference', 'Remarks']) || ''
         },
         fields: [
-          { key: 'date', label: 'Transaction Date', type: 'date' },
-          { key: 'supplier', label: 'Supplier Name', type: 'text' },
-          { key: 'category', label: 'Category Classification', type: 'select', options: SUPPLIER_TXN_CATEGORIES },
-          { key: 'purchase', label: 'Purchase Amount', type: 'number' },
-          { key: 'discount', label: 'Discount Allowed', type: 'number' },
-          { key: 'paid', label: 'Payment Paid Amount', type: 'number' },
-          { key: 'due', label: 'Transaction Due Balance', type: 'number', readOnly: true },
-          { key: 'remarks', label: 'Remarks / Reference', type: 'textarea' }
+          { key: 'date', labelKey: 'field.transactionDate', type: 'date' },
+          { key: 'supplier', labelKey: 'field.supplierName', type: 'text' },
+          { key: 'category', labelKey: 'field.categoryClassification', type: 'select', options: SUPPLIER_TXN_CATEGORIES },
+          { key: 'purchase', labelKey: 'field.purchaseAmount', type: 'number' },
+          { key: 'discount', labelKey: 'field.discountAllowed', type: 'number' },
+          { key: 'paid', labelKey: 'field.paymentPaidAmount', type: 'number' },
+          { key: 'due', labelKey: 'field.transactionDueBalance', type: 'number', readOnly: true },
+          { key: 'remarks', labelKey: 'field.remarksReference', type: 'textarea' }
         ]
       };
     }
@@ -135,14 +135,14 @@ export function getTxnEditForm(sheetName, record) {
           remarks: getCol(record, ['Remarks', 'Remarks / Reference']) || ''
         },
         fields: [
-          { key: 'date', label: 'Transaction Date', type: 'date' },
-          { key: 'uid', label: 'System Unique ID', type: 'text', readOnly: true },
-          { key: 'sold', label: 'Sold Amount', type: 'number' },
-          { key: 'discount', label: 'Discount Allowed', type: 'number' },
-          { key: 'received', label: 'Received Amount', type: 'number' },
-          { key: 'method', label: 'Payment Method', type: 'select', options: PAYMENT_METHODS },
-          { key: 'due', label: 'Transaction Due Balance', type: 'number', readOnly: true },
-          { key: 'remarks', label: 'Remarks / Reference', type: 'textarea' }
+          { key: 'date', labelKey: 'field.transactionDate', type: 'date' },
+          { key: 'uid', labelKey: 'field.systemUniqueId', type: 'text', readOnly: true },
+          { key: 'sold', labelKey: 'field.soldAmount', type: 'number' },
+          { key: 'discount', labelKey: 'field.discountAllowed', type: 'number' },
+          { key: 'received', labelKey: 'field.receivedAmount', type: 'number' },
+          { key: 'method', labelKey: 'field.paymentMethod', type: 'select', options: PAYMENT_METHODS },
+          { key: 'due', labelKey: 'field.transactionDueBalance', type: 'number', readOnly: true },
+          { key: 'remarks', labelKey: 'field.remarksReference', type: 'textarea' }
         ]
       };
 
@@ -155,54 +155,54 @@ export function getTxnEditForm(sheetName, record) {
           toUser: getCol(record, ['Transfer To User', 'Transfer To', 'Received By']) || ''
         },
         fields: [
-          { key: 'date', label: 'Transfer Date', type: 'date' },
-          { key: 'amount', label: 'Transfer Cash Amount', type: 'number' },
-          { key: 'desc', label: 'Description / Narrative', type: 'textarea' },
-          { key: 'toUser', label: 'Transfer To User', type: 'text' }
+          { key: 'date', labelKey: 'field.transferDate', type: 'date' },
+          { key: 'amount', labelKey: 'field.transferCashAmount', type: 'number' },
+          { key: 'desc', labelKey: 'field.descriptionNarrative', type: 'textarea' },
+          { key: 'toUser', labelKey: 'field.transferToUser', type: 'text' }
         ]
       };
 
     case 'Expense_Transactions':
       return buildDualHeadEditForm(record, EXPENSE_TXN_FIELDS, EXPENSE_TXN_CATEGORIES, {
         txnIdCols: ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID'],
-        mainLabel: 'Expense Parent Head',
+        mainLabelKey: 'field.expenseParentHead',
         billKey: 'deposit',
-        billLabel: 'Total Deposit / Incurred',
+        billLabelKey: 'field.totalDepositIncurred',
         payKey: 'paid',
-        payLabel: 'Actually Paid Amount',
+        payLabelKey: 'field.actuallyPaidAmount',
         idPrefix: 'EXT'
       });
 
     case 'Creditor_Transactions':
       return buildDualHeadEditForm(record, CREDITOR_TXN_FIELDS, CREDITOR_TXN_CATEGORIES, {
         txnIdCols: ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID'],
-        mainLabel: 'Creditor Parent Head',
+        mainLabelKey: 'field.creditorParentHead',
         billKey: 'received',
-        billLabel: 'Received Amount (Cash In)',
+        billLabelKey: 'field.receivedAmountCashIn',
         payKey: 'returned',
-        payLabel: 'Return Amount (Cash Out)',
+        payLabelKey: 'field.returnAmountCashOut',
         idPrefix: 'CRD'
       });
 
     case 'Income_Transactions':
       return buildDualHeadEditForm(record, INCOME_TXN_FIELDS, INCOME_TXN_CATEGORIES, {
         txnIdCols: ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID'],
-        mainLabel: 'Income Parent Head',
+        mainLabelKey: 'field.incomeParentHead',
         billKey: 'receivable',
-        billLabel: 'Receivable Amount (Billed)',
+        billLabelKey: 'field.receivableAmountBilled',
         payKey: 'received',
-        payLabel: 'Actually Received (Cash In)',
+        payLabelKey: 'field.actuallyReceivedCashIn',
         idPrefix: 'INC'
       });
 
     case 'Capital_Transactions':
       return buildDualHeadEditForm(record, CAPITAL_TXN_FIELDS, CAPITAL_TXN_CATEGORIES, {
         txnIdCols: ['Transaction ID', 'Tracking ID', 'Txn ID', 'System Unique ID'],
-        mainLabel: 'Capital Parent Head',
+        mainLabelKey: 'field.capitalParentHead',
         billKey: 'capin',
-        billLabel: 'Capital In Amount',
+        billLabelKey: 'field.capitalInAmount',
         payKey: 'capout',
-        payLabel: 'Capital Out Amount',
+        payLabelKey: 'field.capitalOutAmount',
         idPrefix: 'CAP'
       });
 
@@ -228,16 +228,16 @@ function buildDualHeadEditForm(record, fieldMap, categories, opts) {
   values[opts.payKey] = p.pay;
 
   const fields = [
-    { key: 'date', label: 'Transaction Date', type: 'date' },
-    { key: 'txnId', label: 'Tracking ID', type: 'text', readOnly: true },
-    { key: 'main', label: opts.mainLabel, type: 'text' },
-    { key: 'sub', label: 'Sub Head Mapping', type: 'text' },
-    { key: 'category', label: 'Category Classification', type: 'select', options: categories },
-    { key: opts.billKey, label: opts.billLabel, type: 'number' },
-    { key: 'discount', label: 'Discount Allowed', type: 'number' },
-    { key: opts.payKey, label: opts.payLabel, type: 'number' },
-    { key: 'due', label: 'Transaction Due Balance', type: 'number', readOnly: true },
-    { key: 'remarks', label: 'Remarks / Narrative', type: 'textarea' }
+    { key: 'date', labelKey: 'field.transactionDate', type: 'date' },
+    { key: 'txnId', labelKey: 'col.trackingId', type: 'text', readOnly: true },
+    { key: 'main', labelKey: opts.mainLabelKey, type: 'text' },
+    { key: 'sub', labelKey: 'field.subHeadMapping', type: 'text' },
+    { key: 'category', labelKey: 'field.categoryClassification', type: 'select', options: categories },
+    { key: opts.billKey, labelKey: opts.billLabelKey, type: 'number' },
+    { key: 'discount', labelKey: 'field.discountAllowed', type: 'number' },
+    { key: opts.payKey, labelKey: opts.payLabelKey, type: 'number' },
+    { key: 'due', labelKey: 'field.transactionDueBalance', type: 'number', readOnly: true },
+    { key: 'remarks', labelKey: 'field.remarksNarrative', type: 'textarea' }
   ];
 
   return { values, fields, idPrefix: opts.idPrefix };

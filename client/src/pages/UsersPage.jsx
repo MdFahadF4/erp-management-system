@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useI18n } from '../i18n/I18nProvider.jsx';
 import UserEditModal from '../components/UserEditModal.jsx';
 import UserPermGrid from '../components/UserPermGrid.jsx';
 import PasswordInput from '../components/PasswordInput.jsx';
@@ -18,41 +19,8 @@ function getUserStatus(rec) {
   return String(getCol(rec, ['Status', 'Account Status']) || 'Active').trim() || 'Active';
 }
 
-function roleBadge(role) {
-  const cls =
-    role === 'Super Admin'
-      ? 'bg-red-100 text-red-800'
-      : role === 'Admin'
-        ? 'bg-purple-100 text-purple-800'
-        : 'bg-blue-100 text-blue-800';
-  return (
-    <span className={`px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase ${cls}`}>{role}</span>
-  );
-}
-
-function statusBadge(status) {
-  if (status === 'Paused') {
-    return (
-      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
-        Paused
-      </span>
-    );
-  }
-  if (status === 'Removed') {
-    return (
-      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-200 text-gray-600">
-        Removed
-      </span>
-    );
-  }
-  return (
-    <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-800">
-      Active
-    </span>
-  );
-}
-
 export default function UsersPage({ user }) {
+  const { t } = useI18n();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -85,6 +53,40 @@ export default function UsersPage({ user }) {
     return true;
   };
 
+  const roleBadge = (uRole) => {
+    const cls =
+      uRole === 'Super Admin'
+        ? 'bg-red-100 text-red-800'
+        : uRole === 'Admin'
+          ? 'bg-purple-100 text-purple-800'
+          : 'bg-blue-100 text-blue-800';
+    return (
+      <span className={`px-2 py-1 rounded text-[10px] font-bold tracking-wider uppercase ${cls}`}>{uRole}</span>
+    );
+  };
+
+  const statusBadge = (uStatus) => {
+    if (uStatus === 'Paused') {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-800">
+          {t('users.statusPaused')}
+        </span>
+      );
+    }
+    if (uStatus === 'Removed') {
+      return (
+        <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-gray-200 text-gray-600">
+          {t('users.statusRemoved')}
+        </span>
+      );
+    }
+    return (
+      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-800">
+        {t('users.statusActive')}
+      </span>
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -109,7 +111,7 @@ export default function UsersPage({ user }) {
         await load();
       }
     } catch {
-      alert('Error creating user.');
+      alert(t('users.registerFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -117,8 +119,8 @@ export default function UsersPage({ user }) {
 
   const setUserStatus = async (rec, status) => {
     const name = getUsername(rec);
-    if (status === 'Paused' && !window.confirm(`Pause account "${name}"?`)) return;
-    if (status === 'Removed' && !window.confirm(`Remove account "${name}"? They cannot log in.`)) return;
+    if (status === 'Paused' && !window.confirm(t('users.confirmPause'))) return;
+    if (status === 'Removed' && !window.confirm(t('users.confirmRemove'))) return;
     try {
       const res = await updateUser({
         username: name,
@@ -129,26 +131,26 @@ export default function UsersPage({ user }) {
       alert(res.message || (res.success ? 'Updated.' : 'Failed.'));
       if (res.success) await load();
     } catch {
-      alert('Error updating user status.');
+      alert(t('users.updateFailed'));
     }
   };
 
   if (!canManage) {
-    return <div className="p-8 text-center text-gray-500">Admin access required.</div>;
+    return <div className="p-8 text-center text-gray-500">{t('users.adminAccessRequired')}</div>;
   }
 
   return (
     <>
       <div className="space-y-4 md:space-y-6 erp-module-page pb-6">
         <div className="border-b border-gray-200 pb-4">
-          <h2 className="text-2xl font-bold text-gray-800">User Access Management</h2>
+          <h2 className="text-2xl font-bold text-gray-800">{t('page.users.title')}</h2>
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           <div className="bg-white p-6 rounded-xl shadow border border-gray-200 lg:col-span-1">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Provision Account</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('form.users.provision')}</h3>
             <form className="space-y-4 text-xs" onSubmit={handleSubmit}>
               <div>
-                <label className="block font-bold uppercase text-gray-500 mb-1">Username</label>
+                <label className="block font-bold uppercase text-gray-500 mb-1">{t('field.username')}</label>
                 <input
                   required
                   value={username}
@@ -158,50 +160,50 @@ export default function UsersPage({ user }) {
               </div>
               <PasswordInput
                 id="new-password"
-                label="Password"
+                label={t('field.password')}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
               />
               <div>
-                <label className="block font-bold uppercase text-gray-500 mb-1">Mobile</label>
+                <label className="block font-bold uppercase text-gray-500 mb-1">{t('col.mobile')}</label>
                 <input
                   value={mobile}
                   onChange={(e) => setMobile(e.target.value)}
-                  placeholder="For password recovery"
+                  placeholder={t('users.mobileRecoveryHint')}
                   className="w-full border border-gray-200 rounded p-2 outline-none"
                 />
               </div>
               <div>
-                <label className="block font-bold uppercase text-gray-500 mb-1">Email</label>
+                <label className="block font-bold uppercase text-gray-500 mb-1">{t('col.email')}</label>
                 <input
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="For password recovery"
+                  placeholder={t('users.emailRecoveryHint')}
                   className="w-full border border-gray-200 rounded p-2 outline-none"
                 />
               </div>
               <div>
-                <label className="block font-bold uppercase text-gray-500 mb-1">Role</label>
+                <label className="block font-bold uppercase text-gray-500 mb-1">{t('field.accountRole')}</label>
                 <select
                   value={role}
                   onChange={(e) => setRole(e.target.value)}
                   className="w-full border border-gray-200 rounded p-2 bg-white outline-none"
                 >
-                  <option value="User">Standard User</option>
-                  <option value="Admin">System Admin</option>
+                  <option value="User">{t('option.standardUser')}</option>
+                  <option value="Admin">{t('option.admin')}</option>
                 </select>
               </div>
               {role !== 'Admin' ? (
                 <div>
-                  <label className="block font-bold uppercase text-gray-500 mb-2">Menu Execution Scopes</label>
+                  <label className="block font-bold uppercase text-gray-500 mb-2">{t('users.menuScopes')}</label>
                   <UserPermGrid permMap={permMap} onChange={setPermMap} />
                 </div>
               ) : (
                 <p className="text-xs text-purple-700 bg-purple-50 border border-purple-100 rounded p-2">
-                  System Admin gets ALL module access automatically.
+                  {t('users.adminAllAccess')}
                 </p>
               )}
               <button
@@ -209,35 +211,35 @@ export default function UsersPage({ user }) {
                 disabled={submitting}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium p-2.5 rounded transition disabled:opacity-60"
               >
-                Register User
+                {t('form.users.register')}
               </button>
             </form>
           </div>
           <div className="bg-white p-6 rounded-xl shadow border border-gray-200 lg:col-span-2">
-            <h3 className="text-lg font-semibold text-gray-700 mb-4">Active Directories</h3>
+            <h3 className="text-lg font-semibold text-gray-700 mb-4">{t('form.users.activeDirectories')}</h3>
             <div className="overflow-x-auto border border-gray-200 rounded-lg">
               <table className="w-full text-left text-xs">
                 <thead className="bg-slate-800 text-white uppercase sticky top-0">
                   <tr>
-                    <th className="p-3">Username</th>
-                    <th className="p-3">Role</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3">Contact</th>
-                    <th className="p-3">Permissions</th>
-                    <th className="p-3 erp-col-actions">Actions</th>
+                    <th className="p-3">{t('field.username')}</th>
+                    <th className="p-3">{t('col.role')}</th>
+                    <th className="p-3">{t('col.status')}</th>
+                    <th className="p-3">{t('users.contact')}</th>
+                    <th className="p-3">{t('col.permissionsScope')}</th>
+                    <th className="p-3 erp-col-actions">{t('col.actions')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {loading ? (
                     <tr>
                       <td colSpan={6} className="p-6 text-center text-gray-400 animate-pulse">
-                        Loading…
+                        {t('common.loading')}
                       </td>
                     </tr>
                   ) : users.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="p-6 text-center text-gray-400">
-                        No users found
+                        {t('users.noOperators')}
                       </td>
                     </tr>
                   ) : (
@@ -247,7 +249,7 @@ export default function UsersPage({ user }) {
                       const uStatus = getUserStatus(rec);
                       const contact =
                         [getCol(rec, ['Mobile']), getCol(rec, ['Email'])].filter(Boolean).join(' · ') || '-';
-                      const perms = getCol(rec, ['Permissions']) || '-';
+                      const perms = getCol(rec, ['Permissions']) || t('users.noPermissions');
                       const manageable = canManageTarget(rec);
                       return (
                         <tr key={rec.ID || name} className="hover:bg-gray-50">
@@ -264,7 +266,7 @@ export default function UsersPage({ user }) {
                                   className="bg-orange-500 hover:bg-orange-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
                                   onClick={() => setEditRecord(rec)}
                                 >
-                                  Edit
+                                  {t('common.edit')}
                                 </button>
                                 {uStatus !== 'Removed' &&
                                   (uStatus === 'Paused' ? (
@@ -273,7 +275,7 @@ export default function UsersPage({ user }) {
                                       className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
                                       onClick={() => setUserStatus(rec, 'Active')}
                                     >
-                                      Resume
+                                      {t('users.resume')}
                                     </button>
                                   ) : (
                                     <button
@@ -281,7 +283,7 @@ export default function UsersPage({ user }) {
                                       className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
                                       onClick={() => setUserStatus(rec, 'Paused')}
                                     >
-                                      Pause
+                                      {t('users.pause')}
                                     </button>
                                   ))}
                                 {uStatus !== 'Removed' ? (
@@ -290,7 +292,7 @@ export default function UsersPage({ user }) {
                                     className="bg-red-600 hover:bg-red-700 text-white font-bold px-2 py-0.5 rounded text-[10px]"
                                     onClick={() => setUserStatus(rec, 'Removed')}
                                   >
-                                    Remove
+                                    {t('users.remove')}
                                   </button>
                                 ) : (
                                   <button
@@ -298,12 +300,12 @@ export default function UsersPage({ user }) {
                                     className="bg-green-600 hover:bg-green-700 text-white font-bold px-2 py-0.5 rounded text-[10px]"
                                     onClick={() => setUserStatus(rec, 'Active')}
                                   >
-                                    Reactivate
+                                    {t('users.reactivate')}
                                   </button>
                                 )}
                               </>
                             ) : (
-                              <span className="text-gray-300 italic text-[10px]">Locked</span>
+                              <span className="text-gray-300 italic text-[10px]">{t('common.locked')}</span>
                             )}
                           </td>
                         </tr>
