@@ -87,7 +87,6 @@ export function aggregateCustomerTotalsFromTxns(records) {
     const disc = gF(t, ['discount', 'discountallowed']);
     if (isCustomerPreviousDueTxn(t)) {
       sold += amount;
-      due += amount;
       recv += amount;
       return;
     }
@@ -99,8 +98,8 @@ export function aggregateCustomerTotalsFromTxns(records) {
     recv += amount;
     if (method.includes('cash')) cash += amount;
     else if (method.includes('card')) card += amount;
-    due += Math.max(0, sellAmt - amount - disc);
   });
 
+  due = Math.max(0, sold - recv - discount);
   return { sold, cash, card, recv, discount, due };
 }

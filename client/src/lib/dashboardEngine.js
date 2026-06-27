@@ -6,6 +6,7 @@ import {
   INCOME_TXN_FIELDS,
   CAPITAL_TXN_FIELDS
 } from './txnFields.js';
+import { getCustomerDueBalance } from './customerEngine.js';
 import {
   aggregateCustomerTotalsFromTxns,
   buildCustomerTxnCashByUid,
@@ -243,6 +244,13 @@ export function computeDashboardMetrics(data, sessionUser) {
       const recipient = String(gV(r, ['transfertouser', 'transferto', 'receivedby', 'handoverto']) || '').trim();
       if (sender) addCash(sender, -amt);
       if (recipient && cln(recipient) !== cln(sender)) addCash(recipient, amt);
+    });
+  }
+
+  if (rCust.success && rCust.records.length) {
+    saleDue = 0;
+    rCust.records.forEach((r) => {
+      saleDue += getCustomerDueBalance(r);
     });
   }
 

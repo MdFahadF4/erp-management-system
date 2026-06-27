@@ -17,6 +17,7 @@ import {
 } from './txnFields.js';
 import { finalizeReportPrintLayout } from './reportExport.js';
 import { t, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './reportI18n.js';
+import { getCustomerDueBalance } from './customerEngine.js';
 import {
   buildCustomerTxnCashByUid,
   CUSTOMER_METH_COLS,
@@ -719,6 +720,7 @@ export async function executeReportGeneration(type, fromStr, toStr, secVal, secT
         const sellCols = ["soldamount", "soldamt", "totalsell", "sellamount", "grosssell", "sell"];
         const recvCols = ["receivedamount", "receivedamt", "received", "cashreceived", "cashamt", "cashamount", "paidamount", "amountpaid"];
         let tSold=0, tPaid=0;
+        const custTxnAgg = {};
         const custTxnDisc = {};
         
         if (rCustT.success) rCustT.records.forEach(r => {
@@ -733,18 +735,23 @@ export async function executeReportGeneration(type, fromStr, toStr, secVal, secT
             } else {
                 let disc = gF(r, ["discount", "discountallowed", "txndiscount", "discountamount"]);
                 tSold += s; tPaid += p;
-                if (uid) custTxnDisc[uid] = (custTxnDisc[uid] || 0) + disc;
+                if (uid) {
+                  if (!custTxnAgg[uid]) custTxnAgg[uid] = { sold: 0, paid: 0 };
+                  custTxnAgg[uid].sold += s;
+                  custTxnAgg[uid].paid += p;
+                  custTxnDisc[uid] = (custTxnDisc[uid] || 0) + disc;
+                }
                 addD('sales', gV(r, ["date", "timestamp"]), s, p, gV(r, ["remarks"])||"Sale Txn", gV(r, ["username", "loggedby"]), disc);
             }
         });
         if (rCust.success) rCust.records.forEach(r => {
-            let sheetS = gF(r, sellCols);
-            let sheetP = gF(r, ["cashamt", "cashamount", "cash", "totalpayments"]) + gF(r, ["cardamt", "cardamount", "card"]);
-            let sheetDisc = gF(r, ["discount", "discountallowed"]);
             let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
-            let initS = sheetS - tSold; initS = initS > 0 ? initS : 0; 
-            let initP = sheetP - tPaid; initP = initP > 0 ? initP : 0;
-            let initDisc = Math.max(0, sheetDisc - (custTxnDisc[uid] || 0));
+            if (!uid) return;
+            const amounts = readCustomerMasterAmounts(r);
+            const tt = custTxnAgg[uid] || { sold: 0, paid: 0 };
+            let initS = Math.max(0, amounts.sell - tt.sold);
+            let initP = Math.max(0, amounts.recv - tt.paid);
+            let initDisc = Math.max(0, amounts.discount - (custTxnDisc[uid] || 0));
             if (initS > 0 || initP > 0 || initDisc > 0) addD('sales', gV(r, ["date", "timestamp", "creationstamp"]), initS, initP, "Base Master Record", gV(r, ["username", "loggedby", "createdby"]), initDisc);
         });
 
@@ -2704,17 +2711,12 @@ export async function executeReportGeneration(type, fromStr, toStr, secVal, secT
            rCust.records.forEach(r => {
               if (!isU(r)) return;
               let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
-              let d = new Date(gV(r, ["date", "creationstamp", "timestamp"]) || new Date());
-              let mKey = initMonth(d);
               const amounts = readCustomerMasterAmounts(r);
               const tt = txnTotals[uid] || { sold: 0, cash: 0, card: 0 };
-              const trueSold = amounts.sell - tt.sold;
               const trueCash = masterInitialCustomerCash(amounts.cash, tt.cash);
               const trueCard = Math.max(0, amounts.card - tt.card);
-              const trueRecv = trueCash + trueCard;
-
-              pLifeSold += trueSold; pLifeRecv += trueRecv; pLifeCash += trueCash; pLifeCard += trueCard;
-              monthlyData[mKey].sold += trueSold; monthlyData[mKey].recv += trueRecv;
+              pLifeCash += trueCash;
+              pLifeCard += trueCard;
            });
         }
 
@@ -2729,13 +2731,15 @@ export async function executeReportGeneration(type, fromStr, toStr, secVal, secT
               let method = cln(gV(r, CUSTOMER_METH_COLS));
               if (method === "") method = "cash";
               
-              pLifeSold += tSell; pLifeRecv += recv;
+              pLifeSold += tSell;
               if (method.includes("cash")) pLifeCash += recv; else pLifeCard += recv;
               
-              monthlyData[mKey].sold += tSell; monthlyData[mKey].recv += recv;
+              monthlyData[mKey].sold += tSell;
+              monthlyData[mKey].recv += recv;
            });
         }
 
+        pLifeRecv = pLifeCash + pLifeCard;
         let pLifeDue = pLifeSold - pLifeRecv;
 
         // WALLET LOGIC
@@ -2807,30 +2811,21 @@ export async function executeReportGeneration(type, fromStr, toStr, secVal, secT
         const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:v; };
         const iU = (obj) => cln(gV(obj, ["username", "loggedby", "createdby", "user", "transferredby"])) === cln(secVal);
 
-        if (rCust.success) rCust.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date", "creationstamp", "timestamp"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let sell = gF(r, ["totalsell", "sellamount", "grosssell"]);
-              uLifeSold += sell; if (inRange) uRangeSold += sell;
-           }
-        });
-
         if (rCustT.success) rCustT.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let tSell = gF(r, ["soldamount", "soldamt"]);
-              uLifeSold += tSell; if (inRange) uRangeSold += tSell;
+           if (!iU(r) || isCustomerPreviousDueTxn(r)) return;
+           let dStr = gV(r, ["date", "timestamp"]); if(!dStr) return; 
+           let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
+           let tSell = gF(r, CUSTOMER_SELL_COLS);
+           uLifeSold += tSell; if (inRange) uRangeSold += tSell;
 
-              let recv = gF(r, ["receivedamount", "receivedamt", "cashreceived"]);
-              let method = cln(gV(r, ["paymentmethod", "method"]));
-              
-              if (method.includes("cash")) uLifeCashIn += recv; else uLifeCardIn += recv;
-              if (inRange && recv !== 0) {
-                 if (method.includes("cash")) uRangeCashIn += recv; else uRangeCardIn += recv;
-                 leftTable.push({ d, amt: recv, rem: getRemarks(r), cat: gV(r, ["systemuniqueid", "sysuid"])||'Customer', usr: secVal });
-              }
+           let recv = gF(r, CUSTOMER_RECV_COLS);
+           let method = cln(gV(r, CUSTOMER_METH_COLS));
+           if (method === "") method = "cash";
+           
+           if (method.includes("cash")) uLifeCashIn += recv; else uLifeCardIn += recv;
+           if (inRange && recv !== 0) {
+              if (method.includes("cash")) uRangeCashIn += recv; else uRangeCardIn += recv;
+              leftTable.push({ d, amt: recv, rem: getRemarks(r), cat: gV(r, ["systemuniqueid", "sysuid"])||'Customer', usr: secVal });
            }
         });
 
@@ -2953,154 +2948,6 @@ export async function executeReportGeneration(type, fromStr, toStr, secVal, secT
           toStr,
           hrTxns: rHrT.success ? rHrT.records : []
         });
-        break;
-      }
-
-      // ====================================================================
-      // 2. INDIVIDUAL USER AUDIT VIEW
-      // ====================================================================
-      case 'individual_user': {
-        titleEl.textContent = t('report.titleIndividualUser');
-        
-        let uLifeSold = 0, uLifeCardIn = 0, uLifeCashIn = 0, uLifeCashOut = 0, uLifeTransfer = 0;
-        let uRangeSold = 0, uRangeCardIn = 0, uRangeCashIn = 0, uRangeCashOut = 0, uRangeTransfer = 0;
-        let leftTable = []; let rightTable = []; 
-
-        const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-        const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
-        const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:v; };
-        const iU = (obj) => cln(gV(obj, ["username", "loggedby", "createdby", "user", "transferredby"])) === cln(secVal);
-
-        if (rCust.success) rCust.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date", "creationstamp", "timestamp"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let sell = gF(r, ["totalsell", "sellamount", "grosssell"]);
-              uLifeSold += sell; if (inRange) uRangeSold += sell;
-           }
-        });
-
-        if (rCustT.success) rCustT.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let tSell = gF(r, ["soldamount", "soldamt"]);
-              uLifeSold += tSell; if (inRange) uRangeSold += tSell;
-
-              let recv = gF(r, ["receivedamount", "receivedamt", "cashreceived"]);
-              let method = cln(gV(r, ["paymentmethod", "method"]));
-              
-              if (method.includes("cash")) uLifeCashIn += recv; else uLifeCardIn += recv;
-              if (inRange && recv !== 0) {
-                 if (method.includes("cash")) uRangeCashIn += recv; else uRangeCardIn += recv;
-                 leftTable.push({ d, amt: recv, rem: getRemarks(r), cat: gV(r, ["systemuniqueid", "sysuid"])||'Customer', usr: secVal });
-              }
-           }
-        });
-
-        if (rIncT.success) rIncT.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let recv = gF(r, ["receivedamount", "receivedamt"]);
-              uLifeCashIn += recv;
-              if(inRange && recv !== 0) { uRangeCashIn += recv; leftTable.push({ d, amt: recv, rem: getRemarks(r), cat: 'Income Log', usr: secVal }); }
-           }
-        });
-
-        if (rCrdT.success) rCrdT.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let recv = gF(r, ["receivedamount", "receivedamt"]);
-              let ret = Math.abs(gF(r, ["returnamount", "returnamt"])); 
-              
-              uLifeCashIn += recv; uLifeCashOut += ret;
-              if(inRange && recv !== 0) { uRangeCashIn += recv; leftTable.push({ d, amt: recv, rem: getRemarks(r), cat: 'Creditor Loan', usr: secVal }); }
-              if(inRange && ret !== 0) { uRangeCashOut += ret; rightTable.push({ d, amt: ret, rem: getRemarks(r), cat: 'Creditor Return', usr: secVal }); }
-           }
-        });
-
-        if (rExp.success) rExp.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let paid = Math.abs(gF(r, ["paidamt", "paidamount", "amount", "deposit"]));
-              uLifeCashOut += paid;
-              if(inRange && paid !== 0) { uRangeCashOut += paid; rightTable.push({ d, amt: paid, rem: getRemarks(r), cat: 'Expense Txn', usr: secVal }); }
-           }
-        });
-
-        if (rHrT.success) rHrT.records.forEach(r => {
-           if (iU(r) && cln(gV(r, ["category"])).includes("paid")) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let paid = Math.abs(gF(r, ["amount"]));
-              uLifeCashOut += paid;
-              if(inRange && paid !== 0) { uRangeCashOut += paid; rightTable.push({ d, amt: paid, rem: getRemarks(r), cat: 'HR Salary Txn', usr: secVal }); }
-           }
-        });
-
-        if (rSupT.success) rSupT.records.forEach(r => {
-           if (iU(r) && cln(gV(r, ["category"])).includes("paid")) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let paid = Math.abs(gF(r, ["amount"]));
-              uLifeCashOut += paid;
-              if(inRange && paid !== 0) { uRangeCashOut += paid; rightTable.push({ d, amt: paid, rem: getRemarks(r), cat: 'Supplier Payment', usr: secVal }); }
-           }
-        });
-
-        if (rInt.success) rInt.records.forEach(r => {
-           if (iU(r)) {
-              let dStr = gV(r, ["date"]); if(!dStr) return; 
-              let d = new Date(dStr); let inRange = (d >= fDate && d <= tDate);
-              let amt = Math.abs(gF(r, ["transferamount", "amount"]));
-              uLifeCashOut += amt; uLifeTransfer += amt;
-              if(inRange && amt !== 0) { uRangeCashOut += amt; uRangeTransfer += amt; rightTable.push({ d, amt, rem: getRemarks(r), cat: 'Internal Transfer', usr: secVal }); }
-           }
-        });
-
-        let uLiveCashBalance = uLifeCashIn - uLifeCashOut;
-        let uBColor = uLiveCashBalance >= 0 ? "text-emerald-600" : "text-red-600";
-
-        cardsEl.innerHTML = `
-          <div class="col-span-1 md:col-span-3 flex flex-col bg-white border border-gray-200 p-6 rounded-xl shadow-sm mb-2 gap-6">
-             <div class="flex flex-wrap justify-between border-b border-gray-100 pb-4">
-                <div class="text-left w-1/4"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeSold')}</div><div class="text-2xl font-black text-blue-600 font-mono mt-1">SAR ${uLifeSold.toFixed(2)}</div></div>
-                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.lifetimeCollections')}</div><div class="text-[10px] font-bold text-gray-500 mt-2">${t('report.cashInLabel')} <span class="text-emerald-500 text-sm ml-1">${uLifeCashIn.toFixed(2)}</span></div><div class="text-[10px] font-bold text-gray-500 mt-1">${t('report.cardInLabel')} <span class="text-purple-500 text-sm ml-1">${uLifeCardIn.toFixed(2)}</span></div></div>
-                <div class="text-left w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.transferredToAdmin')}</div><div class="text-2xl font-black text-teal-600 font-mono mt-1">SAR ${uLifeTransfer.toFixed(2)}</div></div>
-                <div class="text-right w-1/4 border-l pl-4 border-gray-100"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.currentUserCashBalance')}</div><div class="text-3xl font-black ${uBColor} font-mono mt-1">SAR ${uLiveCashBalance.toFixed(2)}</div><div class="text-[9px] text-gray-400 mt-1 uppercase leading-tight">${t('report.autoAdjustHint')}</div></div>
-             </div>
-             <div class="flex justify-around bg-gray-50 p-4 rounded-lg">
-                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeSold')}</div><div class="text-lg font-bold text-blue-500 font-mono mt-1">SAR ${uRangeSold.toFixed(2)}</div></div>
-                <div class="text-center border-l border-r px-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCashIn')}</div><div class="text-lg font-bold text-emerald-500 font-mono mt-1">SAR ${uRangeCashIn.toFixed(2)}</div></div>
-                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeCardIn')}</div><div class="text-lg font-bold text-purple-500 font-mono mt-1">SAR ${uRangeCardIn.toFixed(2)}</div></div>
-                <div class="text-center border-r pr-8 border-gray-200"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeOutSpent')}</div><div class="text-lg font-bold text-red-500 font-mono mt-1">SAR ${uRangeCashOut.toFixed(2)}</div></div>
-                <div class="text-center"><div class="text-gray-500 text-[10px] font-bold uppercase tracking-wider">${t('report.rangeTransferredAdmin')}</div><div class="text-lg font-bold text-teal-500 font-mono mt-1">SAR ${uRangeTransfer.toFixed(2)}</div></div>
-             </div>
-          </div>
-        `;
-        cardsEl.className = "grid grid-cols-1 mb-6";
-
-        tableContainer.innerHTML = `
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-blue-50 text-blue-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-blue-100 text-center">${t('report.userCollectionsLedger')}</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colCategoryUid')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
-                     <tbody class="divide-y divide-gray-100">
-                        ${leftTable.length > 0 ? leftTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(s => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(s.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-emerald-600 whitespace-nowrap">${Number(s.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${s.rem}">${s.rem}</td><td class="p-2.5 font-mono text-[10px] text-gray-500">${s.cat}</td><td class="p-2.5">${s.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noCollectionsInRange')}</td></tr>`}
-                     </tbody>
-                  </table></div></div>
-             <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
-                <div class="bg-red-50 text-red-800 font-bold p-3 uppercase tracking-wider text-xs border-b border-red-100 text-center">${t('report.userExpendituresLedger')}</div>
-                <div class="erp-report-ledger-wrap overflow-x-auto"><table class="w-full text-left text-xs"><thead class="bg-gray-50 text-gray-500 border-b"><tr><th class="p-2.5 font-semibold">${t('col.date')}</th><th class="p-2.5 font-semibold">${t('col.amount')}</th><th class="p-2.5 font-semibold">${t('col.remarks')}</th><th class="p-2.5 font-semibold">${t('report.colCategory')}</th><th class="p-2.5 font-semibold">${t('report.colUser')}</th></tr></thead>
-                     <tbody class="divide-y divide-gray-100">
-                        ${rightTable.length > 0 ? rightTable.sort((a,b)=> new Date(b.d) - new Date(a.d)).map(p => `<tr class="hover:bg-gray-50"><td class="p-2.5 whitespace-nowrap">${new Date(p.d).toLocaleDateString()}</td><td class="p-2.5 font-mono font-bold text-red-600 whitespace-nowrap">${Number(p.amt).toFixed(2)}</td><td class="p-2.5 truncate max-w-[100px]" title="${p.rem}">${p.rem}</td><td class="p-2.5 font-bold text-[10px] ${p.cat === 'Internal Transfer' ? 'text-teal-600' : 'text-gray-700'}">${p.cat}</td><td class="p-2.5">${p.usr}</td></tr>`).join('') : `<tr><td colspan="5" class="p-6 text-center text-gray-400">${t('report.noSpendsTransfers')}</td></tr>`}
-                     </tbody>
-                  </table></div></div>
-          </div>
-        `;
         break;
       }
 
