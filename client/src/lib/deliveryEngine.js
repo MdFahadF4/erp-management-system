@@ -1,5 +1,9 @@
 import { getCol } from './recordHelpers.js';
 
+function normalizeDeliveryUid(uid) {
+  return String(uid || '').trim().toUpperCase();
+}
+
 export function getRecordId(rec) {
   return getCol(rec, ['ID', 'Id', 'id']);
 }
@@ -9,6 +13,32 @@ export function formatDisplayDate(val) {
   const d = new Date(val);
   if (Number.isNaN(d.getTime())) return String(val);
   return d.toLocaleDateString();
+}
+
+export function buildCustomerUidSet(customerRecords) {
+  const set = new Set();
+  (customerRecords || []).forEach((rec) => {
+    const uid = normalizeDeliveryUid(getCol(rec, ['System Unique ID', 'Sys UID']));
+    if (uid) set.add(uid);
+  });
+  return set;
+}
+
+export function buildCustomerTxnUidSet(txnRecords) {
+  const set = new Set();
+  (txnRecords || []).forEach((txn) => {
+    const uid = normalizeDeliveryUid(getCol(txn, ['System Unique ID', 'Sys UID']));
+    if (uid) set.add(uid);
+  });
+  return set;
+}
+
+export function isDeliveryQueueEntryVisible(rec, customerUids, txnUids) {
+  const uid = normalizeDeliveryUid(getCol(rec, ['System Unique ID', 'Sys UID', 'Unique ID']));
+  if (!uid || !customerUids.has(uid)) return false;
+  const status = String(getCol(rec, ['Status']) || 'Pending').trim();
+  if (status === 'Pending' && !txnUids.has(uid)) return false;
+  return true;
 }
 
 export function buildTxnRemarksMap(txnRecords) {

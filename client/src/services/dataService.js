@@ -1,6 +1,6 @@
 import { apiRequest } from '../services/auth.js';
 
-async function fetchSheet(sheetName) {
+export async function fetchSheet(sheetName) {
   try {
     return await apiRequest({ action: 'FETCH_RECORDS', payload: { sheetName } });
   } catch {
@@ -153,6 +153,7 @@ export async function fetchInternalTransfers() {
 }
 
 export async function fetchDeliveryQueue() {
+  await syncDeliveryQueue().catch(() => null);
   const res = await fetchSheet('Delivery_Queue');
   return res.success ? res.records : [];
 }

@@ -359,6 +359,68 @@ function getLatestCustomerTxnRemarks_(ss, systemUID) {
   return latest;
 }
 
+function customerTxnCountForUid_(ss, systemUID) {
+  var uid = String(systemUID || '').trim();
+  if (!uid) return 0;
+  var txnSheet = ss.getSheetByName('Customer_Transactions');
+  if (!txnSheet) return 0;
+  var txnData = txnSheet.getDataRange().getValues();
+  var count = 0;
+  for (var i = 1; i < txnData.length; i++) {
+    if (String(txnData[i][2] || txnData[i][1] || '').trim() === uid) count++;
+  }
+  return count;
+}
+
+function removeDeliveryQueueEntriesForUid_(ss, systemUID, pendingOnly) {
+  var uid = String(systemUID || '').trim();
+  if (!uid) return 0;
+  var delSheet = ss.getSheetByName('Delivery_Queue');
+  if (!delSheet) return 0;
+  var delData = delSheet.getDataRange().getValues();
+  var removed = 0;
+  for (var i = delData.length - 1; i >= 1; i--) {
+    if (String(delData[i][1] || '').trim() !== uid) continue;
+    var status = String(delData[i][5] || 'Pending').trim();
+    if (pendingOnly && status !== 'Pending') continue;
+    delSheet.deleteRow(i + 1);
+    removed++;
+  }
+  return removed;
+}
+
+function pruneDeliveryQueue_(ss) {
+  var custSheet = ss.getSheetByName('Customers');
+  var txnSheet = ss.getSheetByName('Customer_Transactions');
+  var delSheet = ss.getSheetByName('Delivery_Queue');
+  if (!custSheet || !delSheet) return 0;
+
+  var custData = custSheet.getDataRange().getValues();
+  var txnData = txnSheet ? txnSheet.getDataRange().getValues() : [];
+  var customerUids = {};
+  for (var c = 1; c < custData.length; c++) {
+    var cuid = String(custData[c][1] || '').trim();
+    if (cuid) customerUids[cuid] = true;
+  }
+  var txnUids = {};
+  for (var t = 1; t < txnData.length; t++) {
+    var tuid = String(txnData[t][2] || txnData[t][1] || '').trim();
+    if (tuid) txnUids[tuid] = true;
+  }
+
+  var delData = delSheet.getDataRange().getValues();
+  var removed = 0;
+  for (var i = delData.length - 1; i >= 1; i--) {
+    var uid = String(delData[i][1] || '').trim();
+    var status = String(delData[i][5] || 'Pending').trim();
+    if (!uid || !customerUids[uid] || (status === 'Pending' && !txnUids[uid])) {
+      delSheet.deleteRow(i + 1);
+      removed++;
+    }
+  }
+  return removed;
+}
+
 function ensureDeliveryQueueEntry_(ss, systemUID, username, issuedDate) {
   var delSheet = ss.getSheetByName('Delivery_Queue');
   if (!delSheet || !systemUID) return;
@@ -384,11 +446,20 @@ function ensureDeliveryQueueEntry_(ss, systemUID, username, issuedDate) {
 function syncDeliveryQueue() {
   var ss = SpreadsheetApp.openById(SPREADSHEET_ID);
   var custSheet = ss.getSheetByName('Customers');
+  var txnSheet = ss.getSheetByName('Customer_Transactions');
   var delSheet = ss.getSheetByName('Delivery_Queue');
   if (!custSheet) return { success: false, message: 'Customers sheet not found.' };
   if (!delSheet) return { success: false, message: 'Delivery_Queue sheet not found. Add the sheet with headers: ID, System Unique ID, Remarks, Issued Date, Username, Status, Delivery Date, Delivered Remarks, Stamp' };
 
+  var removed = pruneDeliveryQueue_(ss);
+
   var custData = custSheet.getDataRange().getValues();
+  var txnData = txnSheet ? txnSheet.getDataRange().getValues() : [];
+  var txnUids = {};
+  for (var t = 1; t < txnData.length; t++) {
+    var tuid = String(txnData[t][2] || txnData[t][1] || '').trim();
+    if (tuid) txnUids[tuid] = true;
+  }
   var delData = delSheet.getDataRange().getValues();
   var existing = {};
   for (var i = 1; i < delData.length; i++) {
@@ -398,24 +469,17 @@ function syncDeliveryQueue() {
   var added = 0;
   for (var j = 1; j < custData.length; j++) {
     var systemUID = String(custData[j][1] || '').trim();
-    if (!systemUID || existing[systemUID]) continue;
+    if (!systemUID || existing[systemUID] || !txnUids[systemUID]) continue;
     var loggedBy = String(custData[j][13] || custData[j][12] || '');
     var issued = custData[j][14] || custData[j][13] || new Date();
-    delSheet.appendRow([
-      Utilities.getUuid(),
-      systemUID,
-      getLatestCustomerTxnRemarks_(ss, systemUID),
-      issued,
-      loggedBy,
-      'Pending',
-      '',
-      '',
-      new Date().toLocaleString()
-    ]);
+    ensureDeliveryQueueEntry_(ss, systemUID, loggedBy, issued);
     existing[systemUID] = true;
     added++;
   }
-  return { success: true, message: added > 0 ? (added + ' delivery record(s) synced.') : 'Delivery queue is up to date.', added: added };
+  var parts = [];
+  if (removed > 0) parts.push(removed + ' stale record(s) removed');
+  if (added > 0) parts.push(added + ' delivery record(s) synced');
+  return { success: true, message: parts.length ? parts.join('; ') + '.' : 'Delivery queue is up to date.', added: added, removed: removed };
 }
 
 function normalizeHrName_(name) {
@@ -821,10 +885,7 @@ function createGenericRecord(sheetName, rowData) {
 
   if (sheetName === "Customer_Transactions") {
     syncCustomerMasterForUid_(ss, String(rowData[1] || "").trim());
-  }
-
-  if (sheetName === "Customers") {
-    ensureDeliveryQueueEntry_(ss, rowData[0], rowData[12], rowData[13] || new Date());
+    ensureDeliveryQueueEntry_(ss, String(rowData[1] || "").trim(), String(rowData[8] || "").trim(), rowData[0] || new Date());
   }
 
   return { success: true, message: "Record saved successfully!" };
@@ -991,6 +1052,9 @@ function deleteGenericRecord(sheetName, id) {
       if (sheetName === "Customer_Transactions") {
         custUid = String(data[i][2] || "").trim();
       }
+      if (sheetName === "Customers") {
+        custUid = String(data[i][1] || "").trim();
+      }
       sheet.deleteRow(i + 1);
       if (sheetName === "HR_Transactions" && empName) {
         syncHrMasterForEmployee_(ss, empName);
@@ -1000,6 +1064,12 @@ function deleteGenericRecord(sheetName, id) {
       }
       if (sheetName === "Customer_Transactions" && custUid) {
         syncCustomerMasterForUid_(ss, custUid);
+        if (customerTxnCountForUid_(ss, custUid) === 0) {
+          removeDeliveryQueueEntriesForUid_(ss, custUid, true);
+        }
+      }
+      if (sheetName === "Customers" && custUid) {
+        removeDeliveryQueueEntriesForUid_(ss, custUid, false);
       }
       return { success: true, message: 'Transaction deleted successfully.' };
     }

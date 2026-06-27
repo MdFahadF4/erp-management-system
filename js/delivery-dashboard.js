@@ -5,6 +5,8 @@ import { t, applyTranslations } from './i18n.js';
 let cachedDeliveryRecords = [];
 let txnRemarksByUid = {};
 let customerMemoByUid = {};
+let customerUids = new Set();
+let txnUids = new Set();
 
 function getCol(rec, names) {
   for (const name of names) {
@@ -25,6 +27,36 @@ function formatDisplayDate(val) {
   const d = new Date(val);
   if (isNaN(d.getTime())) return String(val);
   return d.toLocaleDateString();
+}
+
+function normalizeDeliveryUid(uid) {
+  return String(uid || '').trim().toUpperCase();
+}
+
+function buildCustomerUidSet(customerRecords) {
+  const set = new Set();
+  (customerRecords || []).forEach((rec) => {
+    const uid = normalizeDeliveryUid(getCol(rec, ['System Unique ID', 'Sys UID']));
+    if (uid) set.add(uid);
+  });
+  return set;
+}
+
+function buildCustomerTxnUidSet(txnRecords) {
+  const set = new Set();
+  (txnRecords || []).forEach((txn) => {
+    const uid = normalizeDeliveryUid(getCol(txn, ['System Unique ID', 'Sys UID']));
+    if (uid) set.add(uid);
+  });
+  return set;
+}
+
+function isDeliveryQueueEntryVisible(rec) {
+  const uid = normalizeDeliveryUid(getCol(rec, ['System Unique ID', 'Sys UID', 'Unique ID']));
+  if (!uid || !customerUids.has(uid)) return false;
+  const status = String(getCol(rec, ['Status']) || 'Pending').trim();
+  if (status === 'Pending' && !txnUids.has(uid)) return false;
+  return true;
 }
 
 function buildTxnRemarksMap(txnRecords) {
@@ -167,6 +199,8 @@ async function loadRemarkContext() {
   ]);
   txnRemarksByUid = buildTxnRemarksMap(txnRes.success ? txnRes.records : []);
   customerMemoByUid = buildCustomerMemoMap(custRes.success ? custRes.records : []);
+  customerUids = buildCustomerUidSet(custRes.success ? custRes.records : []);
+  txnUids = buildCustomerTxnUidSet(txnRes.success ? txnRes.records : []);
 }
 
 export async function loadDeliveryDashboard(skipSync = false) {
@@ -190,7 +224,7 @@ export async function loadDeliveryDashboard(skipSync = false) {
       return;
     }
 
-    cachedDeliveryRecords = result.records || [];
+    cachedDeliveryRecords = (result.records || []).filter(isDeliveryQueueEntryVisible);
     const pending = sortByDateAsc(
       cachedDeliveryRecords.filter((r) => String(getCol(r, ['Status']) || 'Pending').trim() === 'Pending'),
       ['Issued Date', 'Stamp']
@@ -250,6 +284,6 @@ function bindDeliveryDashboardOnce() {
 
 export async function initDeliveryDashboard() {
   bindDeliveryDashboardOnce();
-  document.getElementById('btn-refresh-delivery')?.addEventListener('click', () => loadDeliveryDashboard(true));
+  document.getElementById('btn-refresh-delivery')?.addEventListener('click', () => loadDeliveryDashboard(false));
   await loadDeliveryDashboard(false);
 }

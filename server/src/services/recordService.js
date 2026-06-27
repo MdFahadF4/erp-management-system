@@ -7,12 +7,15 @@ import {
   deleteRecordById
 } from '../models/recordModel.js';
 import { sheetToCollection } from '../constants/sheets.js';
-import { errorResponse, successResponse } from '../utils/helpers.js';
+import { getField, errorResponse, successResponse } from '../utils/helpers.js';
 import {
   syncHrMasterForEmployee,
   syncSupplierMasterForSupplier,
   syncCustomerMasterForUid,
   ensureDeliveryQueueEntry,
+  customerTxnCountForUid,
+  removeDeliveryQueueEntriesForUid,
+  pruneDeliveryQueue,
   parseSupplierTxnPayload
 } from './syncService.js';
 
@@ -211,13 +214,14 @@ export async function createGenericRecord(sheetName, rowData) {
     await syncSupplierMasterForSupplier(parsed.supplierName);
   }
   if (sheetName === 'Customer_Transactions') {
-    await syncCustomerMasterForUid(String(rowData[1] || '').trim());
-  }
-  if (sheetName === 'Customers') {
-    await ensureDeliveryQueueEntry(rowData[0], rowData[12], rowData[13] || new Date());
+    const uid = String(rowData[1] || '').trim();
+    await syncCustomerMasterForUid(uid);
+    if (uid) {
+      await ensureDeliveryQueueEntry(uid, String(rowData[8] || '').trim(), rowData[0] || new Date());
+    }
   }
 
-  return successResponse({ message: 'Record saved successfully!' });
+  return successResponse({ message: 'Record saved successfully.' });
 }
 
 export async function fetchGenericRecords(sheetName) {
@@ -275,7 +279,17 @@ export async function deleteGenericRecord(sheetName, id) {
     await syncSupplierMasterForSupplier(String(existing['Supplier Name'] || '').trim());
   }
   if (sheetName === 'Customer_Transactions') {
-    await syncCustomerMasterForUid(String(existing['System Unique ID'] || '').trim());
+    const uid = String(getField(existing, ['System Unique ID', 'Sys UID']) || '').trim();
+    await syncCustomerMasterForUid(uid);
+    if (uid && (await customerTxnCountForUid(uid)) === 0) {
+      await removeDeliveryQueueEntriesForUid(uid, { pendingOnly: true });
+    }
+    await pruneDeliveryQueue();
+  }
+  if (sheetName === 'Customers') {
+    const uid = String(getField(existing, ['System Unique ID']) || '').trim();
+    if (uid) await removeDeliveryQueueEntriesForUid(uid);
+    await pruneDeliveryQueue();
   }
 
   return successResponse({ message: 'Record deleted successfully.' });

@@ -1,5 +1,10 @@
 import { getField, normalizeHrName, normalizeSupplierName } from '../utils/helpers.js';
-import { findAllRecords, insertRecord, updateRecordById } from '../models/recordModel.js';
+import {
+  findAllRecords,
+  insertRecord,
+  updateRecordById,
+  deleteRecordById
+} from '../models/recordModel.js';
 import { sheetToCollection } from '../constants/sheets.js';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -10,6 +15,10 @@ const CUSTOMER_TXN_COLLECTION = sheetToCollection('Customer_Transactions');
 const SUPPLIERS_COLLECTION = sheetToCollection('Suppliers');
 const SUPPLIER_TXN_COLLECTION = sheetToCollection('Supplier_Transactions');
 const DELIVERY_COLLECTION = sheetToCollection('Delivery_Queue');
+
+function normalizeUid(systemUID) {
+  return String(systemUID || '').trim().toUpperCase();
+}
 
 export function inferSupplierTxnCategory(purchase, discount, paymentPaid, remarks) {
   const rem = String(remarks || '').trim().toLowerCase();
@@ -306,13 +315,73 @@ async function getLatestCustomerTxnRemarks(systemUID) {
   return latest;
 }
 
+export async function customerTxnCountForUid(systemUID) {
+  const target = normalizeUid(systemUID);
+  if (!target) return 0;
+  const txns = await findAllRecords(CUSTOMER_TXN_COLLECTION);
+  return txns.filter(
+    (txn) => normalizeUid(getField(txn, ['System Unique ID', 'Sys UID'])) === target
+  ).length;
+}
+
+export async function removeDeliveryQueueEntriesForUid(systemUID, { pendingOnly = false } = {}) {
+  const target = normalizeUid(systemUID);
+  if (!target) return 0;
+
+  const delRecords = await findAllRecords(DELIVERY_COLLECTION);
+  let removed = 0;
+  for (const rec of delRecords) {
+    if (normalizeUid(getField(rec, ['System Unique ID', 'Sys UID'])) !== target) continue;
+    const status = String(getField(rec, ['Status']) || 'Pending').trim();
+    if (pendingOnly && status !== 'Pending') continue;
+    await deleteRecordById(DELIVERY_COLLECTION, rec.ID);
+    removed++;
+  }
+  return removed;
+}
+
+export async function pruneDeliveryQueue() {
+  const custRecords = await findAllRecords(CUSTOMERS_COLLECTION);
+  const txnRecords = await findAllRecords(CUSTOMER_TXN_COLLECTION);
+  const customerUids = new Set(
+    custRecords
+      .map((cust) => normalizeUid(getField(cust, ['System Unique ID'])))
+      .filter(Boolean)
+  );
+  const txnUids = new Set(
+    txnRecords
+      .map((txn) => normalizeUid(getField(txn, ['System Unique ID', 'Sys UID'])))
+      .filter(Boolean)
+  );
+
+  const delRecords = await findAllRecords(DELIVERY_COLLECTION);
+  let removed = 0;
+  for (const rec of delRecords) {
+    const uid = normalizeUid(getField(rec, ['System Unique ID', 'Sys UID']));
+    const status = String(getField(rec, ['Status']) || 'Pending').trim();
+
+    if (!uid || !customerUids.has(uid)) {
+      await deleteRecordById(DELIVERY_COLLECTION, rec.ID);
+      removed++;
+      continue;
+    }
+
+    if (status === 'Pending' && !txnUids.has(uid)) {
+      await deleteRecordById(DELIVERY_COLLECTION, rec.ID);
+      removed++;
+    }
+  }
+  return removed;
+}
+
 export async function ensureDeliveryQueueEntry(systemUID, username, issuedDate) {
   const uid = String(systemUID || '').trim();
   if (!uid) return;
 
   const delRecords = await findAllRecords(DELIVERY_COLLECTION);
+  const target = normalizeUid(uid);
   const exists = delRecords.some(
-    (r) => String(getField(r, ['System Unique ID']) || '').trim() === uid
+    (r) => normalizeUid(getField(r, ['System Unique ID', 'Sys UID'])) === target
   );
   if (exists) return;
 
@@ -331,27 +400,40 @@ export async function ensureDeliveryQueueEntry(systemUID, username, issuedDate) 
 }
 
 export async function syncDeliveryQueue() {
+  const removed = await pruneDeliveryQueue();
+
   const custRecords = await findAllRecords(CUSTOMERS_COLLECTION);
+  const txnRecords = await findAllRecords(CUSTOMER_TXN_COLLECTION);
+  const txnUids = new Set(
+    txnRecords
+      .map((txn) => normalizeUid(getField(txn, ['System Unique ID', 'Sys UID'])))
+      .filter(Boolean)
+  );
   const delRecords = await findAllRecords(DELIVERY_COLLECTION);
   const existing = new Set(
-    delRecords.map((r) => String(getField(r, ['System Unique ID']) || '').trim())
+    delRecords.map((r) => normalizeUid(getField(r, ['System Unique ID', 'Sys UID']))).filter(Boolean)
   );
 
   let added = 0;
   for (const cust of custRecords) {
     const systemUID = String(getField(cust, ['System Unique ID']) || '').trim();
-    if (!systemUID || existing.has(systemUID)) continue;
+    const uidKey = normalizeUid(systemUID);
+    if (!uidKey || existing.has(uidKey) || !txnUids.has(uidKey)) continue;
     const loggedBy = String(getField(cust, ['Logged By']) || '');
     const issued = getField(cust, ['Creation Stamp']) || new Date();
     await ensureDeliveryQueueEntry(systemUID, loggedBy, issued);
-    existing.add(systemUID);
+    existing.add(uidKey);
     added++;
   }
 
+  const parts = [];
+  if (removed > 0) parts.push(`${removed} stale record(s) removed`);
+  if (added > 0) parts.push(`${added} delivery record(s) synced`);
+
   return {
     success: true,
-    message:
-      added > 0 ? `${added} delivery record(s) synced.` : 'Delivery queue is up to date.',
-    added
+    message: parts.length ? parts.join('; ') + '.' : 'Delivery queue is up to date.',
+    added,
+    removed
   };
 }

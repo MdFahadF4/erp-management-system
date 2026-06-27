@@ -4,14 +4,7 @@ import { getHrEmployeeName, rollupHrTxnTotals, normalizeHrEmployeeName as normHr
 import { getSupplierName, getSupplierDueBalance, rollupSupplierTxnTotals } from './supplierEngine.js';
 
 export async function confirmTypedDelete(label) {
-  const confirmed = window.confirm(`Permanently delete ${label}?\n\nThis cannot be undone.`);
-  if (!confirmed) return false;
-  const typed = window.prompt('Type DELETE to confirm removal:');
-  if (String(typed || '').trim().toUpperCase() !== 'DELETE') {
-    alert('Delete cancelled — confirmation text did not match.');
-    return false;
-  }
-  return true;
+  return window.confirm(`Permanently delete ${label}?\n\nThis cannot be undone.`);
 }
 
 function countHrTxns(txns, empName) {

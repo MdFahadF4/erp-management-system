@@ -3,15 +3,18 @@ import { useI18n } from '../i18n/I18nProvider.jsx';
 import {
   fetchCustomerModuleData,
   fetchDeliveryQueue,
-  syncDeliveryQueue,
+  fetchSheet,
   updateRecord
 } from '../services/dataService.js';
 import {
   buildCustomerMemoMap,
+  buildCustomerTxnUidSet,
+  buildCustomerUidSet,
   buildMarkDeliveredRowData,
   buildTxnRemarksMap,
   formatDisplayDate,
   getRecordId,
+  isDeliveryQueueEntryVisible,
   resolveDeliveryRemarks,
   sortDeliveryByDateAsc
 } from '../lib/deliveryEngine.js';
@@ -75,17 +78,25 @@ export default function DeliveryDashboardPage({ user }) {
   const [records, setRecords] = useState([]);
   const [txnRemarksByUid, setTxnRemarksByUid] = useState({});
   const [customerMemoByUid, setCustomerMemoByUid] = useState({});
+  const [customerUids, setCustomerUids] = useState(() => new Set());
+  const [txnUids, setTxnUids] = useState(() => new Set());
   const [loading, setLoading] = useState(true);
   const [marking, setMarking] = useState(null);
 
   const load = useCallback(async (skipSync = false) => {
     setLoading(true);
     try {
-      if (!skipSync) await syncDeliveryQueue().catch(() => null);
       const custData = await fetchCustomerModuleData();
       setTxnRemarksByUid(buildTxnRemarksMap(custData.customerTxns));
       setCustomerMemoByUid(buildCustomerMemoMap(custData.customers));
-      setRecords(await fetchDeliveryQueue());
+      setCustomerUids(buildCustomerUidSet(custData.customers));
+      setTxnUids(buildCustomerTxnUidSet(custData.customerTxns));
+      if (skipSync) {
+        const res = await fetchSheet('Delivery_Queue');
+        setRecords(res.success ? res.records : []);
+      } else {
+        setRecords(await fetchDeliveryQueue());
+      }
     } finally {
       setLoading(false);
     }
@@ -95,22 +106,27 @@ export default function DeliveryDashboardPage({ user }) {
     load(false);
   }, [load]);
 
+  const visibleRecords = useMemo(
+    () => records.filter((r) => isDeliveryQueueEntryVisible(r, customerUids, txnUids)),
+    [records, customerUids, txnUids]
+  );
+
   const pending = useMemo(
     () =>
       sortDeliveryByDateAsc(
-        records.filter((r) => String(getCol(r, ['Status']) || 'Pending').trim() === 'Pending'),
+        visibleRecords.filter((r) => String(getCol(r, ['Status']) || 'Pending').trim() === 'Pending'),
         ['Issued Date', 'Stamp']
       ),
-    [records]
+    [visibleRecords]
   );
 
   const delivered = useMemo(
     () =>
       sortDeliveryByDateAsc(
-        records.filter((r) => String(getCol(r, ['Status']) || '').trim() === 'Delivered'),
+        visibleRecords.filter((r) => String(getCol(r, ['Status']) || '').trim() === 'Delivered'),
         ['Delivery Date', 'Stamp']
       ),
-    [records]
+    [visibleRecords]
   );
 
   const resolveRemarks = (rec) => resolveDeliveryRemarks(rec, txnRemarksByUid, customerMemoByUid);
@@ -143,7 +159,7 @@ export default function DeliveryDashboardPage({ user }) {
         <button
           type="button"
           id="btn-refresh-delivery"
-          onClick={() => load(true)}
+          onClick={() => load(false)}
           className="shrink-0 bg-teal-600 hover:bg-teal-700 text-white font-semibold px-3 py-1.5 rounded text-xs transition shadow-sm"
         >
           {t('common.refresh')}

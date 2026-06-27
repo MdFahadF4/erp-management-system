@@ -125,11 +125,6 @@ export default function HeadManagementPage({ user, config, onDataChange }) {
         `This cannot be undone.`
     );
     if (!confirmed) return;
-    const typed = window.prompt('Type DELETE to confirm removal:');
-    if (String(typed || '').trim().toUpperCase() !== 'DELETE') {
-      alert('Delete cancelled — confirmation text did not match.');
-      return;
-    }
     try {
       const res = await deleteRecord(config.headSheet, row.id);
       alert(res.message || (res.success ? 'Head deleted.' : 'Delete failed.'));
