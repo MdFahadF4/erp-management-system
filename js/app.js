@@ -1207,7 +1207,7 @@ function getCustomerDueBalance(rec) {
   if (received === 0) received = parseFloat(getCol(rec, ["Received Amount", "Total Received", "Received"])) || 0;
   let due = sell - received - discount;
   if (due <= 0.009) due = parseFloat(getCol(rec, ["Due Balance", "Due", "Outstanding Balance Due"])) || 0;
-  return Math.max(0, due);
+  return Math.max(0, Math.round((due + Number.EPSILON) * 100) / 100);
 }
 
 function getSupplierTxnCategory(rec) {
@@ -4335,7 +4335,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
     ? t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() })
     : (type === 'customer_due_balance' ? t('report.allOutstandingForUser') : t('report.dateRangeTo', { from: fDate.toLocaleDateString(), to: tDate.toLocaleDateString() }));
   tgtEl.textContent = secText && secVal ? t('report.targetEntity', { name: secText }) : '';
-  cardsEl.innerHTML = ''; 
+  cardsEl.innerHTML = '';
+  delete cardsEl.dataset.skipSummarySplit; 
 
   const drawCard = (title, val, colorClass) => {
     return `<div class="bg-gray-50 border border-gray-200 p-4 rounded-xl shadow-sm text-center">
@@ -4530,7 +4531,12 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         // This instantly removes spaces so "Previous Due" always matches!
         const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase(); 
         const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
-        const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:v; };
+        const roundMoney = (val) => {
+          const n = Number(val);
+          if (!Number.isFinite(n)) return 0;
+          return Math.round((n + Number.EPSILON) * 100) / 100;
+        };
+        const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:roundMoney(v); };
 
         let hasDates = (typeof fDate !== 'undefined' && fDate && typeof tDate !== 'undefined' && tDate && !isNaN(new Date(fDate).getTime()));
 
@@ -4545,17 +4551,21 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         };
 
         const addD = (cat, dStr, inc, paid, rem, usr, disc = 0) => {
+            inc = roundMoney(inc);
+            paid = roundMoney(paid);
+            disc = roundMoney(disc);
             let d = dStr ? new Date(dStr) : new Date();
             let inRange = !hasDates || (d >= fDate && d <= tDate);
-            window.aggReportData[cat].lInc += inc;
-            window.aggReportData[cat].lPaid += paid;
-            window.aggReportData[cat].lDisc += disc;
+            const box = window.aggReportData[cat];
+            box.lInc = roundMoney(box.lInc + inc);
+            box.lPaid = roundMoney(box.lPaid + paid);
+            box.lDisc = roundMoney(box.lDisc + disc);
             if (hasDates && inRange) {
-              window.aggReportData[cat].rInc += inc;
-              window.aggReportData[cat].rPaid += paid;
-              window.aggReportData[cat].rDisc += disc;
+              box.rInc = roundMoney(box.rInc + inc);
+              box.rPaid = roundMoney(box.rPaid + paid);
+              box.rDisc = roundMoney(box.rDisc + disc);
             }
-            if (inc > 0 || paid > 0 || disc > 0) window.aggReportData[cat].rows.push({ d, inc, paid, disc, rem: rem||'-', usr: usr||'-', inRange });
+            if (inc > 0 || paid > 0 || disc > 0) box.rows.push({ d, inc, paid, disc, rem: rem||'-', usr: usr||'-', inRange });
         };
 
         // --- CUSTOMER SALES LOGIC ---
@@ -4654,27 +4664,36 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         });
 
         // --- HR LOGIC ---
-        let tHrS=0, tHrP=0;
+        const hrTxnAgg = {};
         if (rHrT.success) rHrT.records.forEach(r => {
             let cat = cln(gV(r, ["category", "remarks"])); 
-            let amt = Math.abs(gF(r, ["amount"]));
+            let amt = roundMoney(Math.abs(gF(r, ["amount"])));
+            const emp = cln(gV(r, ["employee", "employeename", "name"]));
+            if (emp) {
+              if (!hrTxnAgg[emp]) hrTxnAgg[emp] = { earned: 0, paid: 0 };
+              if (cat.includes("previousdue") || cat.includes("openingbalance") || cat.includes("earn") || cat.includes("bill")) {
+                hrTxnAgg[emp].earned = roundMoney(hrTxnAgg[emp].earned + amt);
+              } else if (cat.includes("paid")) {
+                hrTxnAgg[emp].paid = roundMoney(hrTxnAgg[emp].paid + amt);
+              }
+            }
             
             if (cat.includes("previousdue") || cat.includes("openingbalance")) {
-                tHrS += amt;
                 addD('hr', gV(r, ["date", "timestamp"]), amt, 0, "📌 Previous Due", gV(r, ["username", "loggedby"]));
             } else if (cat.includes("earn") || cat.includes("bill")) {
-                tHrS += amt;
                 addD('hr', gV(r, ["date", "timestamp"]), amt, 0, gV(r, ["remarks", "category"])||"HR Earned", gV(r, ["username", "loggedby"]));
             } else if (cat.includes("paid")) {
-                tHrP += amt;
                 addD('hr', gV(r, ["date", "timestamp"]), 0, amt, gV(r, ["remarks", "category"])||"HR Paid", gV(r, ["username", "loggedby"]));
             }
         });
         if (rHr.success) rHr.records.forEach(r => {
+            const emp = cln(gV(r, ["employee", "employeename", "name", "username"]));
+            if (!emp) return;
+            const tt = hrTxnAgg[emp] || { earned: 0, paid: 0 };
             let sheetS = gF(r, ["totalearn", "totalearnearning", "earned"]);
             let sheetP = gF(r, ["paidsalary", "paid"]);
-            let initS = sheetS - tHrS; initS = initS > 0 ? initS : 0;
-            let initP = sheetP - tHrP; initP = initP > 0 ? initP : 0;
+            let initS = roundMoney(Math.max(0, sheetS - tt.earned));
+            let initP = roundMoney(Math.max(0, sheetP - tt.paid));
             if (initS > 0 || initP > 0) addD('hr', gV(r, ["creationstamp", "timestamp", "dateofjoining"]), initS, initP, "Base HR Record", gV(r, ["username", "createdby"]));
         });
 
@@ -4711,16 +4730,26 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         const reconcileAggDiscount = (key, lifeDue) => {
           const box = window.aggReportData[key];
           if (!box) return;
-          box.lDisc = Math.max(0, box.lInc - box.lPaid - lifeDue);
+          box.lInc = roundMoney(box.lInc);
+          box.lPaid = roundMoney(box.lPaid);
+          box.lDisc = roundMoney(box.lDisc);
+          box.rInc = roundMoney(box.rInc);
+          box.rPaid = roundMoney(box.rPaid);
+          box.rDisc = roundMoney(box.rDisc);
+          const due = roundMoney(lifeDue);
+          const impliedDisc = roundMoney(Math.max(0, box.lInc - box.lPaid - due));
+          if (Math.abs(box.lInc - box.lPaid - due - box.lDisc) > 0.009) {
+            box.lDisc = impliedDisc;
+          }
           if (hasDates) {
             if (Math.abs(box.rInc - box.lInc) < 0.01 && Math.abs(box.rPaid - box.lPaid) < 0.01) {
               box.rDisc = box.lDisc;
             } else if (box.lInc > 0.009) {
-              box.rDisc = Math.max(0, (box.lDisc * box.rInc) / box.lInc);
+              box.rDisc = roundMoney(Math.max(0, (box.lDisc * box.rInc) / box.lInc));
             } else {
               box.rDisc = 0;
             }
-            box.rDisc = Math.min(box.rDisc, Math.max(0, box.rInc - box.rPaid));
+            box.rDisc = roundMoney(Math.min(box.rDisc, Math.max(0, box.rInc - box.rPaid)));
           }
         };
 
@@ -4770,10 +4799,10 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
 
         let d = window.aggReportData;
         const netDue = (box, mode) => {
-          const inc = mode === 'range' ? box.rInc : box.lInc;
-          const paid = mode === 'range' ? box.rPaid : box.lPaid;
-          const disc = mode === 'range' ? box.rDisc : box.lDisc;
-          return inc - paid - disc;
+          const inc = roundMoney(mode === 'range' ? box.rInc : box.lInc);
+          const paid = roundMoney(mode === 'range' ? box.rPaid : box.lPaid);
+          const disc = roundMoney(mode === 'range' ? box.rDisc : box.lDisc);
+          return roundMoney(inc - paid - disc);
         };
         let totalReceivable = netDue(d.sales, 'lifetime') + netDue(d.income, 'lifetime');
         let totalPayable = netDue(d.purchase, 'lifetime') + netDue(d.expense, 'lifetime') + netDue(d.hr, 'lifetime') + netDue(d.creditor, 'lifetime');
@@ -4784,7 +4813,10 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
         let rngNetStatus = rngReceivable - rngPayable;
 
         const buildBox = (title, incL, paidL, discL, l1, l2, key, mode) => {
-            const balance = incL - paidL - discL;
+            incL = roundMoney(incL);
+            paidL = roundMoney(paidL);
+            discL = roundMoney(discL);
+            const balance = roundMoney(incL - paidL - discL);
             const showDisc = ['sales', 'income', 'purchase', 'expense'].includes(key);
             return `
             <div onclick="window.openAggModal('${key}', '${title}', '${mode}')" class="bg-white border border-gray-200 rounded-xl shadow-sm p-5 cursor-pointer hover:ring-2 hover:${mode === 'lifetime' ? 'ring-blue-400' : 'ring-purple-400'} hover:shadow-md transition duration-200 group relative">
@@ -4861,7 +4893,8 @@ async function executeReportGeneration(type, fromStr, toStr, secVal, secText, ap
              ${buildBox(t('report.boxOwnerCapital'), d.capital.rInc, d.capital.rPaid, d.capital.rDisc, t('report.capitalInLabel'), t('report.capitalOutLabel'), "capital", "range")}
           </div>` : ''}
         `;
-        cardsEl.className = "grid grid-cols-1 mb-2";
+        cardsEl.dataset.skipSummarySplit = 'true';
+        cardsEl.className = "grid grid-cols-1 mb-6";
 
         tableContainer.innerHTML = `
           <div class="text-center text-gray-400 text-xs font-bold mt-4 animate-pulse">${t('report.clickCardHint')}</div>

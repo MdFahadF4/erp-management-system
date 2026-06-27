@@ -1,4 +1,4 @@
-import { getCol, fmtMoney } from './recordHelpers.js';
+import { getCol, fmtMoney, roundMoney } from './recordHelpers.js';
 import { filterRecordsByDateRange, parseRecordDate } from './hrEngine.js';
 
 export function formatCustomDateString(dateObj) {
@@ -48,7 +48,7 @@ export function getCustomerDueBalance(rec) {
   if (due <= 0.009) {
     due = parseFloat(getCol(rec, ['Due Balance', 'Due', 'Outstanding Balance Due'])) || 0;
   }
-  return Math.max(0, due);
+  return Math.max(0, roundMoney(due));
 }
 
 export function canViewAllCustomers(user) {

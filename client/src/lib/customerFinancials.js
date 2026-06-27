@@ -1,4 +1,4 @@
-import { cln, gF, gV } from './recordHelpers.js';
+import { cln, gF, gV, roundMoney } from './recordHelpers.js';
 
 export const CUSTOMER_SELL_COLS = ['soldamount', 'soldamt', 'totalsell', 'sellamount', 'grosssell', 'sell'];
 export const CUSTOMER_RECV_COLS = [
@@ -87,6 +87,13 @@ export function aggregateCustomerTotalsFromTxns(records) {
     else if (method.includes('card')) card += amount;
   });
 
-  due = Math.max(0, sold - recv - discount);
-  return { sold, cash, card, recv, discount, due };
+  due = roundMoney(Math.max(0, sold - recv - discount));
+  return {
+    sold: roundMoney(sold),
+    cash: roundMoney(cash),
+    card: roundMoney(card),
+    recv: roundMoney(recv),
+    discount: roundMoney(discount),
+    due
+  };
 }

@@ -1,4 +1,4 @@
-import { getCol, cln } from './recordHelpers.js';
+import { getCol, cln, roundMoney } from './recordHelpers.js';
 
 export function getDualTxnCategory(rec, fieldMap) {
   const cats = fieldMap.categories || {};
@@ -31,10 +31,15 @@ function normalizeDualTxnAmountsByCategory(category, bill, discount, pay, fieldM
     return { bill: amt, discount: 0, pay: 0, txnDue: amt };
   }
   if (payKey && catKey === payKey) {
-    const amt = pay || bill;
-    return { bill: 0, discount: 0, pay: amt, txnDue: -amt };
+    const amt = roundMoney(pay || bill);
+    return { bill: 0, discount: 0, pay: amt, txnDue: roundMoney(-amt) };
   }
-  return { bill, discount, pay, txnDue: bill - discount - pay };
+  return {
+    bill: roundMoney(bill),
+    discount: roundMoney(discount),
+    pay: roundMoney(pay),
+    txnDue: roundMoney(bill - discount - pay)
+  };
 }
 
 export function parseTxnDualAmounts(rec, fieldMap) {
@@ -48,8 +53,14 @@ export function parseTxnDualAmounts(rec, fieldMap) {
   discount = normalized.discount;
   pay = normalized.pay;
   let txnDue = normalized.txnDue;
-  if (Math.abs(txnDue) < 0.009 && !Number.isNaN(storedDue)) txnDue = storedDue;
-  return { bill, discount, pay, txnDue, category };
+  if (Math.abs(txnDue) < 0.009 && !Number.isNaN(storedDue)) txnDue = roundMoney(storedDue);
+  return {
+    bill: roundMoney(bill),
+    discount: roundMoney(discount),
+    pay: roundMoney(pay),
+    txnDue: roundMoney(txnDue),
+    category
+  };
 }
 
 export function getSupplierTxnCategory(rec) {
@@ -75,19 +86,25 @@ export function parseSupplierTxnAmounts(rec) {
     let pay = parseFloat(getCol(rec, ['Payment Paid', 'Paid Amount', 'Payment Paid Amt'])) || 0;
     const storedDue = parseFloat(getCol(rec, ['Transaction Due', 'Txn Due']));
     if (isPrev) {
-      bill = bill || pay;
+      bill = roundMoney(bill || pay);
       return { bill, discount: 0, pay: 0, txnDue: bill, category: 'Previous Due' };
     }
     if (catKey.includes('payment paid') || catKey.includes('paid')) {
-      pay = pay || bill;
-      return { bill: 0, discount: 0, pay, txnDue: -pay, category: 'Payment Paid' };
+      pay = roundMoney(pay || bill);
+      return { bill: 0, discount: 0, pay, txnDue: roundMoney(-pay), category: 'Payment Paid' };
     }
-    const txnDue = !Number.isNaN(storedDue) ? storedDue : bill - discount - pay;
-    return { bill, discount, pay, txnDue, category: category || 'Purchase' };
+    const txnDue = !Number.isNaN(storedDue) ? roundMoney(storedDue) : roundMoney(bill - discount - pay);
+    return {
+      bill: roundMoney(bill),
+      discount: roundMoney(discount),
+      pay: roundMoney(pay),
+      txnDue,
+      category: category || 'Purchase'
+    };
   }
-  const amt = parseFloat(getCol(rec, ['Amount'])) || 0;
+  const amt = roundMoney(parseFloat(getCol(rec, ['Amount'])) || 0);
   if (isPrev) return { bill: amt, discount: 0, pay: 0, txnDue: amt, category: 'Previous Due' };
-  if (catKey.includes('paid')) return { bill: 0, discount: 0, pay: amt, txnDue: -amt, category: 'Payment Paid' };
+  if (catKey.includes('paid')) return { bill: 0, discount: 0, pay: amt, txnDue: roundMoney(-amt), category: 'Payment Paid' };
   return { bill: amt, discount: 0, pay: 0, txnDue: amt, category: 'Purchase' };
 }
 

@@ -370,6 +370,7 @@ export function addSectionDividers(container) {
 export function reorderAndSplitReportSummary() {
   const cardsEl = document.getElementById('report-summary-cards');
   if (!cardsEl || !cardsEl.innerHTML.trim() || cardsEl.querySelector('.erp-report-summary-split')) return;
+  if (cardsEl.dataset.skipSummarySplit === 'true') return;
 
   const bluePanel = cardsEl.querySelector('.bg-blue-50');
   let lifetimeHtml = cardsEl.innerHTML;

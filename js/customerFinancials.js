@@ -8,9 +8,15 @@ const gV = (obj, names) => {
   return null;
 };
 
+const roundMoney = (val) => {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+};
+
 const gF = (obj, names) => {
   const v = parseFloat(gV(obj, names));
-  return Number.isNaN(v) ? 0 : v;
+  return Number.isNaN(v) ? 0 : roundMoney(v);
 };
 
 export const CUSTOMER_SELL_COLS = ['soldamount', 'soldamt', 'totalsell', 'sellamount', 'grosssell', 'sell'];
@@ -100,6 +106,13 @@ export function aggregateCustomerTotalsFromTxns(records) {
     else if (method.includes('card')) card += amount;
   });
 
-  due = Math.max(0, sold - recv - discount);
-  return { sold, cash, card, recv, discount, due };
+  due = roundMoney(Math.max(0, sold - recv - discount));
+  return {
+    sold: roundMoney(sold),
+    cash: roundMoney(cash),
+    card: roundMoney(card),
+    recv: roundMoney(recv),
+    discount: roundMoney(discount),
+    due
+  };
 }

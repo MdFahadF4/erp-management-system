@@ -22,11 +22,17 @@ export function gV(obj, names) {
   return null;
 }
 
+export function roundMoney(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
 export function gF(obj, names) {
   const v = parseFloat(gV(obj, names));
-  return Number.isNaN(v) ? 0 : v;
+  return Number.isNaN(v) ? 0 : roundMoney(v);
 }
 
 export function fmtMoney(val) {
-  return Number(val || 0).toFixed(2);
+  return roundMoney(val).toFixed(2);
 }
