@@ -44,6 +44,7 @@ export default function AppShell({ user: initialUser }) {
       customers: 'nav.customers',
       customer_transactions: 'nav.customerTransactions',
       internal_transfer: 'nav.internalTransfer',
+      internal_transfer_view: 'nav.internalTransferView',
       suppliers: 'nav.suppliers',
       supplier_transactions: 'nav.supplierTransactions',
       expense_heads: 'nav.expenseHeads',

@@ -151,14 +151,20 @@ export function getTxnEditForm(sheetName, record) {
         values: {
           date: formatDateInput(getCol(record, ['Date'])),
           amount: getCol(record, ['Transfer Amount', 'Amount']) ?? '',
-          desc: getCol(record, ['Description', 'Description / Purpose']) || '',
-          toUser: getCol(record, ['Transfer To User', 'Transfer To', 'Received By']) || ''
+          desc: getCol(record, ['Description', 'Description / Purpose', 'Remarks']) || '',
+          toUser: getCol(record, ['Transfer To User', 'Transfer To', 'Received By']) || '',
+          status: getCol(record, ['Status']) || 'Pending',
+          approvedBy: getCol(record, ['Approved By']) || '',
+          approvedAt: getCol(record, ['Approved At']) || ''
         },
         fields: [
           { key: 'date', labelKey: 'field.transferDate', type: 'date' },
           { key: 'amount', labelKey: 'field.transferCashAmount', type: 'number' },
           { key: 'desc', labelKey: 'field.descriptionNarrative', type: 'textarea' },
-          { key: 'toUser', labelKey: 'field.transferToUser', type: 'text' }
+          { key: 'toUser', labelKey: 'field.transferToUser', type: 'text' },
+          { key: 'status', labelKey: 'col.status', type: 'text', readOnly: true },
+          { key: 'approvedBy', labelKey: 'internalTransfer.approvedBy', type: 'text', readOnly: true },
+          { key: 'approvedAt', labelKey: 'internalTransfer.approvedAt', type: 'text', readOnly: true }
         ]
       };
 
@@ -304,6 +310,9 @@ export function buildUpdateRowData(sheetName, original, values, user) {
         String(values.desc ?? '').trim(),
         loggedBy,
         String(values.toUser ?? '').trim(),
+        values.status || getCol(original, ['Status']) || 'Pending',
+        values.approvedBy || getCol(original, ['Approved By']) || '',
+        values.approvedAt || getCol(original, ['Approved At']) || '',
         stamp
       ];
 

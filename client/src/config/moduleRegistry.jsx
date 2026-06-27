@@ -7,6 +7,7 @@ import CustomerTransactionsPage from '../pages/CustomerTransactionsPage.jsx';
 import SuppliersPage from '../pages/SuppliersPage.jsx';
 import SupplierTransactionsPage from '../pages/SupplierTransactionsPage.jsx';
 import InternalTransferPage from '../pages/InternalTransferPage.jsx';
+import InternalTransferViewPage from '../pages/InternalTransferViewPage.jsx';
 import HeadManagementPage from '../pages/HeadManagementPage.jsx';
 import DualTxnPage from '../pages/DualTxnPage.jsx';
 import DeliveryDashboardPage from '../pages/DeliveryDashboardPage.jsx';
@@ -52,6 +53,8 @@ export function resolveModuleComponent(moduleId, ctx) {
       return <SupplierTransactionsPage user={user} onDataChange={onDataChange} />;
     case 'internal_transfer':
       return <InternalTransferPage user={user} onDataChange={onDataChange} />;
+    case 'internal_transfer_view':
+      return <InternalTransferViewPage user={user} onDataChange={onDataChange} />;
     case 'expense_heads':
       return <HeadManagementPage user={user} config={EXPENSE_HEADS_CONFIG} onDataChange={onDataChange} />;
     case 'expense_transactions':

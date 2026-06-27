@@ -69,6 +69,8 @@ export function computeLiveCashDrawer(user, data) {
   }
 
   const applyInternalTransferDrawer = (r) => {
+    const status = String(gV(r, ['status']) || '').trim();
+    if (status && status.toLowerCase() !== 'approved') return;
     const amt = Math.abs(gF(r, ['transferamount', 'amount']));
     const sender = String(gV(r, ['transferredby', 'username', 'loggedby']) || '').trim();
     const recipient = String(gV(r, ['transfertouser', 'transferto', 'receivedby', 'handoverto']) || '').trim();

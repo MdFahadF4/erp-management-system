@@ -15,7 +15,9 @@ export function buildTxnRemarksMap(txnRecords) {
   const map = {};
   (txnRecords || []).forEach((txn) => {
     const uid = String(getCol(txn, ['System Unique ID', 'Sys UID']) || '').trim();
-    const remarks = String(getCol(txn, ['Remarks']) || '').trim();
+    const remarks = String(
+      getCol(txn, ['Remarks / Reference', 'Remarks / Reference Info', 'Remarks']) || ''
+    ).trim();
     if (!uid || !remarks) return;
     const ts = new Date(getCol(txn, ['Date']) || 0).getTime() || 0;
     if (!map[uid] || ts >= map[uid].ts) map[uid] = { remarks, ts };

@@ -1,10 +1,17 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import ModuleLedgerLayout from '../components/ModuleLedgerLayout.jsx';
+import InternalTransferActions from '../components/InternalTransferActions.jsx';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 import { createRecord, fetchInternalTransfers, fetchUsers } from '../services/dataService.js';
-import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
 import { filterRecordsByDateRange, defaultDateRange } from '../lib/hrEngine.js';
 import { fmtMoney, getCol, parseRecordDate } from '../lib/dualHeadEngine.js';
+import {
+  filterIncomingPendingTransfers,
+  filterOutgoingTransfers,
+  getTransferStatus,
+  resolveTransferRecipientLabel,
+  transferStatusBadgeClass
+} from '../lib/internalTransferEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
 function todayIso() {
@@ -37,7 +44,17 @@ export default function InternalTransferPage({ user, onDataChange }) {
     loadData();
   }, [loadData]);
 
-  const filtered = ledgerLoaded ? filterRecordsByDateRange(records, filterFrom, filterTo) || [] : [];
+  const incomingPending = useMemo(
+    () => filterIncomingPendingTransfers(records, user.username),
+    [records, user.username]
+  );
+
+  const outgoingAll = useMemo(
+    () => filterOutgoingTransfers(records, user.username),
+    [records, user.username]
+  );
+
+  const filtered = ledgerLoaded ? filterRecordsByDateRange(outgoingAll, filterFrom, filterTo) || [] : [];
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,7 +74,7 @@ export default function InternalTransferPage({ user, onDataChange }) {
         toUser,
         new Date().toLocaleString()
       ]);
-      alert(res.message || (res.success ? 'Transfer logged.' : 'Failed.'));
+      alert(res.message || (res.success ? t('internalTransfer.loggedPending') : t('alert.errorLog')));
       if (res.success) {
         setTxnDate(todayIso());
         setAmount('');
@@ -73,7 +90,7 @@ export default function InternalTransferPage({ user, onDataChange }) {
     }
   };
 
-  const handleTxnMutate = async () => {
+  const handleMutate = async () => {
     await loadData();
     onDataChange?.();
   };
@@ -88,6 +105,9 @@ export default function InternalTransferPage({ user, onDataChange }) {
 
   const formContent = (
     <form className="space-y-4 text-xs" onSubmit={handleSubmit}>
+      <div className="rounded-lg border border-amber-100 bg-amber-50 p-3 text-[11px] text-amber-900">
+        {t('internalTransfer.pendingHint')}
+      </div>
       <div>
         <label className="block font-bold text-gray-600 mb-1">{t('field.transferDate')}</label>
         <input type="date" required value={txnDate} onChange={(e) => setTxnDate(e.target.value)} disabled={!canEdit} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
@@ -124,6 +144,36 @@ export default function InternalTransferPage({ user, onDataChange }) {
 
   const ledgerContent = (
     <>
+      {incomingPending.length > 0 && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-xl p-3 md:p-4">
+          <h4 className="text-sm font-bold text-blue-900 mb-2">{t('internalTransfer.incomingPendingTitle')}</h4>
+          <div className="overflow-x-auto border border-blue-100 rounded-lg bg-white">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="bg-blue-100 font-bold text-blue-900 uppercase whitespace-nowrap">
+                <tr>
+                  <th className="p-2.5">{t('col.date')}</th>
+                  <th className="p-2.5">{t('col.transferAmount')}</th>
+                  <th className="p-2.5">{t('col.descriptionPurpose')}</th>
+                  <th className="p-2.5">{t('col.transferredBy')}</th>
+                  <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {incomingPending.map((rec) => (
+                  <tr key={rec.ID} className="hover:bg-blue-50/40">
+                    <td className="p-2.5">{parseRecordDate(getCol(rec, ['Date']))?.toLocaleDateString() || ''}</td>
+                    <td className="p-2.5 font-mono font-bold text-emerald-600">SAR {fmtMoney(getCol(rec, ['Amount']) || 0)}</td>
+                    <td className="p-2.5 break-words">{getCol(rec, ['Remarks', 'Description']) || '-'}</td>
+                    <td className="p-2.5">{getCol(rec, ['Transferred By']) || ''}</td>
+                    <InternalTransferActions user={user} record={rec} onMutate={handleMutate} />
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="bg-gray-50 border border-gray-200 p-3 rounded-lg mb-4 flex flex-wrap items-end gap-3 text-xs shadow-inner">
         <div className="flex-1 min-w-[120px]">
           <label className="block text-gray-600 font-bold mb-1">{t('common.fromDate')}</label>
@@ -146,42 +196,42 @@ export default function InternalTransferPage({ user, onDataChange }) {
               <th className="p-2.5">{t('col.date')}</th>
               <th className="p-2.5">{t('col.transferAmount')}</th>
               <th className="p-2.5">{t('col.descriptionPurpose')}</th>
-              <th className="p-2.5">{t('col.transferredBy')}</th>
               <th className="p-2.5">{t('col.transferToUser')}</th>
+              <th className="p-2.5">{t('col.status')}</th>
               <th className="p-2.5">{t('col.systemStamp')}</th>
-              <th className="p-2.5 erp-col-actions">{t('col.actions')}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
             {!ledgerLoaded ? (
               <tr>
-                <td colSpan={7} className="p-6 text-center text-gray-500 italic">
+                <td colSpan={6} className="p-6 text-center text-gray-500 italic">
                   {t('ledger.selectDatesPrompt')}
                 </td>
               </tr>
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-4 text-center text-gray-500 font-bold">
+                <td colSpan={6} className="p-4 text-center text-gray-500 font-bold">
                   {t('ledger.noHandovers')}
                 </td>
               </tr>
             ) : (
-              [...filtered].reverse().map((rec) => (
-                <tr key={rec.ID} className="hover:bg-gray-50 border-b border-gray-100">
-                  <td className="p-2.5">{parseRecordDate(getCol(rec, ['Date']))?.toLocaleDateString() || ''}</td>
-                  <td className="p-2.5 font-mono font-bold text-emerald-600">SAR {fmtMoney(getCol(rec, ['Amount']) || 0)}</td>
-                  <td className="p-2.5 break-words">{getCol(rec, ['Remarks', 'Description']) || '-'}</td>
-                  <td className="p-2.5">{getCol(rec, ['Transferred By', 'Username']) || ''}</td>
-                  <td className="p-2.5 text-blue-700">{getCol(rec, ['Transfer To User', 'Transfer To']) || '-'}</td>
-                  <td className="p-2.5 text-gray-400 text-[10px] font-mono">{getCol(rec, ['Stamp', 'Timestamp']) || ''}</td>
-                  <TxnLedgerActions
-                    user={user}
-                    sheetName="Internal_Transfers"
-                    record={rec}
-                    onMutate={handleTxnMutate}
-                  />
-                </tr>
-              ))
+              [...filtered].reverse().map((rec) => {
+                const status = getTransferStatus(rec);
+                return (
+                  <tr key={rec.ID} className="hover:bg-gray-50 border-b border-gray-100">
+                    <td className="p-2.5">{parseRecordDate(getCol(rec, ['Date']))?.toLocaleDateString() || ''}</td>
+                    <td className="p-2.5 font-mono font-bold text-emerald-600">SAR {fmtMoney(getCol(rec, ['Amount']) || 0)}</td>
+                    <td className="p-2.5 break-words">{getCol(rec, ['Remarks', 'Description']) || '-'}</td>
+                    <td className="p-2.5 text-blue-700">{resolveTransferRecipientLabel(rec, t)}</td>
+                    <td className="p-2.5">
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${transferStatusBadgeClass(status)}`}>
+                        {status === 'Approved' ? t('internalTransfer.statusApproved') : t('internalTransfer.statusPending')}
+                      </span>
+                    </td>
+                    <td className="p-2.5 text-gray-400 text-[10px] font-mono">{getCol(rec, ['Stamp', 'Timestamp']) || ''}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>

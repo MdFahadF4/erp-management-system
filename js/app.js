@@ -1623,6 +1623,8 @@ async function updateLiveUserCashDrawerBalance() {
 
     // Internal transfers: sender cash out; recipient cash in (user-to-user handover)
     const applyInternalTransferDrawer = (r) => {
+      const status = cln(gV(r, ["status"]) || "");
+      if (status && status !== "approved") return;
       const amt = Math.abs(gF(r, ["transferamount", "amount"]));
       const sender = String(gV(r, ["transferredby", "username", "loggedby"]) || '').trim();
       const recipient = String(gV(r, ["transfertouser", "transferto", "receivedby", "handoverto"]) || '').trim();

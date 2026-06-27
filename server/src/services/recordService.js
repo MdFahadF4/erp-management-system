@@ -102,6 +102,9 @@ const SHEET_LAYOUTS = {
     'Remarks',
     'Transferred By',
     'Transfer To User',
+    'Status',
+    'Approved By',
+    'Approved At',
     'Stamp'
   ],
   Expense_Transactions: [
@@ -181,7 +184,23 @@ function rowDataToRecord(sheetName, rowData, existingId) {
 
 export async function createGenericRecord(sheetName, rowData) {
   const collection = sheetToCollection(sheetName);
-  const record = rowDataToRecord(sheetName, rowData);
+  let record;
+  if (sheetName === 'Internal_Transfers') {
+    record = {
+      ID: uuidv4(),
+      Date: rowData[0],
+      Amount: rowData[1],
+      Remarks: rowData[2],
+      'Transferred By': rowData[3],
+      'Transfer To User': rowData[4] ?? '',
+      Status: 'Pending',
+      'Approved By': '',
+      'Approved At': '',
+      Stamp: rowData[5] || new Date().toLocaleString()
+    };
+  } else {
+    record = rowDataToRecord(sheetName, rowData);
+  }
   await insertRecord(collection, record);
 
   if (sheetName === 'HR_Transactions') {
