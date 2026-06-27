@@ -9,7 +9,11 @@ export async function fetchSheet(sheetName) {
 }
 
 export async function fetchDashboardData() {
-  await syncCustomerMaster().catch(() => null);
+  await Promise.all([
+    syncCustomerMaster().catch(() => null),
+    syncHrMaster().catch(() => null),
+    syncSupplierMaster().catch(() => null)
+  ]);
   const [
     customers,
     customerTxns,

@@ -44,11 +44,11 @@ export function getCustomerDueBalance(rec) {
   if (received === 0) {
     received = parseFloat(getCol(rec, ['Received Amount', 'Total Received', 'Received'])) || 0;
   }
-  let due = sell - received - discount;
-  if (due <= 0.009) {
-    due = parseFloat(getCol(rec, ['Due Balance', 'Due', 'Outstanding Balance Due'])) || 0;
+  let due = roundMoney(sell - received - discount);
+  if (due <= 0.009 && sell > 0.009) {
+    due = roundMoney(parseFloat(getCol(rec, ['Due Balance', 'Due', 'Outstanding Balance Due'])) || 0);
   }
-  return Math.max(0, roundMoney(due));
+  return Math.max(0, due);
 }
 
 export function canViewAllCustomers(user) {

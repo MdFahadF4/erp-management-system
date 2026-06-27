@@ -926,6 +926,14 @@ function reconcileEarnedPaid(earned, paid) {
   return { earned: fromCents(e), paid: fromCents(p), due: fromCents(d) };
 }
 
+function reconcileDrawerBalance(balance) {
+  let c = toCents(balance);
+  if (Math.abs(c) <= 1) return 0;
+  if (c < 0 && c % 100 === -99) c -= 1;
+  if (c > 0 && c % 100 === 99) c += 1;
+  return fromCents(c);
+}
+
 function normalizeCustMatchKey(val) {
   return String(val ?? '').trim().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 }
@@ -1254,9 +1262,11 @@ function getCustomerDueBalance(rec) {
   const discount = parseFloat(getCol(rec, ["Discount", "Discount Allowed"])) || 0;
   let received = cash + card;
   if (received === 0) received = parseFloat(getCol(rec, ["Received Amount", "Total Received", "Received"])) || 0;
-  let due = sell - received - discount;
-  if (due <= 0.009) due = parseFloat(getCol(rec, ["Due Balance", "Due", "Outstanding Balance Due"])) || 0;
-  return Math.max(0, Math.round((due + Number.EPSILON) * 100) / 100);
+  let due = roundMoney(sell - received - discount);
+  if (due <= 0.009 && sell > 0.009) {
+    due = roundMoney(parseFloat(getCol(rec, ["Due Balance", "Due", "Outstanding Balance Due"])) || 0);
+  }
+  return Math.max(0, due);
 }
 
 function getSupplierTxnCategory(rec) {
@@ -1675,7 +1685,7 @@ async function updateLiveUserCashDrawerBalance() {
         if (!isU(r)) return;
         const uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
         const amounts = readCustomerMasterAmounts(r);
-        uCashIn += masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
+        uCashIn += masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash, amounts.sell);
     });
 
     if (resCustTxn.success) resCustTxn.records.forEach(r => {
@@ -1704,7 +1714,11 @@ async function updateLiveUserCashDrawerBalance() {
     } else {
         // USER RULE: Drawer drops for EVERYTHING they pay for.
         if (resCred.success) resCred.records.forEach(r => { if (isU(r)) uCashOut += Math.abs(gF(r, ["returnamount", "returnamt", "amount"])); });
-        if (resHr.success) resHr.records.forEach(r => { if (isU(r) && cln(gV(r, ["category"])).includes("paid")) uCashOut += Math.abs(gF(r, ["amount"])); });
+        if (resHr.success) resHr.records.forEach(r => {
+          if (!isU(r)) return;
+          const parsed = parseHrTxnAmounts(r);
+          if (parsed.paid > 0) uCashOut += parsed.paid;
+        });
         if (resSup.success) resSup.records.forEach(r => { if (isU(r)) { const p = parseSupplierTxnAmounts(r); if (p.pay > 0) uCashOut += p.pay; } });
         
         if (resExp.success) {
@@ -1717,7 +1731,7 @@ async function updateLiveUserCashDrawerBalance() {
         }
     }
 
-    const currentLiveBalance = uCashIn - uCashOut;
+    const currentLiveBalance = reconcileDrawerBalance(roundMoney(uCashIn - uCashOut));
     balanceDisplay.textContent = currentLiveBalance.toFixed(2);
     
     const badge = document.getElementById('user-cash-drawer-badge');
@@ -7488,7 +7502,11 @@ async function loadDashboardData() {
   if (container) container.innerHTML = `<div class="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">${t('dash.calculatingBalances')}</div>`;
   
   try {
-    await apiRequest({ action: 'SYNC_CUSTOMER_MASTER' }).catch(() => null);
+    await Promise.all([
+      apiRequest({ action: 'SYNC_CUSTOMER_MASTER' }).catch(() => null),
+      apiRequest({ action: 'SYNC_HR_MASTER' }).catch(() => null),
+      apiRequest({ action: 'SYNC_SUPPLIER_MASTER' }).catch(() => null)
+    ]);
 
     const fetchS = async (sheetName) => {
       try { return await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName } }); } catch(e) { return {success:false, records:[]}; }
@@ -7551,7 +7569,7 @@ async function loadDashboardData() {
     if (rCust.success) rCust.records.forEach(r => {
        let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
        const amounts = readCustomerMasterAmounts(r);
-       let initCash = masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
+       let initCash = masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash, amounts.sell);
        let creator = gV(r, ["username", "loggedby", "createdby"]);
        if (creator) addCash(creator, initCash);
     });
@@ -7733,8 +7751,8 @@ async function loadDashboardData() {
     let drawerHTML = "";
     let drawerCount = 0;
     Object.keys(userCash).forEach(usr => {
-       let bal = userCash[usr];
-       if(Math.abs(bal) > 0.01) { 
+       let bal = reconcileDrawerBalance(userCash[usr]);
+       if(Math.abs(bal) > 0.009) { 
           drawerCount++;
           let clr = bal >= 0 ? 'text-emerald-600' : 'text-red-600';
           drawerHTML += `<div class="snap-start shrink-0 w-[108px] sm:w-[120px] md:w-auto md:shrink bg-white border border-gray-200 rounded-lg p-2 md:p-3 shadow-sm text-center"><div class="text-[9px] md:text-xs font-bold text-gray-500 uppercase tracking-wider mb-0.5 truncate" title="${usr}">${usr}</div><div class="font-mono font-bold text-sm md:text-lg ${clr} whitespace-nowrap">SAR ${bal.toFixed(2)}</div></div>`;

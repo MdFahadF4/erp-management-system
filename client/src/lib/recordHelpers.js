@@ -86,6 +86,15 @@ export function reconcileEarnedPaid(earned, paid) {
   };
 }
 
+/** Snap drawer balances affected by float drift (e.g. -199.99 → -200.00). */
+export function reconcileDrawerBalance(balance) {
+  let c = toCents(balance);
+  if (Math.abs(c) <= 1) return 0;
+  if (c < 0 && c % 100 === -99) c -= 1;
+  if (c > 0 && c % 100 === 99) c += 1;
+  return fromCents(c);
+}
+
 export function gF(obj, names) {
   const v = parseFloat(gV(obj, names));
   return Number.isNaN(v) ? 0 : roundMoney(v);

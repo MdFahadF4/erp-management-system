@@ -4,6 +4,7 @@ import {
   gF,
   gV,
   reconcileBillDiscPaid,
+  reconcileDrawerBalance,
   reconcileEarnedPaid,
   roundMoney
 } from './recordHelpers.js';
@@ -126,7 +127,7 @@ export function computeDashboardMetrics(data, sessionUser) {
     rCust.records.forEach((r) => {
       const uid = cln(gV(r, ['systemuniqueid', 'sysuid', 'uniqueid']));
       const amounts = readCustomerMasterAmounts(r);
-      const initCash = masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
+      const initCash = masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash, amounts.sell);
       const creator = gV(r, ['username', 'loggedby', 'createdby']);
       if (creator) addCash(creator, initCash);
     });
@@ -299,8 +300,11 @@ export function computeDashboardMetrics(data, sessionUser) {
   }
 
   const drawers = Object.entries(userCash)
-    .filter(([, bal]) => Math.abs(bal) > 0.01)
-    .map(([username, balance]) => ({ username, balance: roundMoney(balance) }));
+    .map(([username, balance]) => ({
+      username,
+      balance: reconcileDrawerBalance(balance)
+    }))
+    .filter(({ balance }) => Math.abs(balance) > 0.009);
 
   const salesLeaderboard = computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers);
 

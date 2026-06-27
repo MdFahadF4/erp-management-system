@@ -56,9 +56,11 @@ export function buildCustomerTxnCashByUid(records) {
   return txnTotals;
 }
 
-export function masterInitialCustomerCash(masterCash, txnCashTotal) {
+export function masterInitialCustomerCash(masterCash, txnCashTotal, masterSell = null) {
   if (masterCash <= 0) return 0;
-  return Math.max(0, masterCash - (txnCashTotal || 0));
+  const txnCash = txnCashTotal || 0;
+  if (masterSell !== null && masterSell <= 0 && txnCash <= 0) return 0;
+  return Math.max(0, masterCash - txnCash);
 }
 
 export function aggregateCustomerTotalsFromTxns(records) {

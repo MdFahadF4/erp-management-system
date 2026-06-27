@@ -1,6 +1,6 @@
-import { cln, gF, gV } from './recordHelpers.js';
-import { parseSupplierTxnAmounts } from './txnParsers.js';
-import { parseTxnDualAmounts } from './txnParsers.js';
+import { addMoney, cln, gF, gV, reconcileDrawerBalance, roundMoney } from './recordHelpers.js';
+import { parseHrTxnAmounts } from './hrEngine.js';
+import { parseSupplierTxnAmounts, parseTxnDualAmounts } from './txnParsers.js';
 import { EXPENSE_TXN_FIELDS } from './txnFields.js';
 import {
   buildCustomerTxnCashByUid,
@@ -41,7 +41,10 @@ export function computeLiveCashDrawer(user, data) {
       if (!isU(r)) return;
       const uid = cln(gV(r, ['systemuniqueid', 'sysuid', 'uniqueid']));
       const amounts = readCustomerMasterAmounts(r);
-      uCashIn += masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
+      uCashIn = addMoney(
+        uCashIn,
+        masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash, amounts.sell)
+      );
     });
   }
 
@@ -52,7 +55,7 @@ export function computeLiveCashDrawer(user, data) {
       let method = cln(gV(r, CUSTOMER_METH_COLS));
       if (method === '') method = 'cash';
       if (method.includes('cash')) {
-        uCashIn += gF(r, CUSTOMER_RECV_COLS);
+        uCashIn = addMoney(uCashIn, gF(r, CUSTOMER_RECV_COLS));
       }
     });
   }
@@ -63,29 +66,31 @@ export function computeLiveCashDrawer(user, data) {
     const sender = String(gV(r, ['transferredby', 'username', 'loggedby']) || '').trim();
     const recipient = String(gV(r, ['transfertouser', 'transferto', 'receivedby', 'handoverto']) || '').trim();
     const me = cln(user.username);
-    if (sender && cln(sender) === me) uCashOut += amt;
-    if (recipient && cln(recipient) === me && cln(recipient) !== cln(sender)) uCashIn += amt;
+    if (sender && cln(sender) === me) uCashOut = addMoney(uCashOut, amt);
+    if (recipient && cln(recipient) === me && cln(recipient) !== cln(sender)) {
+      uCashIn = addMoney(uCashIn, amt);
+    }
   };
   if (resInt.success) resInt.records.forEach(applyInternalTransferDrawer);
 
   if (!isAdmin) {
     if (resCred.success) {
       resCred.records.forEach((r) => {
-        if (isU(r)) uCashOut += Math.abs(gF(r, ['returnamount', 'returnamt', 'amount']));
+        if (isU(r)) uCashOut = addMoney(uCashOut, Math.abs(gF(r, ['returnamount', 'returnamt', 'amount'])));
       });
     }
     if (resHr.success) {
       resHr.records.forEach((r) => {
-        if (isU(r) && cln(gV(r, ['category'])).includes('paid')) {
-          uCashOut += Math.abs(gF(r, ['amount']));
-        }
+        if (!isU(r)) return;
+        const parsed = parseHrTxnAmounts(r);
+        if (parsed.paid > 0) uCashOut = addMoney(uCashOut, parsed.paid);
       });
     }
     if (resSup.success) {
       resSup.records.forEach((r) => {
         if (isU(r)) {
           const p = parseSupplierTxnAmounts(r);
-          if (p.pay > 0) uCashOut += p.pay;
+          if (p.pay > 0) uCashOut = addMoney(uCashOut, p.pay);
         }
       });
     }
@@ -93,11 +98,11 @@ export function computeLiveCashDrawer(user, data) {
       resExp.records.forEach((r) => {
         if (isU(r)) {
           const amounts = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
-          if (amounts.pay > 0) uCashOut += amounts.pay;
+          if (amounts.pay > 0) uCashOut = addMoney(uCashOut, amounts.pay);
         }
       });
     }
   }
 
-  return uCashIn - uCashOut;
+  return reconcileDrawerBalance(roundMoney(uCashIn - uCashOut));
 }
