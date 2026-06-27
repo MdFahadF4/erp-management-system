@@ -8,6 +8,7 @@ import {
 } from '../models/recordModel.js';
 import { sheetToCollection } from '../constants/sheets.js';
 import { getField, errorResponse, successResponse } from '../utils/helpers.js';
+import { roundMoney } from '../utils/money.js';
 import {
   syncHrMasterForEmployee,
   syncSupplierMasterForSupplier,
@@ -168,13 +169,45 @@ const SHEET_LAYOUTS = {
   ]
 };
 
+function isMoneyColumn(header) {
+  const h = String(header || '').toLowerCase();
+  return (
+    h.includes('amount') ||
+    h.includes('discount') ||
+    h.includes('due') ||
+    h.includes('paid') ||
+    h.includes('purchase') ||
+    h.includes('sold') ||
+    h.includes('received') ||
+    h.includes('return') ||
+    h.includes('capital') ||
+    h.includes('salary') ||
+    h.includes('deposit') ||
+    h.includes('incurred') ||
+    h.includes('receivable') ||
+    h.includes('balance') ||
+    h.includes('increment')
+  );
+}
+
+function normalizeMoneyCell(header, val) {
+  if (val === undefined || val === null || val === '') return val;
+  if (typeof val === 'number') return roundMoney(val);
+  if (typeof val === 'string' && val.trim() !== '' && !Number.isNaN(parseFloat(val))) {
+    return roundMoney(val);
+  }
+  return val;
+}
+
 function rowDataToRecord(sheetName, rowData, existingId) {
   const headers = SHEET_LAYOUTS[sheetName];
   const record = { ID: existingId || uuidv4() };
 
   if (headers) {
     headers.forEach((header, i) => {
-      if (rowData[i] !== undefined) record[header] = rowData[i];
+      if (rowData[i] !== undefined) {
+        record[header] = isMoneyColumn(header) ? normalizeMoneyCell(header, rowData[i]) : rowData[i];
+      }
     });
     return record;
   }

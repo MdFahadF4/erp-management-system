@@ -1,4 +1,4 @@
-import { getCol } from './recordHelpers.js';
+import { getCol, roundMoney } from './recordHelpers.js';
 import {
   getDualTxnCategory,
   getSupplierTxnCategory,
@@ -259,7 +259,7 @@ export function buildUpdateRowData(sheetName, original, values, user) {
       return [
         date,
         values.employee ?? '',
-        parseFloat(values.amount) || 0,
+        roundMoney(parseFloat(values.amount) || 0),
         values.category ?? '',
         String(values.remarks ?? '').trim(),
         loggedBy,
@@ -267,9 +267,9 @@ export function buildUpdateRowData(sheetName, original, values, user) {
       ];
 
     case 'Supplier_Transactions': {
-      const purchase = parseFloat(values.purchase) || 0;
-      const discount = parseFloat(values.discount) || 0;
-      const paid = parseFloat(values.paid) || 0;
+      const purchase = roundMoney(parseFloat(values.purchase) || 0);
+      const discount = roundMoney(parseFloat(values.discount) || 0);
+      const paid = roundMoney(parseFloat(values.paid) || 0);
       const category = values.category || 'Purchase';
       return [
         date,
@@ -277,7 +277,7 @@ export function buildUpdateRowData(sheetName, original, values, user) {
         purchase,
         discount,
         paid,
-        purchase - discount - paid,
+        roundMoney(purchase - discount - paid),
         category,
         String(values.remarks ?? '').trim(),
         loggedBy,
@@ -286,9 +286,9 @@ export function buildUpdateRowData(sheetName, original, values, user) {
     }
 
     case 'Customer_Transactions': {
-      const sold = parseFloat(values.sold) || 0;
-      const discount = parseFloat(values.discount) || 0;
-      const recv = parseFloat(values.received) || 0;
+      const sold = roundMoney(parseFloat(values.sold) || 0);
+      const discount = roundMoney(parseFloat(values.discount) || 0);
+      const recv = roundMoney(parseFloat(values.received) || 0);
       return [
         date,
         values.uid ?? '',
@@ -296,7 +296,7 @@ export function buildUpdateRowData(sheetName, original, values, user) {
         discount,
         recv,
         values.method ?? 'Cash',
-        sold - discount - recv,
+        roundMoney(sold - discount - recv),
         String(values.remarks ?? '').trim(),
         loggedBy,
         stamp
@@ -317,9 +317,9 @@ export function buildUpdateRowData(sheetName, original, values, user) {
       ];
 
     case 'Expense_Transactions': {
-      const incurred = parseFloat(values.deposit) || 0;
-      const discount = parseFloat(values.discount) || 0;
-      const paid = parseFloat(values.paid) || 0;
+      const incurred = roundMoney(parseFloat(values.deposit) || 0);
+      const discount = roundMoney(parseFloat(values.discount) || 0);
+      const paid = roundMoney(parseFloat(values.paid) || 0);
       const category = values.category || 'Incurred';
       const txnId =
         values.txnId ||
@@ -333,7 +333,7 @@ export function buildUpdateRowData(sheetName, original, values, user) {
         incurred,
         discount,
         paid,
-        incurred - discount - paid,
+        roundMoney(incurred - discount - paid),
         category,
         String(values.remarks ?? '').trim(),
         loggedBy,

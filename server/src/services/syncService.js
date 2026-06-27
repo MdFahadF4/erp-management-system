@@ -1,4 +1,5 @@
 import { getField, normalizeHrName, normalizeSupplierName } from '../utils/helpers.js';
+import { roundMoney } from '../utils/money.js';
 import {
   findAllRecords,
   insertRecord,
@@ -132,7 +133,7 @@ export async function syncHrMasterForEmployee(empName) {
 
   for (const txn of txnRecords) {
     if (normalizeHrName(getField(txn, ['Employee Name'])) !== targetKey) continue;
-    const amt = parseFloat(getField(txn, ['Amount']) || 0) || 0;
+    const amt = roundMoney(parseFloat(getField(txn, ['Amount']) || 0) || 0);
     const cat = String(getField(txn, ['Category']) || '')
       .trim()
       .toLowerCase();
@@ -153,9 +154,9 @@ export async function syncHrMasterForEmployee(empName) {
       ...hr,
       'Increment Amount': totalInc,
       'Current Salary': baseSalary + totalInc,
-      'Total Earn Earning': totalEarn,
-      'Paid Salary': totalPaid,
-      'Due Balance Salary': totalEarn - totalPaid
+      'Total Earn Earning': roundMoney(totalEarn),
+      'Paid Salary': roundMoney(totalPaid),
+      'Due Balance Salary': roundMoney(Math.max(0, totalEarn - totalPaid))
     };
     await updateRecordById(HR_COLLECTION, hr.ID, updated);
     return true;

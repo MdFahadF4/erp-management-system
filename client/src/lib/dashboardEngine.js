@@ -1,4 +1,12 @@
-import { cln, gF, gV, roundMoney } from './recordHelpers.js';
+import {
+  addMoney,
+  cln,
+  gF,
+  gV,
+  reconcileBillDiscPaid,
+  reconcileEarnedPaid,
+  roundMoney
+} from './recordHelpers.js';
 import { parseTxnDualAmounts, parseSupplierTxnAmounts, getDualTxnCategoryForExport as getDualTxnCategory } from './txnParsers.js';
 import {
   EXPENSE_TXN_FIELDS,
@@ -7,6 +15,7 @@ import {
   CAPITAL_TXN_FIELDS
 } from './txnFields.js';
 import { getCustomerDueBalance } from './customerEngine.js';
+import { parseHrTxnAmounts, rollupHrTxnTotals } from './hrEngine.js';
 import {
   aggregateCustomerTotalsFromTxns,
   buildCustomerTxnCashByUid,
@@ -28,7 +37,7 @@ function isInternalTransferApproved(rec) {
 }
 
 function bumpMoney(current, delta) {
-  return roundMoney(current + roundMoney(delta));
+  return addMoney(current, delta);
 }
 
 export function computeDashboardMetrics(data, sessionUser) {
@@ -170,6 +179,12 @@ export function computeDashboardMetrics(data, sessionUser) {
     purDue = bumpMoney(purDue, Math.max(0, s.bill - s.discount - s.pay));
   });
 
+  const purReconciled = reconcileBillDiscPaid(purPur, purDiscount, purPaid);
+  purPur = purReconciled.billed;
+  purDiscount = purReconciled.discount;
+  purPaid = purReconciled.paid;
+  purDue = purReconciled.due;
+
   if (rExp.success) {
     rExp.records.forEach((r) => {
       const amounts = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
@@ -218,23 +233,39 @@ export function computeDashboardMetrics(data, sessionUser) {
   }
 
   if (rHrT.success) {
+    const hrTotals = rollupHrTxnTotals(rHrT.records);
+    hrEarned = hrTotals.earned;
+    hrPaid = hrTotals.paid;
     rHrT.records.forEach((r) => {
-      const amt = roundMoney(Math.abs(gF(r, ['amount'])));
-      const check = cln(gV(r, ['category', 'remarks']));
+      const parsed = parseHrTxnAmounts(r);
+      const amt = roundMoney(parsed.paid);
       const logger = gV(r, ['username', 'loggedby']);
-      if (check.includes('previousdue') || check.includes('openingbalance') || check.includes('earn') || check.includes('bill')) {
-        hrEarned = bumpMoney(hrEarned, amt);
-      } else if (check.includes('paid')) {
-        hrPaid = bumpMoney(hrPaid, amt);
-        if (logger && !isAdm(logger)) addCash(logger, -amt);
-      }
+      if (amt > 0 && logger && !isAdm(logger)) addCash(logger, -amt);
     });
   }
 
-  incDue = roundMoney(Math.max(0, incBilled - incDiscount - incRecv));
-  expDue = roundMoney(Math.max(0, expInc - expDiscount - expPaid));
-  hrDue = roundMoney(Math.max(0, hrEarned - hrPaid));
-  crdDue = roundMoney(Math.max(0, crdRecv - crdRet));
+  const incReconciled = reconcileBillDiscPaid(incBilled, incDiscount, incRecv);
+  incBilled = incReconciled.billed;
+  incDiscount = incReconciled.discount;
+  incRecv = incReconciled.paid;
+  incDue = incReconciled.due;
+
+  const expReconciled = reconcileBillDiscPaid(expInc, expDiscount, expPaid);
+  expInc = expReconciled.billed;
+  expDiscount = expReconciled.discount;
+  expPaid = expReconciled.paid;
+  expDue = expReconciled.due;
+
+  const hrReconciled = reconcileEarnedPaid(hrEarned, hrPaid);
+  hrEarned = hrReconciled.earned;
+  hrPaid = hrReconciled.paid;
+  hrDue = hrReconciled.due;
+
+  const crdReconciled = reconcileBillDiscPaid(crdRecv, 0, crdRet);
+  crdRecv = crdReconciled.billed;
+  crdRet = crdReconciled.paid;
+  crdDue = crdReconciled.due;
+
   capNet = roundMoney(capIn - capOut);
 
   if (rInt.success) {

@@ -877,6 +877,55 @@ function parseMoney(val) {
   return Number.isNaN(n) ? null : n;
 }
 
+function toCents(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return 0;
+  return Math.round(n * 100);
+}
+
+function fromCents(cents) {
+  return cents / 100;
+}
+
+function roundMoney(val) {
+  return fromCents(toCents(val));
+}
+
+function addMoney(a, b) {
+  return fromCents(toCents(a) + toCents(b));
+}
+
+function reconcileBillDiscPaid(billed, discount, paid) {
+  let b = toCents(billed);
+  let d = toCents(discount);
+  let p = toCents(paid);
+  let due = b - d - p;
+  if (due < 0 && due >= -1) {
+    p = b - d;
+    due = 0;
+  } else if (p % 100 === 99 && due > 0 && due % 100 === 1) {
+    p += 1;
+    due -= 1;
+  }
+  if (due < 0) due = 0;
+  return { billed: fromCents(b), discount: fromCents(d), paid: fromCents(p), due: fromCents(due) };
+}
+
+function reconcileEarnedPaid(earned, paid) {
+  let e = toCents(earned);
+  let p = toCents(paid);
+  let d = e - p;
+  if (d < 0) {
+    p = e;
+    d = 0;
+  } else if (p % 100 === 99 && d > 0 && d % 100 === 1) {
+    p += 1;
+    d -= 1;
+  }
+  if (d < 0) d = 0;
+  return { earned: fromCents(e), paid: fromCents(p), due: fromCents(d) };
+}
+
 function normalizeCustMatchKey(val) {
   return String(val ?? '').trim().replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 }
@@ -1300,14 +1349,14 @@ function getHrTxnCategory(rec) {
 function parseHrTxnAmounts(rec) {
   const category = getHrTxnCategory(rec);
   const catKey = category.toLowerCase();
-  const amt = parseFloat(getCol(rec, ["Amount", "Amt", "Transaction Amount"])) || 0;
+  const amt = roundMoney(parseFloat(getCol(rec, ["Amount", "Amt", "Transaction Amount"])) || 0);
   const isIncrement = catKey.includes("increment");
   const isPrev = catKey.includes("previous due") || catKey.includes("opening balance");
   const isPaid = catKey.includes("paid") && !isIncrement;
 
   if (isIncrement) return { earned: 0, paid: 0, txnDelta: 0, category: "Salary Increment", isIncrement: true };
   if (isPrev) return { earned: amt, paid: 0, txnDelta: amt, category: "Previous Due", isIncrement: false };
-  if (isPaid) return { earned: 0, paid: amt, txnDelta: -amt, category: "Salary Paid", isIncrement: false };
+  if (isPaid) return { earned: 0, paid: amt, txnDelta: roundMoney(-amt), category: "Salary Paid", isIncrement: false };
   return { earned: amt, paid: 0, txnDelta: amt, category: category || "Salary Earn", isIncrement: false };
 }
 
@@ -1317,17 +1366,18 @@ function rollupHrTxnTotals(txns, employeeName) {
   (txns || []).forEach((t) => {
     if (nameKey && normalizeHrEmployeeName(getCol(t, ["Employee Name", "Employee", "Name"])) !== nameKey) return;
     const p = parseHrTxnAmounts(t);
-    if (p.isIncrement) increment += parseFloat(getCol(t, ["Amount", "Amt", "Transaction Amount"])) || 0;
+    if (p.isIncrement) increment = addMoney(increment, parseFloat(getCol(t, ["Amount", "Amt", "Transaction Amount"])) || 0);
     else {
-      earned += p.earned;
-      paid += p.paid;
+      earned = addMoney(earned, p.earned);
+      paid = addMoney(paid, p.paid);
     }
   });
-  return { earned, paid, increment, due: Math.max(0, earned - paid) };
+  return { earned, paid, increment, due: roundMoney(Math.max(0, earned - paid)) };
 }
 
 function getHrDueFromTxns(employeeName, txns) {
-  return rollupHrTxnTotals(txns, employeeName).due;
+  const totals = rollupHrTxnTotals(txns, employeeName);
+  return reconcileEarnedPaid(totals.earned, totals.paid).due;
 }
 
 function createHrTxnDueController(opts) {
@@ -1395,14 +1445,19 @@ function normalizeDualTxnAmountsByCategory(category, bill, discount, pay, fieldM
   const cats = fieldMap.categories || {};
   const payKey = String(cats.pay || "").toLowerCase();
   if (catKey.includes("previous due") || catKey.includes("opening balance")) {
-    const amt = bill || pay;
+    const amt = roundMoney(bill || pay);
     return { bill: amt, discount: 0, pay: 0, txnDue: amt };
   }
   if (payKey && catKey === payKey) {
-    const amt = pay || bill;
-    return { bill: 0, discount: 0, pay: amt, txnDue: -amt };
+    const amt = roundMoney(pay || bill);
+    return { bill: 0, discount: 0, pay: amt, txnDue: roundMoney(-amt) };
   }
-  return { bill, discount, pay, txnDue: bill - discount - pay };
+  return {
+    bill: roundMoney(bill),
+    discount: roundMoney(discount),
+    pay: roundMoney(pay),
+    txnDue: roundMoney(bill - discount - pay)
+  };
 }
 
 function initDualTxnCategoryHandlers(cfg) {
@@ -1464,8 +1519,14 @@ function parseTxnDualAmounts(rec, fieldMap) {
   discount = normalized.discount;
   pay = normalized.pay;
   let txnDue = normalized.txnDue;
-  if (Math.abs(txnDue) < 0.009 && !isNaN(storedDue)) txnDue = storedDue;
-  return { bill, discount, pay, txnDue, category };
+  if (Math.abs(txnDue) < 0.009 && !isNaN(storedDue)) txnDue = roundMoney(storedDue);
+  return {
+    bill: roundMoney(bill),
+    discount: roundMoney(discount),
+    pay: roundMoney(pay),
+    txnDue: roundMoney(txnDue),
+    category
+  };
 }
 
 function computeHeadPairDueBalance(main, sub, txns, fieldMap) {
@@ -1484,7 +1545,7 @@ function computeHeadPairDueBalance(main, sub, txns, fieldMap) {
       bill += amounts.bill; discount += amounts.discount; pay += amounts.pay;
     }
   });
-  return Math.max(0, bill + prevDue - discount - pay);
+  return roundMoney(Math.max(0, bill + prevDue - discount - pay));
 }
 
 function createDualTxnDueController(opts) {
@@ -7441,13 +7502,8 @@ async function loadDashboardData() {
 
     const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
-    const roundMoney = (val) => {
-      const n = Number(val);
-      if (!Number.isFinite(n)) return 0;
-      return Math.round((n + Number.EPSILON) * 100) / 100;
-    };
     const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:roundMoney(v); };
-    const bumpMoney = (current, delta) => roundMoney(current + roundMoney(delta));
+    const bumpMoney = (current, delta) => addMoney(current, delta);
 
     let adminUsers = [];
     if (rUsers.success) { rUsers.records.forEach(u => { if (cln(gV(u, ["role"])).includes("admin")) adminUsers.push(cln(gV(u, ["username"]))); }); }
@@ -7540,6 +7596,12 @@ async function loadDashboardData() {
       purDiscount = bumpMoney(purDiscount, s.discount);
       purDue = bumpMoney(purDue, Math.max(0, s.bill - s.discount - s.pay));
     });
+    ({
+      billed: purPur,
+      discount: purDiscount,
+      paid: purPaid,
+      due: purDue
+    } = reconcileBillDiscPaid(purPur, purDiscount, purPaid));
 
     // EXPENSE LOGIC
     if(rExp.success) rExp.records.forEach(r => {
@@ -7586,19 +7648,44 @@ async function loadDashboardData() {
     });
 
     // HR LOGIC (STRICT DYNAMIC MATH - NO DOUBLE COUNTING)
-    if(rHrT.success) rHrT.records.forEach(r => { 
-        let amt = roundMoney(Math.abs(gF(r, ["amount"]))); let check = cln(gV(r, ["category", "remarks"])); let logger = gV(r, ["username", "loggedby"]);
-        if (check.includes("previousdue") || check.includes("openingbalance") || check.includes("earn") || check.includes("bill")) {
-            hrEarned = bumpMoney(hrEarned, amt);
-        } else if (check.includes("paid")) {
-            hrPaid = bumpMoney(hrPaid, amt);
-            if (logger && !isAdm(logger)) addCash(logger, -amt);
-        }
-    });
-    incDue = roundMoney(Math.max(0, incBilled - incDiscount - incRecv));
-    expDue = roundMoney(Math.max(0, expInc - expDiscount - expPaid));
-    hrDue = roundMoney(Math.max(0, hrEarned - hrPaid));
-    crdDue = roundMoney(Math.max(0, crdRecv - crdRet));
+    if(rHrT.success) {
+        const hrTotals = rollupHrTxnTotals(rHrT.records);
+        hrEarned = hrTotals.earned;
+        hrPaid = hrTotals.paid;
+        rHrT.records.forEach(r => {
+            const parsed = parseHrTxnAmounts(r);
+            const amt = roundMoney(parsed.paid);
+            const logger = gV(r, ["username", "loggedby"]);
+            if (amt > 0 && logger && !isAdm(logger)) addCash(logger, -amt);
+        });
+    }
+
+    ({
+      billed: incBilled,
+      discount: incDiscount,
+      paid: incRecv,
+      due: incDue
+    } = reconcileBillDiscPaid(incBilled, incDiscount, incRecv));
+
+    ({
+      billed: expInc,
+      discount: expDiscount,
+      paid: expPaid,
+      due: expDue
+    } = reconcileBillDiscPaid(expInc, expDiscount, expPaid));
+
+    ({
+      earned: hrEarned,
+      paid: hrPaid,
+      due: hrDue
+    } = reconcileEarnedPaid(hrEarned, hrPaid));
+
+    ({
+      billed: crdRecv,
+      paid: crdRet,
+      due: crdDue
+    } = reconcileBillDiscPaid(crdRecv, 0, crdRet));
+
     capNet = roundMoney(capIn - capOut);
 
     // INTERNAL TRANSFERS (sender out, recipient in — approved only)

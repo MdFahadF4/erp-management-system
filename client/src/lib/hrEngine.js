@@ -1,4 +1,4 @@
-import { getCol, fmtMoney } from './recordHelpers.js';
+import { addMoney, getCol, fmtMoney, reconcileEarnedPaid, roundMoney } from './recordHelpers.js';
 
 export function normalizeHrEmployeeName(name) {
   return String(name || '')
@@ -110,7 +110,7 @@ export function getHrTxnCategory(rec) {
 export function parseHrTxnAmounts(rec) {
   const category = getHrTxnCategory(rec);
   const catKey = category.toLowerCase();
-  const amt = parseFloat(getCol(rec, ['Amount', 'Amt', 'Transaction Amount'])) || 0;
+  const amt = roundMoney(parseFloat(getCol(rec, ['Amount', 'Amt', 'Transaction Amount'])) || 0);
   const isIncrement = catKey.includes('increment');
   const isPrev = catKey.includes('previous due') || catKey.includes('opening balance');
   const isPaid = catKey.includes('paid') && !isIncrement;
@@ -122,7 +122,7 @@ export function parseHrTxnAmounts(rec) {
     return { earned: amt, paid: 0, txnDelta: amt, category: 'Previous Due', isIncrement: false };
   }
   if (isPaid) {
-    return { earned: 0, paid: amt, txnDelta: -amt, category: 'Salary Paid', isIncrement: false };
+    return { earned: 0, paid: amt, txnDelta: roundMoney(-amt), category: 'Salary Paid', isIncrement: false };
   }
   return { earned: amt, paid: 0, txnDelta: amt, category: category || 'Salary Earn', isIncrement: false };
 }
@@ -138,19 +138,20 @@ export function rollupHrTxnTotals(txns, employeeName) {
     }
     const p = parseHrTxnAmounts(t);
     if (p.isIncrement) {
-      increment += parseFloat(getCol(t, ['Amount', 'Amt', 'Transaction Amount'])) || 0;
+      increment = addMoney(increment, parseFloat(getCol(t, ['Amount', 'Amt', 'Transaction Amount'])) || 0);
     } else {
-      earned += p.earned;
-      paid += p.paid;
+      earned = addMoney(earned, p.earned);
+      paid = addMoney(paid, p.paid);
     }
   });
-  return { earned, paid, increment, due: Math.max(0, earned - paid) };
+  return { earned, paid, increment, due: roundMoney(Math.max(0, earned - paid)) };
 }
 
 export function getHrDueBalance(hrRec, txns) {
   if (!hrRec) return 0;
   const name = getCol(hrRec, ['Employee Name', 'Employee', 'Name']);
-  return rollupHrTxnTotals(txns, name).due;
+  const totals = rollupHrTxnTotals(txns, name);
+  return reconcileEarnedPaid(totals.earned, totals.paid).due;
 }
 
 export function getHrEmployeeName(rec) {

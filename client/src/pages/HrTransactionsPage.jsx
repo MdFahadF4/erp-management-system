@@ -16,6 +16,7 @@ import {
   getHrTxnDelta,
   parseRecordDate
 } from '../lib/hrEngine.js';
+import { roundMoney } from '../lib/recordHelpers.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
 const TXN_CATEGORIES = ['Salary Earn', 'Salary Paid', 'Salary Increment', 'Previous Due'];
@@ -129,7 +130,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
       const rowPayload = [
         txnDate,
         employee,
-        parseFloat(amount) || 0,
+        roundMoney(parseFloat(amount) || 0),
         category,
         remarksText,
         user.username,

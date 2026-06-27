@@ -1,4 +1,4 @@
-import { getCol, fmtMoney } from './recordHelpers.js';
+import { getCol, fmtMoney, roundMoney } from './recordHelpers.js';
 import { parseTxnDualAmounts } from './txnParsers.js';
 import { filterRecordsByDateRange, parseRecordDate } from './hrEngine.js';
 
@@ -56,15 +56,15 @@ export function computeHeadPairDueBalance(main, sub, txns, fieldMap) {
       pay += amounts.pay;
     }
   });
-  return Math.max(0, bill + prevDue - discount - pay);
+  return roundMoney(Math.max(0, bill + prevDue - discount - pay));
 }
 
 export function computeDualTxnDue(bill, discount, pay) {
-  return (parseFloat(bill) || 0) - (parseFloat(discount) || 0) - (parseFloat(pay) || 0);
+  return roundMoney((parseFloat(bill) || 0) - (parseFloat(discount) || 0) - (parseFloat(pay) || 0));
 }
 
 export function computeRemainingHeadDue(currentDue, bill, discount, pay) {
-  return Math.max(0, currentDue + (parseFloat(bill) || 0) - (parseFloat(discount) || 0) - (parseFloat(pay) || 0));
+  return roundMoney(Math.max(0, currentDue + (parseFloat(bill) || 0) - (parseFloat(discount) || 0) - (parseFloat(pay) || 0)));
 }
 
 export function buildHeadLedgerRows(heads, txns, fieldMap, mainCols, subCols) {
@@ -121,9 +121,9 @@ export function getSubHeadsForMain(heads, main, mainCols, subCols) {
 }
 
 export function prepareDualTxnSubmit(category, bill, discount, pay, remarks) {
-  let b = parseFloat(bill) || 0;
-  let d = parseFloat(discount) || 0;
-  let p = parseFloat(pay) || 0;
+  let b = roundMoney(parseFloat(bill) || 0);
+  let d = roundMoney(parseFloat(discount) || 0);
+  let p = roundMoney(parseFloat(pay) || 0);
   let remarksText = String(remarks || '').trim();
   const cat = String(category || '').trim();
   const catLower = cat.toLowerCase();
@@ -139,7 +139,7 @@ export function prepareDualTxnSubmit(category, bill, discount, pay, remarks) {
     d = 0;
   }
 
-  const txnDue = b - d - p;
+  const txnDue = roundMoney(b - d - p);
   return { bill: b, discount: d, pay: p, txnDue, category: cat, remarksText };
 }
 
