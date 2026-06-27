@@ -35,7 +35,7 @@ export function readCustomerMasterAmounts(rec) {
   if (cash <= 0 && card <= 0 && recv > 0) {
     cash = recv;
   }
-  return { sell, cash, card, recv, discount, due: Math.max(0, sell - recv - discount) };
+  return { sell, cash, card, recv, discount, due: roundMoney(Math.max(0, sell - recv - discount)) };
 }
 
 export function buildCustomerTxnCashByUid(records) {

@@ -1,4 +1,4 @@
-import { cln, gF, gV } from './recordHelpers.js';
+import { cln, gF, gV, roundMoney } from './recordHelpers.js';
 import { parseTxnDualAmounts, parseSupplierTxnAmounts, getDualTxnCategoryForExport as getDualTxnCategory } from './txnParsers.js';
 import {
   EXPENSE_TXN_FIELDS,
@@ -25,6 +25,10 @@ function emptyFetchResult() {
 function isInternalTransferApproved(rec) {
   const status = String(gV(rec, ['status']) || '').trim().toLowerCase();
   return !status || status === 'approved';
+}
+
+function bumpMoney(current, delta) {
+  return roundMoney(current + roundMoney(delta));
 }
 
 export function computeDashboardMetrics(data, sessionUser) {
@@ -84,7 +88,7 @@ export function computeDashboardMetrics(data, sessionUser) {
     if (!usr) return;
     const u = String(usr).trim();
     if (!userCash[u]) userCash[u] = 0;
-    userCash[u] += amt;
+    userCash[u] = bumpMoney(userCash[u], amt);
   };
 
   const txnTotals = rCustT.success ? buildCustomerTxnCashByUid(rCustT.records) : {};
@@ -100,12 +104,12 @@ export function computeDashboardMetrics(data, sessionUser) {
   } else if (rCust.success) {
     rCust.records.forEach((r) => {
       const amounts = readCustomerMasterAmounts(r);
-      saleSold += amounts.sell;
-      saleCash += amounts.cash;
-      saleCard += amounts.card;
-      saleRecv += amounts.recv;
-      saleDue += amounts.due;
-      saleDiscount += amounts.discount;
+      saleSold = bumpMoney(saleSold, amounts.sell);
+      saleCash = bumpMoney(saleCash, amounts.cash);
+      saleCard = bumpMoney(saleCard, amounts.card);
+      saleRecv = bumpMoney(saleRecv, amounts.recv);
+      saleDue = bumpMoney(saleDue, amounts.due);
+      saleDiscount = bumpMoney(saleDiscount, amounts.discount);
     });
   }
 
@@ -135,14 +139,12 @@ export function computeDashboardMetrics(data, sessionUser) {
       const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
       const check = cln(getDualTxnCategory(r, INCOME_TXN_FIELDS) + ' ' + gV(r, ['remarks', 'parenthead', 'subhead']));
       if (check.includes('previousdue') || check.includes('openingbalance')) {
-        const prevAmt = Math.max(amounts.bill, amounts.pay);
-        incBilled += prevAmt;
-        incDue += prevAmt;
+        const prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+        incBilled = bumpMoney(incBilled, prevAmt);
       } else {
-        incBilled += amounts.bill;
-        incRecv += amounts.pay;
-        incDue += amounts.txnDue;
-        incDiscount += amounts.discount;
+        incBilled = bumpMoney(incBilled, amounts.bill);
+        incRecv = bumpMoney(incRecv, amounts.pay);
+        incDiscount = bumpMoney(incDiscount, amounts.discount);
       }
     });
   }
@@ -154,18 +156,18 @@ export function computeDashboardMetrics(data, sessionUser) {
       if (!name) return;
       if (!supTotals[name]) supTotals[name] = { bill: 0, discount: 0, pay: 0 };
       const p = parseSupplierTxnAmounts(r);
-      supTotals[name].bill += p.bill;
-      supTotals[name].discount += p.discount;
-      supTotals[name].pay += p.pay;
+      supTotals[name].bill = bumpMoney(supTotals[name].bill, p.bill);
+      supTotals[name].discount = bumpMoney(supTotals[name].discount, p.discount);
+      supTotals[name].pay = bumpMoney(supTotals[name].pay, p.pay);
       const logger = gV(r, ['username', 'loggedby']);
       if (logger && !isAdm(logger) && p.pay > 0) addCash(logger, -p.pay);
     });
   }
   Object.values(supTotals).forEach((s) => {
-    purPur += s.bill;
-    purPaid += s.pay;
-    purDiscount += s.discount;
-    purDue += Math.max(0, s.bill - s.discount - s.pay);
+    purPur = bumpMoney(purPur, s.bill);
+    purPaid = bumpMoney(purPaid, s.pay);
+    purDiscount = bumpMoney(purDiscount, s.discount);
+    purDue = bumpMoney(purDue, Math.max(0, s.bill - s.discount - s.pay));
   });
 
   if (rExp.success) {
@@ -173,14 +175,12 @@ export function computeDashboardMetrics(data, sessionUser) {
       const amounts = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
       const check = cln(getDualTxnCategory(r, EXPENSE_TXN_FIELDS) + ' ' + gV(r, ['remarks', 'parenthead', 'subhead']));
       if (check.includes('previousdue') || check.includes('openingbalance')) {
-        const prevAmt = Math.max(amounts.bill, amounts.pay);
-        expInc += prevAmt;
-        expDue += prevAmt;
+        const prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+        expInc = bumpMoney(expInc, prevAmt);
       } else {
-        expInc += amounts.bill;
-        expPaid += amounts.pay;
-        expDue += amounts.txnDue;
-        expDiscount += amounts.discount;
+        expInc = bumpMoney(expInc, amounts.bill);
+        expPaid = bumpMoney(expPaid, amounts.pay);
+        expDiscount = bumpMoney(expDiscount, amounts.discount);
         const logger = gV(r, ['username', 'loggedby']);
         if (logger && !isAdm(logger) && amounts.pay > 0) addCash(logger, -amounts.pay);
       }
@@ -192,13 +192,11 @@ export function computeDashboardMetrics(data, sessionUser) {
       const amounts = parseTxnDualAmounts(r, CREDITOR_TXN_FIELDS);
       const check = cln(getDualTxnCategory(r, CREDITOR_TXN_FIELDS) + ' ' + gV(r, ['remarks', 'method', 'type']));
       if (check.includes('previousdue') || check.includes('openingbalance')) {
-        const prevAmt = Math.max(amounts.bill, amounts.pay);
-        crdRecv += prevAmt;
-        crdDue += prevAmt;
+        const prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+        crdRecv = bumpMoney(crdRecv, prevAmt);
       } else {
-        crdRecv += amounts.bill;
-        crdRet += amounts.pay;
-        crdDue += amounts.txnDue;
+        crdRecv = bumpMoney(crdRecv, amounts.bill);
+        crdRet = bumpMoney(crdRet, amounts.pay);
         const logger = gV(r, ['username', 'loggedby']);
         if (logger && !isAdm(logger) && amounts.pay > 0) addCash(logger, -amounts.pay);
       }
@@ -210,31 +208,34 @@ export function computeDashboardMetrics(data, sessionUser) {
       const amounts = parseTxnDualAmounts(r, CAPITAL_TXN_FIELDS);
       const check = cln(getDualTxnCategory(r, CAPITAL_TXN_FIELDS) + ' ' + gV(r, ['remarks', 'subhead']));
       if (check.includes('previousdue') || check.includes('openingbalance')) {
-        const prevAmt = Math.max(amounts.bill, amounts.pay);
-        capIn += prevAmt;
-        capNet += prevAmt;
+        const prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+        capIn = bumpMoney(capIn, prevAmt);
       } else {
-        capIn += amounts.bill;
-        capOut += amounts.pay;
-        capNet += amounts.txnDue;
+        capIn = bumpMoney(capIn, amounts.bill);
+        capOut = bumpMoney(capOut, amounts.pay);
       }
     });
   }
 
   if (rHrT.success) {
     rHrT.records.forEach((r) => {
-      const amt = Math.abs(gF(r, ['amount']));
+      const amt = roundMoney(Math.abs(gF(r, ['amount'])));
       const check = cln(gV(r, ['category', 'remarks']));
       const logger = gV(r, ['username', 'loggedby']);
       if (check.includes('previousdue') || check.includes('openingbalance') || check.includes('earn') || check.includes('bill')) {
-        hrEarned += amt;
+        hrEarned = bumpMoney(hrEarned, amt);
       } else if (check.includes('paid')) {
-        hrPaid += amt;
+        hrPaid = bumpMoney(hrPaid, amt);
         if (logger && !isAdm(logger)) addCash(logger, -amt);
       }
     });
   }
-  hrDue = hrEarned - hrPaid;
+
+  incDue = roundMoney(Math.max(0, incBilled - incDiscount - incRecv));
+  expDue = roundMoney(Math.max(0, expInc - expDiscount - expPaid));
+  hrDue = roundMoney(Math.max(0, hrEarned - hrPaid));
+  crdDue = roundMoney(Math.max(0, crdRecv - crdRet));
+  capNet = roundMoney(capIn - capOut);
 
   if (rInt.success) {
     rInt.records.forEach((r) => {
@@ -250,25 +251,25 @@ export function computeDashboardMetrics(data, sessionUser) {
   if (rCust.success && rCust.records.length) {
     saleDue = 0;
     rCust.records.forEach((r) => {
-      saleDue += getCustomerDueBalance(r);
+      saleDue = bumpMoney(saleDue, getCustomerDueBalance(r));
     });
   }
 
-  tRecv = saleDue + incDue;
-  tPay = purDue + expDue + crdDue + hrDue;
+  tRecv = bumpMoney(saleDue, incDue);
+  tPay = roundMoney(purDue + expDue + crdDue + hrDue);
 
   let globalBalance = null;
   let globalInflows = 0;
   let globalOutflows = 0;
   if (sessionUser && (sessionUser.role === 'Super Admin' || sessionUser.role === 'Admin')) {
-    globalInflows = saleRecv + incRecv + crdRecv + capIn;
-    globalOutflows = purPaid + expPaid + crdRet + hrPaid + capOut;
-    globalBalance = globalInflows - globalOutflows;
+    globalInflows = roundMoney(saleRecv + incRecv + crdRecv + capIn);
+    globalOutflows = roundMoney(purPaid + expPaid + crdRet + hrPaid + capOut);
+    globalBalance = roundMoney(globalInflows - globalOutflows);
   }
 
   const drawers = Object.entries(userCash)
     .filter(([, bal]) => Math.abs(bal) > 0.01)
-    .map(([username, balance]) => ({ username, balance }));
+    .map(([username, balance]) => ({ username, balance: roundMoney(balance) }));
 
   const salesLeaderboard = computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers);
 
@@ -383,8 +384,8 @@ function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
       const uid = cln(gV(r, ['systemuniqueid', 'sysuid', 'uniqueid']));
       const tt = txnTotals[uid] || { sold: 0, cash: 0, card: 0 };
       const amounts = readCustomerMasterAmounts(r);
-      userStats[creator].sold += amounts.sell - tt.sold;
-      userStats[creator].recv += amounts.recv - tt.cash - tt.card;
+      userStats[creator].sold = bumpMoney(userStats[creator].sold, amounts.sell - tt.sold);
+      userStats[creator].recv = bumpMoney(userStats[creator].recv, amounts.recv - tt.cash - tt.card);
     });
   }
 
@@ -395,18 +396,18 @@ function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
       const usr = ensureUser(gV(row, ['username', 'loggedby']));
       if (!usr) return;
       if (isCustomerPreviousDueTxn(row)) {
-        userStats[usr].sold += gF(row, CUSTOMER_RECV_COLS);
-        userStats[usr].recv += gF(row, CUSTOMER_RECV_COLS);
+        userStats[usr].sold = bumpMoney(userStats[usr].sold, gF(row, CUSTOMER_RECV_COLS));
+        userStats[usr].recv = bumpMoney(userStats[usr].recv, gF(row, CUSTOMER_RECV_COLS));
         return;
       }
-      userStats[usr].sold += gF(row, CUSTOMER_SELL_COLS);
-      userStats[usr].recv += gF(row, CUSTOMER_RECV_COLS);
+      userStats[usr].sold = bumpMoney(userStats[usr].sold, gF(row, CUSTOMER_SELL_COLS));
+      userStats[usr].recv = bumpMoney(userStats[usr].recv, gF(row, CUSTOMER_RECV_COLS));
     });
   }
 
   const ranked = Object.entries(userStats)
     .filter(([name, stats]) => !isSuperAdminUser(name) && Math.abs(stats.sold) > 0.001)
-    .map(([name, stats]) => ({ name, sold: stats.sold, recv: stats.recv }))
+    .map(([name, stats]) => ({ name, sold: roundMoney(stats.sold), recv: roundMoney(stats.recv) }))
     .sort((a, b) => b.sold - a.sold || b.recv - a.recv || a.name.localeCompare(b.name));
 
   return { label, ranked };

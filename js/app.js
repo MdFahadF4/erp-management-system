@@ -7441,7 +7441,13 @@ async function loadDashboardData() {
 
     const cln = (s) => String(s||'').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
     const gV = (obj, names) => { for(let k in obj) { let cK = cln(k); for(let n of names) if(cK === cln(n)) return obj[k]; } return null; };
-    const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:v; };
+    const roundMoney = (val) => {
+      const n = Number(val);
+      if (!Number.isFinite(n)) return 0;
+      return Math.round((n + Number.EPSILON) * 100) / 100;
+    };
+    const gF = (obj, names) => { let v = parseFloat(gV(obj, names)); return isNaN(v)?0:roundMoney(v); };
+    const bumpMoney = (current, delta) => roundMoney(current + roundMoney(delta));
 
     let adminUsers = [];
     if (rUsers.success) { rUsers.records.forEach(u => { if (cln(gV(u, ["role"])).includes("admin")) adminUsers.push(cln(gV(u, ["username"]))); }); }
@@ -7461,7 +7467,7 @@ async function loadDashboardData() {
     let tRecv=0, tPay=0;
     
     let userCash = {};
-    const addCash = (usr, amt) => { if(!usr) return; let u=String(usr).trim(); if(!userCash[u]) userCash[u]=0; userCash[u]+=amt; };
+    const addCash = (usr, amt) => { if(!usr) return; let u=String(usr).trim(); if(!userCash[u]) userCash[u]=0; userCash[u]=bumpMoney(userCash[u], amt); };
 
     let txnTotals = rCustT.success ? buildCustomerTxnCashByUid(rCustT.records) : {};
 
@@ -7506,10 +7512,12 @@ async function loadDashboardData() {
        const amounts = parseTxnDualAmounts(r, INCOME_TXN_FIELDS);
        let check = cln(getDualTxnCategory(r, INCOME_TXN_FIELDS) + " " + gV(r, ["remarks", "parenthead", "subhead"]));
        if (check.includes("previousdue") || check.includes("openingbalance")) {
-           let prevAmt = Math.max(amounts.bill, amounts.pay);
-           incBilled += prevAmt; incDue += prevAmt;
+           let prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+           incBilled = bumpMoney(incBilled, prevAmt);
        } else {
-           incBilled += amounts.bill; incRecv += amounts.pay; incDue += amounts.txnDue; incDiscount += amounts.discount;
+           incBilled = bumpMoney(incBilled, amounts.bill);
+           incRecv = bumpMoney(incRecv, amounts.pay);
+           incDiscount = bumpMoney(incDiscount, amounts.discount);
        }
     });
 
@@ -7520,17 +7528,17 @@ async function loadDashboardData() {
       if (!name) return;
       if (!supTotals[name]) supTotals[name] = { bill: 0, discount: 0, pay: 0 };
       const p = parseSupplierTxnAmounts(r);
-      supTotals[name].bill += p.bill;
-      supTotals[name].discount += p.discount;
-      supTotals[name].pay += p.pay;
+      supTotals[name].bill = bumpMoney(supTotals[name].bill, p.bill);
+      supTotals[name].discount = bumpMoney(supTotals[name].discount, p.discount);
+      supTotals[name].pay = bumpMoney(supTotals[name].pay, p.pay);
       const logger = gV(r, ["username", "loggedby"]);
       if (logger && !isAdm(logger) && p.pay > 0) addCash(logger, -p.pay);
     });
     Object.values(supTotals).forEach((s) => {
-      purPur += s.bill;
-      purPaid += s.pay;
-      purDiscount += s.discount;
-      purDue += Math.max(0, s.bill - s.discount - s.pay);
+      purPur = bumpMoney(purPur, s.bill);
+      purPaid = bumpMoney(purPaid, s.pay);
+      purDiscount = bumpMoney(purDiscount, s.discount);
+      purDue = bumpMoney(purDue, Math.max(0, s.bill - s.discount - s.pay));
     });
 
     // EXPENSE LOGIC
@@ -7538,10 +7546,12 @@ async function loadDashboardData() {
        const amounts = parseTxnDualAmounts(r, EXPENSE_TXN_FIELDS);
        let check = cln(getDualTxnCategory(r, EXPENSE_TXN_FIELDS) + " " + gV(r, ["remarks", "parenthead", "subhead"]));
        if (check.includes("previousdue") || check.includes("openingbalance")) {
-           let prevAmt = Math.max(amounts.bill, amounts.pay);
-           expInc += prevAmt; expDue += prevAmt;
+           let prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+           expInc = bumpMoney(expInc, prevAmt);
        } else {
-           expInc += amounts.bill; expPaid += amounts.pay; expDue += amounts.txnDue; expDiscount += amounts.discount;
+           expInc = bumpMoney(expInc, amounts.bill);
+           expPaid = bumpMoney(expPaid, amounts.pay);
+           expDiscount = bumpMoney(expDiscount, amounts.discount);
            let logger = gV(r, ["username", "loggedby"]);
            if (logger && !isAdm(logger) && amounts.pay > 0) addCash(logger, -amounts.pay);
        }
@@ -7552,10 +7562,11 @@ async function loadDashboardData() {
        const amounts = parseTxnDualAmounts(r, CREDITOR_TXN_FIELDS);
        let check = cln(getDualTxnCategory(r, CREDITOR_TXN_FIELDS) + " " + gV(r, ["remarks", "method", "type"]));
        if (check.includes("previousdue") || check.includes("openingbalance")) {
-           let prevAmt = Math.max(amounts.bill, amounts.pay);
-           crdRecv += prevAmt; crdDue += prevAmt;
+           let prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+           crdRecv = bumpMoney(crdRecv, prevAmt);
        } else {
-           crdRecv += amounts.bill; crdRet += amounts.pay; crdDue += amounts.txnDue;
+           crdRecv = bumpMoney(crdRecv, amounts.bill);
+           crdRet = bumpMoney(crdRet, amounts.pay);
            let logger = gV(r, ["username", "loggedby"]);
            if (logger && !isAdm(logger) && amounts.pay > 0) addCash(logger, -amounts.pay);
        }
@@ -7566,24 +7577,29 @@ async function loadDashboardData() {
        const amounts = parseTxnDualAmounts(r, CAPITAL_TXN_FIELDS);
        let check = cln(getDualTxnCategory(r, CAPITAL_TXN_FIELDS) + " " + gV(r, ["remarks", "subhead"]));
        if (check.includes("previousdue") || check.includes("openingbalance")) {
-           let prevAmt = Math.max(amounts.bill, amounts.pay);
-           capIn += prevAmt; capNet += prevAmt;
+           let prevAmt = roundMoney(Math.max(amounts.bill, amounts.pay));
+           capIn = bumpMoney(capIn, prevAmt);
        } else {
-           capIn += amounts.bill; capOut += amounts.pay; capNet += amounts.txnDue;
+           capIn = bumpMoney(capIn, amounts.bill);
+           capOut = bumpMoney(capOut, amounts.pay);
        }
     });
 
     // HR LOGIC (STRICT DYNAMIC MATH - NO DOUBLE COUNTING)
     if(rHrT.success) rHrT.records.forEach(r => { 
-        let amt = Math.abs(gF(r, ["amount"])); let check = cln(gV(r, ["category", "remarks"])); let logger = gV(r, ["username", "loggedby"]);
+        let amt = roundMoney(Math.abs(gF(r, ["amount"]))); let check = cln(gV(r, ["category", "remarks"])); let logger = gV(r, ["username", "loggedby"]);
         if (check.includes("previousdue") || check.includes("openingbalance") || check.includes("earn") || check.includes("bill")) {
-            hrEarned += amt; // ONLY Actual Earned or Previous Due. NO INCREMENTS.
+            hrEarned = bumpMoney(hrEarned, amt);
         } else if (check.includes("paid")) {
-            hrPaid += amt;
+            hrPaid = bumpMoney(hrPaid, amt);
             if (logger && !isAdm(logger)) addCash(logger, -amt);
         }
     });
-    hrDue = hrEarned - hrPaid;
+    incDue = roundMoney(Math.max(0, incBilled - incDiscount - incRecv));
+    expDue = roundMoney(Math.max(0, expInc - expDiscount - expPaid));
+    hrDue = roundMoney(Math.max(0, hrEarned - hrPaid));
+    crdDue = roundMoney(Math.max(0, crdRecv - crdRet));
+    capNet = roundMoney(capIn - capOut);
 
     // INTERNAL TRANSFERS (sender out, recipient in — approved only)
     if (rInt.success) rInt.records.forEach(r => {
@@ -7599,15 +7615,15 @@ async function loadDashboardData() {
     if (rCust.success && rCust.records.length) {
       saleDue = 0;
       rCust.records.forEach((r) => {
-        saleDue += getCustomerDueBalance(r);
+        saleDue = bumpMoney(saleDue, getCustomerDueBalance(r));
       });
     }
 
     // MASTER AGGREGATION (Flawless Totals)
-    tRecv = saleDue + incDue;
-    tPay = purDue + expDue + crdDue + hrDue;
+    tRecv = bumpMoney(saleDue, incDue);
+    tPay = roundMoney(purDue + expDue + crdDue + hrDue);
 
-    const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = Number(val).toFixed(2); };
+    const setVal = (id, val) => { const el = document.getElementById(id); if(el) el.textContent = roundMoney(val).toFixed(2); };
     setVal('dash-recv', tRecv); setVal('dash-pay', tPay);
     setVal('dash-sale-sold', saleSold); setVal('dash-sale-recv', saleRecv); setVal('dash-sale-due', saleDue); setVal('dash-sale-disc', saleDiscount); setVal('dash-sale-cash', saleCash); setVal('dash-sale-card', saleCard);
     setVal('dash-inc-billed', incBilled); setVal('dash-inc-recv', incRecv); setVal('dash-inc-due', incDue); setVal('dash-inc-disc', incDiscount);
@@ -7621,7 +7637,7 @@ async function loadDashboardData() {
     const adminContainer = document.getElementById('admin-global-balance-container');
     let globalBalance = null;
     if (sessionUser && (sessionUser.role === "Super Admin" || sessionUser.role === "Admin")) {
-        let globalInflows = saleRecv + incRecv + crdRecv + capIn; let globalOutflows = purPaid + expPaid + crdRet + hrPaid + capOut; globalBalance = globalInflows - globalOutflows;
+        let globalInflows = roundMoney(saleRecv + incRecv + crdRecv + capIn); let globalOutflows = roundMoney(purPaid + expPaid + crdRet + hrPaid + capOut); globalBalance = roundMoney(globalInflows - globalOutflows);
         if (adminContainer) {
             adminContainer.innerHTML = `<div class="bg-slate-900 border border-slate-800 rounded-lg md:rounded-xl p-3 md:p-5 shadow-md text-white"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 md:gap-4"><div class="min-w-0"><div class="text-[9px] md:text-[10px] text-slate-400 font-bold uppercase tracking-wider mb-0.5 flex items-center gap-1.5"><svg class="w-3 h-3 md:w-4 md:h-4 text-teal-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><span class="truncate">${t('dash.globalBalance')}</span></div><div class="text-xl sm:text-2xl md:text-3xl font-black font-mono text-teal-400 truncate">SAR ${globalBalance.toFixed(2)}</div></div><div class="grid grid-cols-2 gap-2 sm:flex sm:gap-3 shrink-0"><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">${t('dash.inflows')}</div><div class="text-emerald-400 font-mono font-bold text-xs md:text-base">SAR ${globalInflows.toFixed(2)}</div></div><div class="bg-slate-800/70 rounded-lg px-2.5 py-1.5 md:px-3 md:py-2"><div class="text-[8px] md:text-[10px] text-slate-400 uppercase font-bold tracking-wider">${t('dash.outflows')}</div><div class="text-red-400 font-mono font-bold text-xs md:text-base">SAR ${globalOutflows.toFixed(2)}</div></div></div></div></div>`;
         }
