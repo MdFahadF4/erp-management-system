@@ -96,12 +96,18 @@ export function parseSupplierTxnRecord(record) {
 }
 
 export function parseCustomerTxnRecord(record) {
+  const rawMethod = String(getField(record, ['Payment Method', 'Method']) || '').trim();
+  const methodLower = rawMethod.toLowerCase();
+  let method = 'Cash';
+  if (methodLower.includes('card')) method = 'Card';
+  else if (methodLower.includes('cash') || methodLower === '') method = 'Cash';
+
   return {
     uid: String(getField(record, ['System Unique ID', 'Sys UID']) || '').trim(),
     sold: parseFloat(getField(record, ['Sold Amount', 'Sold']) || 0) || 0,
     discount: parseFloat(getField(record, ['Discount']) || 0) || 0,
     received: parseFloat(getField(record, ['Received Amount', 'Received']) || 0) || 0,
-    method: String(getField(record, ['Payment Method', 'Method']) || '').trim()
+    method
   };
 }
 
@@ -200,10 +206,10 @@ export async function syncCustomerMasterForUid(systemUID) {
     const updated = {
       ...cust,
       'Total Sell': totalSell,
-      'Total Cash': totalCash,
-      'Total Card': totalCard,
+      'Cash Amt': totalCash,
+      'Card Amt': totalCard,
       'Total Received': totalReceived,
-      'Total Discount': totalDiscount,
+      Discount: totalDiscount,
       'Due Balance': dueBalance
     };
     await updateRecordById(CUSTOMERS_COLLECTION, cust.ID, updated);

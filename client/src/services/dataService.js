@@ -9,6 +9,7 @@ async function fetchSheet(sheetName) {
 }
 
 export async function fetchDashboardData() {
+  await syncCustomerMaster().catch(() => null);
   const [
     customers,
     customerTxns,
@@ -97,6 +98,10 @@ export async function syncHrMaster() {
   return apiRequest({ action: 'SYNC_HR_MASTER' });
 }
 
+export async function syncCustomerMaster() {
+  return apiRequest({ action: 'SYNC_CUSTOMER_MASTER' });
+}
+
 export async function fetchHrModuleData() {
   await syncHrMaster().catch(() => null);
   const [hr, hrTxns] = await Promise.all([fetchSheet('HR'), fetchSheet('HR_Transactions')]);
@@ -107,6 +112,7 @@ export async function fetchHrModuleData() {
 }
 
 export async function fetchCustomerModuleData() {
+  await syncCustomerMaster().catch(() => null);
   const [customers, customerTxns] = await Promise.all([
     fetchSheet('Customers'),
     fetchSheet('Customer_Transactions')

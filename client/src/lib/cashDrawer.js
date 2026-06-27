@@ -1,20 +1,20 @@
-import { cln, gV, gF } from './recordHelpers.js';
+import { cln, gF, gV } from './recordHelpers.js';
 import { parseSupplierTxnAmounts } from './txnParsers.js';
 import { parseTxnDualAmounts } from './txnParsers.js';
 import { EXPENSE_TXN_FIELDS } from './txnFields.js';
+import {
+  buildCustomerTxnCashByUid,
+  CUSTOMER_METH_COLS,
+  CUSTOMER_RECV_COLS,
+  isCustomerPreviousDueTxn,
+  masterInitialCustomerCash,
+  readCustomerMasterAmounts
+} from './customerFinancials.js';
 
-const recvCols = [
-  'receivedamount',
-  'receivedamt',
-  'received',
-  'cashreceived',
-  'cashamt',
-  'cashamount',
-  'paidamount',
-  'paidamt',
-  'amountpaid'
-];
-const methCols = ['paymentmethod', 'method', 'paymenttype', 'type'];
+function isInternalTransferApproved(rec) {
+  const status = String(gV(rec, ['status']) || '').trim().toLowerCase();
+  return !status || status === 'approved';
+}
 
 export function computeLiveCashDrawer(user, data) {
   if (!user?.username) return 0;
@@ -34,43 +34,31 @@ export function computeLiveCashDrawer(user, data) {
   let uCashIn = 0;
   let uCashOut = 0;
 
-  const txnTotals = {};
-  if (resCustTxn.success) {
-    resCustTxn.records.forEach((t) => {
-      const uid = cln(gV(t, ['systemuniqueid', 'sysuid', 'uniqueid']));
-      if (!uid) return;
-      const check = cln(gV(t, ['remarks', 'category', 'method', 'type', 'paymentmethod']));
-      if (check.includes('previousdue') || check.includes('openingbalance')) return;
-      if (!txnTotals[uid]) txnTotals[uid] = { cash: 0 };
-      let method = cln(gV(t, methCols));
-      if (method === '') method = 'cash';
-      if (method.includes('cash')) txnTotals[uid].cash += gF(t, recvCols);
-    });
-  }
+  const txnTotals = resCustTxn.success ? buildCustomerTxnCashByUid(resCustTxn.records) : {};
 
   if (resCust.success) {
     resCust.records.forEach((r) => {
-      if (isU(r)) {
-        uCashIn +=
-          gF(r, ['cashamt', 'cashamount', 'cash']) -
-          (txnTotals[cln(gV(r, ['systemuniqueid', 'sysuid']))]?.cash || 0);
-      }
+      if (!isU(r)) return;
+      const uid = cln(gV(r, ['systemuniqueid', 'sysuid', 'uniqueid']));
+      const amounts = readCustomerMasterAmounts(r);
+      uCashIn += masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
     });
   }
 
   if (resCustTxn.success) {
     resCustTxn.records.forEach((r) => {
-      const check = cln(gV(r, ['remarks', 'category', 'method', 'type', 'paymentmethod']));
-      if (check.includes('previousdue') || check.includes('openingbalance')) return;
-      if (isU(r) && cln(gV(r, methCols) || 'cash').includes('cash')) {
-        uCashIn += gF(r, recvCols);
+      if (isCustomerPreviousDueTxn(r)) return;
+      if (!isU(r)) return;
+      let method = cln(gV(r, CUSTOMER_METH_COLS));
+      if (method === '') method = 'cash';
+      if (method.includes('cash')) {
+        uCashIn += gF(r, CUSTOMER_RECV_COLS);
       }
     });
   }
 
   const applyInternalTransferDrawer = (r) => {
-    const status = String(gV(r, ['status']) || '').trim();
-    if (status && status.toLowerCase() !== 'approved') return;
+    if (!isInternalTransferApproved(r)) return;
     const amt = Math.abs(gF(r, ['transferamount', 'amount']));
     const sender = String(gV(r, ['transferredby', 'username', 'loggedby']) || '').trim();
     const recipient = String(gV(r, ['transfertouser', 'transferto', 'receivedby', 'handoverto']) || '').trim();

@@ -9,6 +9,15 @@ import { initDeliveryDashboard } from './delivery-dashboard.js';
 import { applyCompanyBranding } from './company.js';
 import { initCreatorCredit, setAppPageFooterVisible } from './creator-credit.js';
 import { finalizeReportPrintLayout, initReportExportButtons, initCustomerTxnSlipButtons, finalizeHrFactoryPrintLayout, initHrFactoryExportButtons } from './report-export.js';
+import {
+  aggregateCustomerTotalsFromTxns,
+  buildCustomerTxnCashByUid,
+  CUSTOMER_METH_COLS,
+  CUSTOMER_RECV_COLS,
+  isCustomerPreviousDueTxn,
+  masterInitialCustomerCash,
+  readCustomerMasterAmounts
+} from './customerFinancials.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -1598,27 +1607,20 @@ async function updateLiveUserCashDrawerBalance() {
     let uCashIn = 0; let uCashOut = 0;
 
     // 1. CASH IN: Only customer master cash + customer txn cash payments (never capital/accounting entries)
-    let txnTotals = {};
-    if (resCustTxn.success) {
-       resCustTxn.records.forEach(t => {
-          let uid = cln(gV(t, ["systemuniqueid", "sysuid", "uniqueid"]));
-          if(!uid) return;
-          let check = cln(gV(t, ["remarks", "category", "method", "type", "paymentmethod"]));
-          if (check.includes("previousdue") || check.includes("openingbalance")) return;
-          if(!txnTotals[uid]) txnTotals[uid] = { cash: 0 };
-          let method = cln(gV(t, methCols)); if (method === "") method = "cash"; 
-          if (method.includes("cash")) txnTotals[uid].cash += gF(t, recvCols);
-       });
-    }
+    let txnTotals = resCustTxn.success ? buildCustomerTxnCashByUid(resCustTxn.records) : {};
 
     if (resCust.success) resCust.records.forEach(r => {
-        if (isU(r)) uCashIn += (gF(r, ["cashamt", "cashamount", "cash"]) - (txnTotals[cln(gV(r, ["systemuniqueid", "sysuid"]))]?.cash || 0));
+        if (!isU(r)) return;
+        const uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
+        const amounts = readCustomerMasterAmounts(r);
+        uCashIn += masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
     });
 
     if (resCustTxn.success) resCustTxn.records.forEach(r => {
-        let check = cln(gV(r, ["remarks", "category", "method", "type", "paymentmethod"]));
-        if (check.includes("previousdue") || check.includes("openingbalance")) return;
-        if (isU(r) && cln(gV(r, methCols) || "cash").includes("cash")) uCashIn += gF(r, recvCols);
+        if (isCustomerPreviousDueTxn(r)) return;
+        if (!isU(r)) return;
+        let method = cln(gV(r, methCols)); if (method === "") method = "cash";
+        if (method.includes("cash")) uCashIn += gF(r, recvCols);
     });
 
     // Internal transfers: sender cash out; recipient cash in (user-to-user handover)
@@ -7542,6 +7544,8 @@ async function loadDashboardData() {
   if (container) container.innerHTML = `<div class="snap-start shrink-0 w-full md:w-auto col-span-full p-3 text-center text-blue-500 text-xs font-bold animate-pulse">${t('dash.calculatingBalances')}</div>`;
   
   try {
+    await apiRequest({ action: 'SYNC_CUSTOMER_MASTER' }).catch(() => null);
+
     const fetchS = async (sheetName) => {
       try { return await apiRequest({ action: "FETCH_RECORDS", payload: { sheetName } }); } catch(e) { return {success:false, records:[]}; }
     };
@@ -7576,39 +7580,43 @@ async function loadDashboardData() {
     let userCash = {};
     const addCash = (usr, amt) => { if(!usr) return; let u=String(usr).trim(); if(!userCash[u]) userCash[u]=0; userCash[u]+=amt; };
 
-    let txnTotals = {};
-    if(rCustT.success) rCustT.records.forEach(t => {
-        let uid = cln(gV(t, ["systemuniqueid", "sysuid", "uniqueid"]));
-        let check = cln(gV(t, ["remarks", "category", "method", "type", "paymentmethod"]));
-        if(!uid || check.includes("previousdue") || check.includes("openingbalance")) return; // Ignore Previous Due for live cash subtract
-        if(!txnTotals[uid]) txnTotals[uid] = { cash: 0 };
-        let method = cln(gV(t, methCols)); if (method === "") method = "cash"; 
-        if (method.includes("cash")) txnTotals[uid].cash += gF(t, recvCols);
-    });
+    let txnTotals = rCustT.success ? buildCustomerTxnCashByUid(rCustT.records) : {};
 
-    // CUSTOMER LOGIC
-    if(rCust.success) rCust.records.forEach(r => {
+    // CUSTOMER LOGIC — transaction totals first; master only for opening cash not yet in txns
+    if (rCustT.success && rCustT.records.length) {
+      const txnAgg = aggregateCustomerTotalsFromTxns(rCustT.records);
+      saleSold = txnAgg.sold;
+      saleCash = txnAgg.cash;
+      saleCard = txnAgg.card;
+      saleRecv = txnAgg.recv;
+      saleDue = txnAgg.due;
+      saleDiscount = txnAgg.discount;
+    } else if (rCust.success) {
+      rCust.records.forEach((r) => {
+        const amounts = readCustomerMasterAmounts(r);
+        saleSold += amounts.sell;
+        saleCash += amounts.cash;
+        saleCard += amounts.card;
+        saleRecv += amounts.recv;
+        saleDue += amounts.due;
+        saleDiscount += amounts.discount;
+      });
+    }
+
+    if (rCust.success) rCust.records.forEach(r => {
        let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
-       let sell = gF(r, sellCols); let cash = gF(r, ["cashamt", "cashamount", "cash"]); let card = gF(r, ["cardamt", "cardamount", "card"]); let discount = gF(r, ["discount", "discountallowed"]);
-       let recv = cash + card; let due = sell - recv - discount;
-       saleSold += sell; saleCash += cash; saleCard += card; saleRecv += recv; saleDue += due;
-       let initCash = cash - (txnTotals[uid] ? txnTotals[uid].cash : 0);
+       const amounts = readCustomerMasterAmounts(r);
+       let initCash = masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
        let creator = gV(r, ["username", "loggedby", "createdby"]);
        if (creator) addCash(creator, initCash);
     });
     if(rCustT.success) rCustT.records.forEach(t => {
+       if (isCustomerPreviousDueTxn(t)) return;
        let amt = gF(t, recvCols);
-       let check = cln(gV(t, ["remarks", "category", "method", "type", "paymentmethod"]));
-       if (check.includes("previousdue") || check.includes("openingbalance")) {
-           saleSold += amt; saleDue += amt;
-       } else {
-           let method = cln(gV(t, methCols)); if (method === "") method = "cash";
-           let logger = gV(t, ["username", "loggedby"]);
-           if (method.includes("cash") && logger) addCash(logger, amt);
-       }
+       let method = cln(gV(t, methCols)); if (method === "") method = "cash";
+       let logger = gV(t, ["username", "loggedby"]);
+       if (method.includes("cash") && logger) addCash(logger, amt);
     });
-    // Derive total discount from master-backed totals (avoids double-counting master + txn discount)
-    saleDiscount = Math.max(0, saleSold - saleRecv - saleDue);
 
     // INCOME LOGIC
     if(rIncT.success) rIncT.records.forEach(r => {
@@ -7694,8 +7702,10 @@ async function loadDashboardData() {
     });
     hrDue = hrEarned - hrPaid;
 
-    // INTERNAL TRANSFERS (sender out, recipient in)
+    // INTERNAL TRANSFERS (sender out, recipient in — approved only)
     if (rInt.success) rInt.records.forEach(r => {
+      const status = cln(gV(r, ["status"]) || "");
+      if (status && status !== "approved") return;
       const amt = Math.abs(gF(r, ["transferamount", "amount"]));
       const sender = gV(r, ["transferredby", "username", "loggedby"]);
       const recipient = String(gV(r, ["transfertouser", "transferto", "receivedby", "handoverto"]) || '').trim();

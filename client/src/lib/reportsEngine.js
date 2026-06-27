@@ -17,6 +17,15 @@ import {
 } from './txnFields.js';
 import { finalizeReportPrintLayout } from './reportExport.js';
 import { t, getCategoryLabel, getReportFlowTypeLabel, getReportSourceLabel } from './reportI18n.js';
+import {
+  buildCustomerTxnCashByUid,
+  CUSTOMER_METH_COLS,
+  CUSTOMER_RECV_COLS,
+  CUSTOMER_SELL_COLS,
+  isCustomerPreviousDueTxn,
+  masterInitialCustomerCash,
+  readCustomerMasterAmounts
+} from './customerFinancials.js';
 
 const CUSTOMER_TXN_COL = {
   uid: ["System Unique ID", "Sys UID", "UNIQUEID", "Unique ID", "Customer UID", "Customer ID"],
@@ -2689,54 +2698,41 @@ export async function executeReportGeneration(type, fromStr, toStr, secVal, secT
             if (uMatch && cln(gV(uMatch, ["role"])).includes("admin")) isSecValAdmin = true;
         }
 
-        let txnTotals = {};
-        if (rCustT.success) {
-           rCustT.records.forEach(t => {
-              let uid = cln(gV(t, ["systemuniqueid", "sysuid", "uniqueid"]));
-              if(!uid) return;
-              if(!txnTotals[uid]) txnTotals[uid] = { sold: 0, cash: 0, card: 0 };
-              txnTotals[uid].sold += gF(t, sellCols);
-              let recv = gF(t, recvCols);
-              let method = cln(gV(t, methCols));
-              if (method === "") method = "cash"; 
-              if (method.includes("cash")) txnTotals[uid].cash += recv; else txnTotals[uid].card += recv;
-           });
-        }
+        let txnTotals = rCustT.success ? buildCustomerTxnCashByUid(rCustT.records) : {};
 
         if (rCust.success) {
            rCust.records.forEach(r => {
-              if (isU(r)) {
-                 let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
-                 let d = new Date(gV(r, ["date", "creationstamp", "timestamp"]) || new Date());
-                 let mKey = initMonth(d);
+              if (!isU(r)) return;
+              let uid = cln(gV(r, ["systemuniqueid", "sysuid", "uniqueid"]));
+              let d = new Date(gV(r, ["date", "creationstamp", "timestamp"]) || new Date());
+              let mKey = initMonth(d);
+              const amounts = readCustomerMasterAmounts(r);
+              const tt = txnTotals[uid] || { sold: 0, cash: 0, card: 0 };
+              const trueSold = amounts.sell - tt.sold;
+              const trueCash = masterInitialCustomerCash(amounts.cash, tt.cash);
+              const trueCard = Math.max(0, amounts.card - tt.card);
+              const trueRecv = trueCash + trueCard;
 
-                 let trueSold = gF(r, sellCols) - (txnTotals[uid] ? txnTotals[uid].sold : 0);
-                 let trueCash = gF(r, ["cashamt", "cashamount", "cash"]) - (txnTotals[uid] ? txnTotals[uid].cash : 0);
-                 let trueCard = gF(r, ["cardamt", "cardamount", "card"]) - (txnTotals[uid] ? txnTotals[uid].card : 0);
-                 let trueRecv = trueCash + trueCard;
-
-                 pLifeSold += trueSold; pLifeRecv += trueRecv; pLifeCash += trueCash; pLifeCard += trueCard;
-                 monthlyData[mKey].sold += trueSold; monthlyData[mKey].recv += trueRecv;
-              }
+              pLifeSold += trueSold; pLifeRecv += trueRecv; pLifeCash += trueCash; pLifeCard += trueCard;
+              monthlyData[mKey].sold += trueSold; monthlyData[mKey].recv += trueRecv;
            });
         }
 
         if (rCustT.success) {
            rCustT.records.forEach(r => {
-              if (isU(r)) {
-                 let d = new Date(gV(r, ["date", "timestamp"]) || new Date());
-                 let mKey = initMonth(d);
+              if (!isU(r) || isCustomerPreviousDueTxn(r)) return;
+              let d = new Date(gV(r, ["date", "timestamp"]) || new Date());
+              let mKey = initMonth(d);
 
-                 let tSell = gF(r, sellCols);
-                 let recv = gF(r, recvCols);
-                 let method = cln(gV(r, methCols));
-                 if (method === "") method = "cash";
-                 
-                 pLifeSold += tSell; pLifeRecv += recv;
-                 if (method.includes("cash")) pLifeCash += recv; else pLifeCard += recv;
-                 
-                 monthlyData[mKey].sold += tSell; monthlyData[mKey].recv += recv;
-              }
+              let tSell = gF(r, CUSTOMER_SELL_COLS);
+              let recv = gF(r, CUSTOMER_RECV_COLS);
+              let method = cln(gV(r, CUSTOMER_METH_COLS));
+              if (method === "") method = "cash";
+              
+              pLifeSold += tSell; pLifeRecv += recv;
+              if (method.includes("cash")) pLifeCash += recv; else pLifeCard += recv;
+              
+              monthlyData[mKey].sold += tSell; monthlyData[mKey].recv += recv;
            });
         }
 

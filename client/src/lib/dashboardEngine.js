@@ -1,4 +1,4 @@
-import { cln, gV, gF } from './recordHelpers.js';
+import { cln, gF, gV } from './recordHelpers.js';
 import { parseTxnDualAmounts, parseSupplierTxnAmounts, getDualTxnCategoryForExport as getDualTxnCategory } from './txnParsers.js';
 import {
   EXPENSE_TXN_FIELDS,
@@ -6,23 +6,24 @@ import {
   INCOME_TXN_FIELDS,
   CAPITAL_TXN_FIELDS
 } from './txnFields.js';
-
-const sellCols = ['soldamount', 'soldamt', 'totalsell', 'sellamount', 'grosssell', 'sell'];
-const recvCols = [
-  'receivedamount',
-  'receivedamt',
-  'received',
-  'cashreceived',
-  'cashamt',
-  'cashamount',
-  'paidamount',
-  'paidamt',
-  'amountpaid'
-];
-const methCols = ['paymentmethod', 'method', 'paymenttype', 'type'];
+import {
+  aggregateCustomerTotalsFromTxns,
+  buildCustomerTxnCashByUid,
+  CUSTOMER_METH_COLS,
+  CUSTOMER_RECV_COLS,
+  CUSTOMER_SELL_COLS,
+  isCustomerPreviousDueTxn,
+  masterInitialCustomerCash,
+  readCustomerMasterAmounts
+} from './customerFinancials.js';
 
 function emptyFetchResult() {
   return { success: false, records: [] };
+}
+
+function isInternalTransferApproved(rec) {
+  const status = String(gV(rec, ['status']) || '').trim().toLowerCase();
+  return !status || status === 'approved';
 }
 
 export function computeDashboardMetrics(data, sessionUser) {
@@ -85,34 +86,33 @@ export function computeDashboardMetrics(data, sessionUser) {
     userCash[u] += amt;
   };
 
-  const txnTotals = {};
-  if (rCustT.success) {
-    rCustT.records.forEach((t) => {
-      const uid = cln(gV(t, ['systemuniqueid', 'sysuid', 'uniqueid']));
-      const check = cln(gV(t, ['remarks', 'category', 'method', 'type', 'paymentmethod']));
-      if (!uid || check.includes('previousdue') || check.includes('openingbalance')) return;
-      if (!txnTotals[uid]) txnTotals[uid] = { cash: 0 };
-      let method = cln(gV(t, methCols));
-      if (method === '') method = 'cash';
-      if (method.includes('cash')) txnTotals[uid].cash += gF(t, recvCols);
+  const txnTotals = rCustT.success ? buildCustomerTxnCashByUid(rCustT.records) : {};
+
+  if (rCustT.success && rCustT.records.length) {
+    const txnAgg = aggregateCustomerTotalsFromTxns(rCustT.records);
+    saleSold = txnAgg.sold;
+    saleCash = txnAgg.cash;
+    saleCard = txnAgg.card;
+    saleRecv = txnAgg.recv;
+    saleDue = txnAgg.due;
+    saleDiscount = txnAgg.discount;
+  } else if (rCust.success) {
+    rCust.records.forEach((r) => {
+      const amounts = readCustomerMasterAmounts(r);
+      saleSold += amounts.sell;
+      saleCash += amounts.cash;
+      saleCard += amounts.card;
+      saleRecv += amounts.recv;
+      saleDue += amounts.due;
+      saleDiscount += amounts.discount;
     });
   }
 
   if (rCust.success) {
     rCust.records.forEach((r) => {
       const uid = cln(gV(r, ['systemuniqueid', 'sysuid', 'uniqueid']));
-      const sell = gF(r, sellCols);
-      const cash = gF(r, ['cashamt', 'cashamount', 'cash']);
-      const card = gF(r, ['cardamt', 'cardamount', 'card']);
-      const discount = gF(r, ['discount', 'discountallowed']);
-      const recv = cash + card;
-      const due = sell - recv - discount;
-      saleSold += sell;
-      saleCash += cash;
-      saleCard += card;
-      saleRecv += recv;
-      saleDue += due;
-      const initCash = cash - (txnTotals[uid] ? txnTotals[uid].cash : 0);
+      const amounts = readCustomerMasterAmounts(r);
+      const initCash = masterInitialCustomerCash(amounts.cash, txnTotals[uid]?.cash);
       const creator = gV(r, ['username', 'loggedby', 'createdby']);
       if (creator) addCash(creator, initCash);
     });
@@ -120,20 +120,14 @@ export function computeDashboardMetrics(data, sessionUser) {
 
   if (rCustT.success) {
     rCustT.records.forEach((t) => {
-      const amt = gF(t, recvCols);
-      const check = cln(gV(t, ['remarks', 'category', 'method', 'type', 'paymentmethod']));
-      if (check.includes('previousdue') || check.includes('openingbalance')) {
-        saleSold += amt;
-        saleDue += amt;
-      } else {
-        let method = cln(gV(t, methCols));
-        if (method === '') method = 'cash';
-        const logger = gV(t, ['username', 'loggedby']);
-        if (method.includes('cash') && logger) addCash(logger, amt);
-      }
+      if (isCustomerPreviousDueTxn(t)) return;
+      const amt = gF(t, CUSTOMER_RECV_COLS);
+      let method = cln(gV(t, CUSTOMER_METH_COLS));
+      if (method === '') method = 'cash';
+      const logger = gV(t, ['username', 'loggedby']);
+      if (method.includes('cash') && logger) addCash(logger, amt);
     });
   }
-  saleDiscount = Math.max(0, saleSold - saleRecv - saleDue);
 
   if (rIncT.success) {
     rIncT.records.forEach((r) => {
@@ -243,6 +237,7 @@ export function computeDashboardMetrics(data, sessionUser) {
 
   if (rInt.success) {
     rInt.records.forEach((r) => {
+      if (!isInternalTransferApproved(r)) return;
       const amt = Math.abs(gF(r, ['transferamount', 'amount']));
       const sender = gV(r, ['transferredby', 'username', 'loggedby']);
       const recipient = String(gV(r, ['transfertouser', 'transferto', 'receivedby', 'handoverto']) || '').trim();
@@ -362,9 +357,9 @@ function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
       const uid = cln(gV(row, ['systemuniqueid', 'sysuid', 'uniqueid']));
       if (!uid) return;
       if (!txnTotals[uid]) txnTotals[uid] = { sold: 0, cash: 0, card: 0 };
-      txnTotals[uid].sold += gF(row, sellCols);
-      const recv = gF(row, recvCols);
-      let method = cln(gV(row, methCols));
+      txnTotals[uid].sold += gF(row, CUSTOMER_SELL_COLS);
+      const recv = gF(row, CUSTOMER_RECV_COLS);
+      let method = cln(gV(row, CUSTOMER_METH_COLS));
       if (method === '') method = 'cash';
       if (method.includes('cash')) txnTotals[uid].cash += recv;
       else txnTotals[uid].card += recv;
@@ -379,11 +374,9 @@ function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
       if (!creator) return;
       const uid = cln(gV(r, ['systemuniqueid', 'sysuid', 'uniqueid']));
       const tt = txnTotals[uid] || { sold: 0, cash: 0, card: 0 };
-      userStats[creator].sold += gF(r, sellCols) - tt.sold;
-      userStats[creator].recv +=
-        gF(r, ['cashamt', 'cashamount', 'cash']) -
-        tt.cash +
-        (gF(r, ['cardamt', 'cardamount', 'card']) - tt.card);
+      const amounts = readCustomerMasterAmounts(r);
+      userStats[creator].sold += amounts.sell - tt.sold;
+      userStats[creator].recv += amounts.recv - tt.cash - tt.card;
     });
   }
 
@@ -393,13 +386,13 @@ function computeMonthlyUserSalesLeaderboard(rCust, rCustT, rUsers) {
       if (!isDateInDashboardRange(d, start, end)) return;
       const usr = ensureUser(gV(row, ['username', 'loggedby']));
       if (!usr) return;
-      const check = cln(gV(row, ['remarks', 'category', 'method', 'type', 'paymentmethod']));
-      if (check.includes('previousdue') || check.includes('openingbalance')) {
-        userStats[usr].sold += gF(row, recvCols);
+      if (isCustomerPreviousDueTxn(row)) {
+        userStats[usr].sold += gF(row, CUSTOMER_RECV_COLS);
+        userStats[usr].recv += gF(row, CUSTOMER_RECV_COLS);
         return;
       }
-      userStats[usr].sold += gF(row, sellCols);
-      userStats[usr].recv += gF(row, recvCols);
+      userStats[usr].sold += gF(row, CUSTOMER_SELL_COLS);
+      userStats[usr].recv += gF(row, CUSTOMER_RECV_COLS);
     });
   }
 
