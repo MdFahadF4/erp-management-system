@@ -1,3 +1,5 @@
+import { apiRequest, fetchSessionUser, processLogout } from '../services/auth.js';
+
 export const MODULE_LOAD_ORDER = [
   'dashboard',
   'delivery_dashboard',
@@ -155,10 +157,11 @@ export const NAV_ITEMS = [
 
 export function getVisibleNavItems(user) {
   if (!user) return [];
-  const r = String(user.role || '').trim().toLowerCase();
-  if (r === 'super admin' || r === 'admin') return NAV_ITEMS;
+  if (isAdminUser(user)) return NAV_ITEMS;
   const perms = Array.isArray(user.permissions) ? user.permissions.join(',') : String(user.permissions || '');
-  if (perms.toLowerCase().includes('all')) return NAV_ITEMS;
+  if (perms.toLowerCase().includes('all')) {
+    return NAV_ITEMS.filter((item) => !item.adminOnly);
+  }
 
   return NAV_ITEMS.filter((item) => {
     if (item.adminOnly) return false;
@@ -169,4 +172,61 @@ export function getVisibleNavItems(user) {
     }
     return userCanAccessModule(user, item.id);
   });
+}
+
+function getUserField(rec, names) {
+  for (const name of names) {
+    const normName = String(name).toUpperCase().replace(/[^A-Z0-9]/g, '');
+    for (const key in rec) {
+      if (String(key).toUpperCase().replace(/[^A-Z0-9]/g, '') === normName) return rec[key];
+    }
+  }
+  return undefined;
+}
+
+export async function refreshSessionUser() {
+  const current = fetchSessionUser();
+  if (!current?.username) return null;
+
+  try {
+    const result = await apiRequest({ action: 'FETCH_RECORDS', payload: { sheetName: 'Users' } });
+    if (!result.success || !Array.isArray(result.records)) return current;
+
+    const username = String(current.username).trim().toLowerCase();
+    const rec = result.records.find(
+      (r) => String(getUserField(r, ['Username']) || '').trim().toLowerCase() === username
+    );
+    if (!rec) return current;
+
+    const status = String(getUserField(rec, ['Status', 'Account Status']) || 'Active').trim() || 'Active';
+    const statusKey = status.toLowerCase();
+    if (statusKey === 'paused') {
+      alert('Account paused. Contact your administrator.');
+      processLogout();
+      return null;
+    }
+    if (statusKey === 'removed') {
+      alert('Account removed. Contact your administrator.');
+      processLogout();
+      return null;
+    }
+
+    const permsRaw = getUserField(rec, ['Permissions']);
+    const permissions = String(permsRaw || '')
+      .split(',')
+      .map((p) => p.trim())
+      .filter(Boolean);
+
+    const updated = {
+      ...current,
+      role: String(getUserField(rec, ['Role']) || current.role).trim(),
+      permissions,
+      status
+    };
+    localStorage.setItem('currentUser', JSON.stringify(updated));
+    return updated;
+  } catch (err) {
+    console.error('Session refresh failed:', err);
+    return current;
+  }
 }

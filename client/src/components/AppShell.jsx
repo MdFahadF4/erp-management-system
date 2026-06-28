@@ -5,7 +5,12 @@ import { computeDashboardMetrics } from '../lib/dashboardEngine.js';
 import { computeLiveCashDrawer } from '../lib/cashDrawer.js';
 import { fmtMoney } from '../lib/recordHelpers.js';
 import { COMPANY_NAME, companyLegalLine } from '../config/company.js';
-import { getDefaultModuleForUser, getVisibleNavItems, userCanAccessModule } from '../utils/userSession.js';
+import {
+  getDefaultModuleForUser,
+  getVisibleNavItems,
+  refreshSessionUser,
+  userCanAccessModule
+} from '../utils/userSession.js';
 import DashboardInsightsPanel from './DashboardInsightsPanel.jsx';
 import ModulePlaceholder from './ModulePlaceholder.jsx';
 import ChangePasswordModal from './ChangePasswordModal.jsx';
@@ -21,9 +26,9 @@ function isMobileViewport() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
 }
 
-export default function AppShell({ user: initialUser }) {
+export default function AppShell({ user: initialUser, onUserChange }) {
   const { t } = useI18n();
-  const [user] = useState(initialUser);
+  const [user, setUser] = useState(initialUser);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [activeModule, setActiveModule] = useState(() => getDefaultModuleForUser(initialUser) || 'dashboard');
@@ -31,6 +36,40 @@ export default function AppShell({ user: initialUser }) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [cashDrawerBalance, setCashDrawerBalance] = useState(0);
+
+  useEffect(() => {
+    setUser(initialUser);
+  }, [initialUser]);
+
+  useEffect(() => {
+    if (userCanAccessModule(user, activeModule)) return;
+    const fallback = getDefaultModuleForUser(user) || 'dashboard';
+    setActiveModule(fallback);
+  }, [user, activeModule]);
+
+  const syncSessionUser = useCallback(async () => {
+    const updated = await refreshSessionUser();
+    if (updated) {
+      setUser(updated);
+      onUserChange?.(updated);
+    }
+  }, [onUserChange]);
+
+  useEffect(() => {
+    syncSessionUser();
+    const onFocus = () => syncSessionUser();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') syncSessionUser();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    const timer = window.setInterval(syncSessionUser, 120000);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.clearInterval(timer);
+    };
+  }, [syncSessionUser]);
 
   const visibleNav = useMemo(() => getVisibleNavItems(user), [user]);
 
@@ -158,7 +197,8 @@ export default function AppShell({ user: initialUser }) {
       loading,
       refreshing,
       onRefresh: handleRefresh,
-      onDataChange: loadData
+      onDataChange: loadData,
+      onUserChange: syncSessionUser
     });
     return view ?? <ModulePlaceholder moduleId={activeModule} />;
   };

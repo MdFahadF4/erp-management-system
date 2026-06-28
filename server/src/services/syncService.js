@@ -1,5 +1,5 @@
 import { getField, normalizeHrName, normalizeSupplierName } from '../utils/helpers.js';
-import { roundMoney } from '../utils/money.js';
+import { roundMoney, addMoney, reconcileEarnedPaid } from '../utils/money.js';
 import {
   findAllRecords,
   insertRecord,
@@ -138,25 +138,25 @@ export async function syncHrMasterForEmployee(empName) {
       .trim()
       .toLowerCase();
 
-    if (cat.includes('increment')) totalInc += amt;
+    if (cat.includes('increment')) totalInc = addMoney(totalInc, amt);
     if (cat.includes('earn') || cat.includes('previous due') || cat.includes('opening balance')) {
-      totalEarn += amt;
+      totalEarn = addMoney(totalEarn, amt);
     } else if (cat.includes('paid')) {
-      totalPaid += amt;
+      totalPaid = addMoney(totalPaid, amt);
     }
   }
 
   for (const hr of hrRecords) {
     if (normalizeHrName(getField(hr, ['Employee Name'])) !== targetKey) continue;
-    const baseSalary =
-      parseFloat(getField(hr, ['Salary Start', 'Base Salary']) || 0) || 0;
+    const baseSalary = roundMoney(parseFloat(getField(hr, ['Salary Start', 'Base Salary']) || 0) || 0);
+    const hrTotals = reconcileEarnedPaid(totalEarn, totalPaid);
     const updated = {
       ...hr,
-      'Increment Amount': totalInc,
-      'Current Salary': baseSalary + totalInc,
-      'Total Earn Earning': roundMoney(totalEarn),
-      'Paid Salary': roundMoney(totalPaid),
-      'Due Balance Salary': roundMoney(Math.max(0, totalEarn - totalPaid))
+      'Increment Amount': roundMoney(totalInc),
+      'Current Salary': addMoney(baseSalary, totalInc),
+      'Total Earn Earning': hrTotals.earned,
+      'Paid Salary': hrTotals.paid,
+      'Due Balance Salary': hrTotals.due
     };
     await updateRecordById(HR_COLLECTION, hr.ID, updated);
     return true;

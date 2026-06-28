@@ -1,4 +1,4 @@
-import { getCol, fmtMoney } from './recordHelpers.js';
+import { addMoney, getCol, fmtMoney, reconcileEarnedPaid, roundMoney } from './recordHelpers.js';
 import { getCustomerDueBalance, getCustomerUid, getCustomerName } from './customerEngine.js';
 import { getHrEmployeeName, rollupHrTxnTotals, normalizeHrEmployeeName as normHr } from './hrEngine.js';
 import { getSupplierName, getSupplierDueBalance, rollupSupplierTxnTotals } from './supplierEngine.js';
@@ -68,12 +68,12 @@ export function getSupplierMasterDeleteBlockReason(rec, txns) {
 export function buildHrMasterUpdateRow(rec, txns, fields, user) {
   const empName = fields.name.trim();
   const totals = rollupHrTxnTotals(txns, getHrEmployeeName(rec));
-  const baseSalary = parseFloat(fields.salaryStart) || 0;
-  const totalInc = totals.increment;
-  const currentSalary = baseSalary + totalInc;
-  const dbEarned = parseFloat(fields.totalEarn) || totals.earned;
-  const dbPaid = parseFloat(fields.totalPaid) || totals.paid;
-  const dbDue = Math.max(0, dbEarned - dbPaid);
+  const baseSalary = roundMoney(parseFloat(fields.salaryStart) || 0);
+  const totalInc = roundMoney(totals.increment);
+  const currentSalary = addMoney(baseSalary, totalInc);
+  const dbEarned = roundMoney(parseFloat(fields.totalEarn) || totals.earned);
+  const dbPaid = roundMoney(parseFloat(fields.totalPaid) || totals.paid);
+  const reconciled = reconcileEarnedPaid(dbEarned, dbPaid);
   return [
     empName,
     fields.designation.trim(),
@@ -81,9 +81,9 @@ export function buildHrMasterUpdateRow(rec, txns, fields, user) {
     baseSalary,
     totalInc,
     currentSalary,
-    dbEarned,
-    dbPaid,
-    dbDue,
+    reconciled.earned,
+    reconciled.paid,
+    reconciled.due,
     fields.status,
     getCol(rec, ['Username']) || user?.username || ''
   ];

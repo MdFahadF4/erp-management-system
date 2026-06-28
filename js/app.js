@@ -1184,13 +1184,14 @@ function buildHrMasterLedgerRowHtml(rec, txns, editModuleKey = 'hr') {
   const badgeStyle = getHrStatusBadgeClass(rec["Status"]);
 
   const empName = String(getCol(rec, ["Employee Name", "Employee", "Name"]) || "").trim();
-  const baseSalary = parseFloat(rec["Salary Start"]) || 0;
+  const baseSalary = roundMoney(parseFloat(rec["Salary Start"]) || 0);
   const totals = rollupHrTxnTotals(txns, empName);
   const totalInc = totals.increment;
-  const currentSalary = baseSalary + totalInc;
-  const dbEarned = totals.earned;
-  const dbPaid = totals.paid;
-  const dbDue = totals.due;
+  const currentSalary = roundMoney(addMoney(baseSalary, totalInc));
+  const reconciled = reconcileEarnedPaid(totals.earned, totals.paid);
+  const dbEarned = reconciled.earned;
+  const dbPaid = reconciled.paid;
+  const dbDue = reconciled.due;
 
   return `
     <tr class="hover:bg-gray-50 whitespace-nowrap border-b border-gray-100">
@@ -1756,8 +1757,9 @@ function initHRFormListeners() {
   const fEarn = document.getElementById('hr-earn'); const fPaid = document.getElementById('hr-paid'); const fDue = document.getElementById('hr-due');
 
   const runCalculations = () => {
-    fCurrent.value = (parseFloat(fStart.value || 0) + parseFloat(fInc.value || 0)).toFixed(2);
-    fDue.value = (parseFloat(fEarn.value || 0) - parseFloat(fPaid.value || 0)).toFixed(2);
+    fCurrent.value = addMoney(parseFloat(fStart.value || 0), parseFloat(fInc.value || 0)).toFixed(2);
+    const reconciled = reconcileEarnedPaid(parseFloat(fEarn.value || 0), parseFloat(fPaid.value || 0));
+    fDue.value = reconciled.due.toFixed(2);
   };
   fStart.addEventListener('input', runCalculations);
   runCalculations();

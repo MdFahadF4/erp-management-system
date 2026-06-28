@@ -768,11 +768,16 @@ function bindExportButtons(map, handler) {
 
 function collectCustomerTxnSlipData() {
   const uid = document.getElementById('cust-txn-uid')?.value || '';
-  const uidText = document.getElementById('cust-txn-uid')?.selectedOptions?.[0]?.textContent?.trim() || uid;
+  const uidOpt = document.getElementById('cust-txn-uid')?.selectedOptions?.[0];
+  const uidText = uidOpt?.textContent?.trim() || uid;
+  const customerName = uidOpt?.textContent?.includes('(')
+    ? uidOpt.textContent.replace(/^[^\s]+\s*/, '').replace(/^\(/, '').replace(/\)$/, '').trim()
+    : '';
   return {
     date: document.getElementById('cust-txn-date')?.value || '',
     uid,
     uidText,
+    customerName,
     sell: document.getElementById('cust-txn-sell')?.value || '0',
     discount: document.getElementById('cust-txn-discount')?.value || '0',
     received: document.getElementById('cust-txn-received')?.value || '0',
@@ -786,19 +791,22 @@ function collectCustomerTxnSlipData() {
 
 function buildCustomerTxnSlipQrPayload(data) {
   const co = getCompanyInfo();
+  const rows = customerSlipFieldRows(data);
   return [
     '=== MEHRIN CUSTOMER TXN ===',
     co.COMPANY_NAME,
+    `CR: ${co.CR_NUMBER || ''}`,
+    `VAT: ${co.VAT_NUMBER || ''}`,
     getCompanyLegalLine(),
     t('custTxn.slipTitle'),
+    `Type: ${data.refundMode ? 'REFUND / CANCELLATION' : 'NORMAL SALE / PAYMENT'}`,
     `Date: ${data.date || ''}`,
     `UID: ${data.uidText || data.uid || ''}`,
-    `Sold: ${Number(data.sell || 0).toFixed(2)}`,
-    `Discount: ${Number(data.discount || 0).toFixed(2)}`,
-    `Received: ${Number(data.received || 0).toFixed(2)}`,
-    `Method: ${data.method || '-'}`,
-    `Due: ${Number(data.due || 0).toFixed(2)}`,
-    `Remarks: ${data.remarks || '-'}`,
+    data.customerName ? `Customer: ${data.customerName}` : '',
+    data.txnId ? `Txn ID: ${data.txnId}` : '',
+    ...rows.map(([label, val]) => `${label}: ${val}`),
+    data.remainingDue != null ? `${t('field.remainingDueAfterTxn')}: ${Number(data.remainingDue).toFixed(2)}` : '',
+    data.stamp ? `Posted: ${data.stamp}` : '',
     `User: ${data.user || '-'}`,
     `Printed: ${formatPrintDateTime()}`
   ]
@@ -815,6 +823,7 @@ function customerSlipFieldRows(data) {
   return [
     [t('col.date'), data.date || '-'],
     [t('col.sysUid'), data.uidText || data.uid || '-'],
+    [t('field.customerName'), data.customerName || '-'],
     [t('col.soldAmt'), Number(data.sell).toFixed(2)],
     [t('col.discount'), Number(data.discount).toFixed(2)],
     [t('col.receivedAmt'), Number(data.received).toFixed(2)],

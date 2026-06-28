@@ -10,5 +10,5 @@ export default function App() {
     return <LoginPage onLoginSuccess={setUser} />;
   }
 
-  return <AppShell user={user} />;
+  return <AppShell user={user} onUserChange={setUser} />;
 }

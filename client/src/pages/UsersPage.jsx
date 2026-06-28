@@ -19,7 +19,7 @@ function getUserStatus(rec) {
   return String(getCol(rec, ['Status', 'Account Status']) || 'Active').trim() || 'Active';
 }
 
-export default function UsersPage({ user }) {
+export default function UsersPage({ user, onUserChange }) {
   const { t } = useI18n();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -324,6 +324,7 @@ export default function UsersPage({ user }) {
         actor={user}
         onClose={() => setEditRecord(null)}
         onSaved={load}
+        onSessionRefresh={onUserChange}
       />
     </>
   );

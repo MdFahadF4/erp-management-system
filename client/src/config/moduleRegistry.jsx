@@ -30,7 +30,7 @@ import {
  * Each factory receives { user, metrics, loading, refreshing, onRefresh, onDataChange }.
  */
 export function resolveModuleComponent(moduleId, ctx) {
-  const { user, metrics, loading, refreshing, onRefresh, onDataChange } = ctx;
+  const { user, metrics, loading, refreshing, onRefresh, onDataChange, onUserChange } = ctx;
 
   switch (moduleId) {
     case 'dashboard':
@@ -78,7 +78,7 @@ export function resolveModuleComponent(moduleId, ctx) {
     case 'reports':
       return <ReportsPage />;
     case 'users':
-      return <UsersPage user={user} />;
+      return <UsersPage user={user} onUserChange={onUserChange} />;
     default:
       return null;
   }

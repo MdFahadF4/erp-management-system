@@ -6,6 +6,7 @@ import MasterRecordActions, { runMasterDelete } from '../components/MasterRecord
 import { HrEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchHrModuleData } from '../services/dataService.js';
 import { buildHrLedgerRow, fmtMoney } from '../lib/hrEngine.js';
+import { addMoney, roundMoney } from '../lib/recordHelpers.js';
 import { getHrMasterDeleteBlockReason } from '../lib/masterAdminEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
@@ -28,7 +29,7 @@ export default function HrManagementPage({ user, onDataChange }) {
   const [editRecord, setEditRecord] = useState(null);
 
   const salCurrent = useMemo(
-    () => (parseFloat(salStart) || 0) + (parseFloat(salInc) || 0),
+    () => addMoney(parseFloat(salStart) || 0, parseFloat(salInc) || 0),
     [salStart, salInc]
   );
   const salDue = useMemo(() => 0, []);
@@ -75,9 +76,9 @@ export default function HrManagementPage({ user, onDataChange }) {
         name.trim(),
         designation.trim(),
         joining,
-        parseFloat(salStart) || 0,
-        parseFloat(salInc) || 0,
-        salCurrent,
+        roundMoney(parseFloat(salStart) || 0),
+        roundMoney(parseFloat(salInc) || 0),
+        roundMoney(salCurrent),
         0,
         0,
         salDue,
@@ -141,6 +142,7 @@ export default function HrManagementPage({ user, onDataChange }) {
           <label className="block font-bold text-gray-600 mb-0.5">{t('field.salaryStart')}</label>
           <input
             type="number"
+            step="0.01"
             id="hr-sal-start"
             required
             value={salStart}

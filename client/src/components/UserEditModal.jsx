@@ -14,7 +14,7 @@ function getUserStatus(rec) {
   return String(getCol(rec, ['Status', 'Account Status']) || 'Active').trim() || 'Active';
 }
 
-export default function UserEditModal({ open, record, actor, onClose, onSaved }) {
+export default function UserEditModal({ open, record, actor, onClose, onSaved, onSessionRefresh }) {
   const [mobile, setMobile] = useState('');
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('User');
@@ -58,6 +58,9 @@ export default function UserEditModal({ open, record, actor, onClose, onSaved })
       const res = await updateUser(payload);
       alert(res.message || (res.success ? 'User updated.' : 'Update failed.'));
       if (res.success) {
+        if (username.toLowerCase() === String(actor.username || '').trim().toLowerCase()) {
+          await onSessionRefresh?.();
+        }
         await onSaved?.();
         onClose?.();
       }

@@ -22,7 +22,10 @@ import {
   parseRecordDate
 } from '../lib/customerEngine.js';
 import { defaultDateRange } from '../lib/hrEngine.js';
-import { userCanEditModule } from '../utils/userSession.js';
+import { roundMoney } from '../lib/recordHelpers.js';
+import { buildCustomerTxnSlipData } from '../lib/customerSlipExport.js';
+import CustomerTxnSlipModal from '../components/CustomerTxnSlipModal.jsx';
+import { userCanAccessModule, userCanEditModule } from '../utils/userSession.js';
 
 function todayIso() {
   return new Date().toISOString().split('T')[0];
@@ -149,6 +152,7 @@ function RefundHelpModal({ open, onClose }) {
 export default function CustomerTransactionsPage({ user, onDataChange }) {
   const { t } = useI18n();
   const canEdit = userCanEditModule(user, 'customer_transactions');
+  const canExportSlip = userCanAccessModule(user, 'customer_transactions');
   const [customers, setCustomers] = useState([]);
   const [customerTxns, setCustomerTxns] = useState([]);
   const [loadingLedger, setLoadingLedger] = useState(false);
@@ -156,6 +160,8 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
   const [ledgerLoaded, setLedgerLoaded] = useState(false);
   const [refundMode, setRefundMode] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
+  const [slipOpen, setSlipOpen] = useState(false);
+  const [modalSlipData, setModalSlipData] = useState(null);
 
   const defaults = defaultDateRange();
   const [txnDate, setTxnDate] = useState(todayIso());
@@ -204,6 +210,78 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
     const filtered = filterCustomerTxnsByDate(customerTxns, filterFrom, filterTo);
     return filtered ? [...filtered].reverse() : [];
   }, [customerTxns, filterFrom, filterTo, ledgerLoaded]);
+
+  const selectedCustomer = useMemo(
+    () => visibleCustomers.find((c) => getCustomerUid(c) === uid),
+    [visibleCustomers, uid]
+  );
+
+  const slipData = useMemo(
+    () =>
+      buildCustomerTxnSlipData({
+        date: txnDate,
+        uid,
+        uidText: uid ? `${uid}${selectedCustomer ? ` (${getCustomerName(selectedCustomer)})` : ''}` : '',
+        customerName: selectedCustomer ? getCustomerName(selectedCustomer) : '',
+        sell,
+        discount,
+        received,
+        method,
+        due: txnDue,
+        remainingDue,
+        remarks,
+        refundMode,
+        user: user?.username || ''
+      }),
+    [
+      txnDate,
+      uid,
+      selectedCustomer,
+      sell,
+      discount,
+      received,
+      method,
+      txnDue,
+      remainingDue,
+      remarks,
+      refundMode,
+      user?.username
+    ]
+  );
+
+  const openSlipPreview = () => {
+    if (!uid) {
+      alert(t('custTxn.selectCustomerFirst'));
+      return;
+    }
+    setModalSlipData(null);
+    setSlipOpen(true);
+  };
+
+  const openSlipFromLedger = (rec) => {
+    const cUid = getCustomerUid(rec);
+    const cust = customers.find((c) => getCustomerUid(c) === cUid);
+    setModalSlipData(
+      buildCustomerTxnSlipData({
+        date: rec.Date ? String(rec.Date).slice(0, 10) : '',
+        uid: cUid,
+        uidText: cUid ? `${cUid}${cust ? ` (${getCustomerName(cust)})` : ''}` : '',
+        customerName: cust ? getCustomerName(cust) : '',
+        sell: getCol(rec, ['Sold Amount', 'Sold Amt', 'SOLDAMT']) || 0,
+        discount: getCol(rec, ['Discount', 'Discount Amount', 'Txn Discount']) || 0,
+        received: getCol(rec, ['Received Amount', 'Received Amt', 'RECEIVEDAMT']) || 0,
+        method: getCol(rec, ['Payment Method', 'Method', 'METHOD']) || 'Cash',
+        due: getCol(rec, ['Transaction Due', 'Txn Due', 'Due']) || 0,
+        remainingDue: null,
+        remarks: getCol(rec, ['Remarks', 'Remarks / Reference']) || '',
+        refundMode: isCustomerTxnRefund(rec),
+        user: getCol(rec, ['Logged By', 'Username']) || '',
+        txnId: rec.ID || '',
+        stamp: getCol(rec, ['Stamp', 'Timestamp']) || ''
+      })
+    );
+    setSlipOpen(true);
+  };
 
   const resetDueInfo = () => {
     setCurrentDue(0);
@@ -264,13 +342,35 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
       }
     }
 
-    const dueVal = sellVal - discountVal - receivedVal;
+    const dueVal = roundMoney(sellVal - discountVal - receivedVal);
+    const stamp = new Date().toLocaleString();
     setSubmitting(true);
     try {
-      const rowPayload = [txnDate, uid, sellVal, discountVal, receivedVal, method, dueVal, remarksText, user.username, new Date().toLocaleString()];
+      const rowPayload = [txnDate, uid, roundMoney(sellVal), roundMoney(discountVal), roundMoney(receivedVal), method, dueVal, remarksText, user.username, stamp];
       const result = await createRecord('Customer_Transactions', rowPayload);
       alert(result.message || (result.success ? 'Transaction saved.' : 'Failed to save.'));
       if (result.success) {
+        if (canExportSlip) {
+          setModalSlipData(
+            buildCustomerTxnSlipData({
+              date: txnDate,
+              uid,
+              uidText: uid ? `${uid}${selectedCustomer ? ` (${getCustomerName(selectedCustomer)})` : ''}` : '',
+              customerName: selectedCustomer ? getCustomerName(selectedCustomer) : '',
+              sell: sellVal,
+              discount: discountVal,
+              received: receivedVal,
+              method,
+              due: dueVal,
+              remainingDue,
+              remarks: remarksText,
+              refundMode,
+              user: user?.username || '',
+              stamp
+            })
+          );
+          setSlipOpen(true);
+        }
         setTxnDate(todayIso());
         setUid('');
         setSell('0');
@@ -411,6 +511,18 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
           <label className="block font-bold text-gray-600 mb-1">{t('field.remarksReferenceInfo')}</label>
           <textarea id="cust-txn-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} disabled={!canEdit} placeholder={t('placeholder.invoiceDetails')} className="w-full border border-gray-200 rounded p-2 text-sm outline-none" />
         </div>
+        {canExportSlip && (
+          <div className="border-t border-gray-100 pt-3 space-y-2">
+            <button
+              type="button"
+              id="cust-txn-preview-slip"
+              onClick={openSlipPreview}
+              className="w-full bg-slate-700 hover:bg-slate-800 text-white font-bold p-2.5 rounded text-sm transition tracking-wider"
+            >
+              {t('custTxn.previewSlip')}
+            </button>
+          </div>
+        )}
         {canEdit && (
           <button
             type="submit"
@@ -423,6 +535,7 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
         )}
       </form>
       <RefundHelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <CustomerTxnSlipModal open={slipOpen} slipData={modalSlipData || slipData} onClose={() => { setSlipOpen(false); setModalSlipData(null); }} />
     </>
   );
 
@@ -517,15 +630,26 @@ export default function CustomerTransactionsPage({ user, onDataChange }) {
                       record={rec}
                       onMutate={handleTxnMutate}
                       extraBefore={
-                        !isRefund ? (
-                          <button
-                            type="button"
-                            onClick={() => handleRefundFromLedger(rec)}
-                            className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
-                          >
-                            {t('custTxn.refundFromLedger')}
-                          </button>
-                        ) : null
+                        <>
+                          {canExportSlip && (
+                            <button
+                              type="button"
+                              onClick={() => openSlipFromLedger(rec)}
+                              className="bg-slate-700 hover:bg-slate-800 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
+                            >
+                              {t('custTxn.previewSlip')}
+                            </button>
+                          )}
+                          {!isRefund ? (
+                            <button
+                              type="button"
+                              onClick={() => handleRefundFromLedger(rec)}
+                              className="bg-amber-500 hover:bg-amber-600 text-white font-bold px-2 py-0.5 rounded text-[10px] mr-1"
+                            >
+                              {t('custTxn.refundFromLedger')}
+                            </button>
+                          ) : null}
+                        </>
                       }
                     />
                   </tr>

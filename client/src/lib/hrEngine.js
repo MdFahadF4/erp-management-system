@@ -144,7 +144,7 @@ export function rollupHrTxnTotals(txns, employeeName) {
       paid = addMoney(paid, p.paid);
     }
   });
-  return { earned, paid, increment, due: roundMoney(Math.max(0, earned - paid)) };
+  return { earned, paid, increment, due: reconcileEarnedPaid(earned, paid).due };
 }
 
 export function getHrDueBalance(hrRec, txns) {
@@ -160,10 +160,11 @@ export function getHrEmployeeName(rec) {
 
 export function buildHrLedgerRow(rec, txns, canEdit) {
   const empName = getHrEmployeeName(rec);
-  const baseSalary = parseFloat(getCol(rec, ['Salary Start']) ?? rec['Salary Start']) || 0;
+  const baseSalary = roundMoney(parseFloat(getCol(rec, ['Salary Start']) ?? rec['Salary Start']) || 0);
   const totals = rollupHrTxnTotals(txns, empName);
   const totalInc = totals.increment;
-  const currentSalary = baseSalary + totalInc;
+  const currentSalary = roundMoney(addMoney(baseSalary, totalInc));
+  const reconciled = reconcileEarnedPaid(totals.earned, totals.paid);
   const joinRaw = getCol(rec, ['Date of Joining', 'Join Date']);
   const joinDate = joinRaw ? new Date(joinRaw).toLocaleDateString() : '';
   const status = getCol(rec, ['Status', 'Employment Status']) || rec['Status'] || 'Active';
@@ -176,9 +177,9 @@ export function buildHrLedgerRow(rec, txns, canEdit) {
     baseSalary,
     totalInc,
     currentSalary,
-    dbEarned: totals.earned,
-    dbPaid: totals.paid,
-    dbDue: totals.due,
+    dbEarned: reconciled.earned,
+    dbPaid: reconciled.paid,
+    dbDue: reconciled.due,
     status,
     badgeClass: getHrStatusBadgeClass(status),
     canEdit

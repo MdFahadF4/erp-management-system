@@ -12,6 +12,10 @@ export function roundMoney(val) {
   return fromCents(toCents(val));
 }
 
+export function addMoney(a, b) {
+  return fromCents(toCents(a) + toCents(b));
+}
+
 export function reconcileBillDiscPaid(billed, discount, paid) {
   let b = toCents(billed);
   let d = toCents(discount);
