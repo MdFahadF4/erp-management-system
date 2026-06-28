@@ -6,7 +6,7 @@ import MasterRecordActions, { runMasterDelete } from '../components/MasterRecord
 import { HrEditModal } from '../components/MasterEditModals.jsx';
 import { createRecord, fetchHrModuleData } from '../services/dataService.js';
 import { buildHrLedgerRow, fmtMoney } from '../lib/hrEngine.js';
-import { addMoney, roundMoney } from '../lib/recordHelpers.js';
+import { addMoney, parseMoneyInput, preventNumberWheelScroll, roundMoney } from '../lib/recordHelpers.js';
 import { getHrMasterDeleteBlockReason } from '../lib/masterAdminEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
@@ -29,9 +29,13 @@ export default function HrManagementPage({ user, onDataChange }) {
   const [editRecord, setEditRecord] = useState(null);
 
   const salCurrent = useMemo(
-    () => addMoney(parseFloat(salStart) || 0, parseFloat(salInc) || 0),
+    () => addMoney(parseMoneyInput(salStart), parseMoneyInput(salInc)),
     [salStart, salInc]
   );
+
+  const normalizeSalStartField = () => {
+    setSalStart(String(parseMoneyInput(salStart)));
+  };
   const salDue = useMemo(() => 0, []);
 
   const loadRecords = useCallback(async () => {
@@ -72,13 +76,16 @@ export default function HrManagementPage({ user, onDataChange }) {
     }
     setSubmitting(true);
     try {
+      const startAmt = parseMoneyInput(salStart);
+      const incAmt = parseMoneyInput(salInc);
+      const currentAmt = addMoney(startAmt, incAmt);
       const payloadRow = [
         name.trim(),
         designation.trim(),
         joining,
-        roundMoney(parseFloat(salStart) || 0),
-        roundMoney(parseFloat(salInc) || 0),
-        roundMoney(salCurrent),
+        startAmt,
+        incAmt,
+        currentAmt,
         0,
         0,
         salDue,
@@ -143,10 +150,13 @@ export default function HrManagementPage({ user, onDataChange }) {
           <input
             type="number"
             step="0.01"
+            min="0"
             id="hr-sal-start"
             required
             value={salStart}
             onChange={(e) => setSalStart(e.target.value)}
+            onBlur={normalizeSalStartField}
+            onWheel={preventNumberWheelScroll}
             disabled={!canEdit}
             className="w-full border border-gray-200 rounded p-1.5 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
           />

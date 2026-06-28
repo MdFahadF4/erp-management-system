@@ -1,4 +1,4 @@
-import { addMoney, getCol, fmtMoney, reconcileEarnedPaid, roundMoney } from './recordHelpers.js';
+import { addMoney, getCol, fmtMoney, parseMoneyInput, reconcileEarnedPaid, roundMoney } from './recordHelpers.js';
 import { getCustomerDueBalance, getCustomerUid, getCustomerName } from './customerEngine.js';
 import { getHrEmployeeName, rollupHrTxnTotals, normalizeHrEmployeeName as normHr } from './hrEngine.js';
 import { getSupplierName, getSupplierDueBalance, rollupSupplierTxnTotals } from './supplierEngine.js';
@@ -68,7 +68,7 @@ export function getSupplierMasterDeleteBlockReason(rec, txns) {
 export function buildHrMasterUpdateRow(rec, txns, fields, user) {
   const empName = fields.name.trim();
   const totals = rollupHrTxnTotals(txns, getHrEmployeeName(rec));
-  const baseSalary = roundMoney(parseFloat(fields.salaryStart) || 0);
+  const baseSalary = parseMoneyInput(fields.salaryStart);
   const totalInc = roundMoney(totals.increment);
   const currentSalary = addMoney(baseSalary, totalInc);
   const dbEarned = roundMoney(parseFloat(fields.totalEarn) || totals.earned);

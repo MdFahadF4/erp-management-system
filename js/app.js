@@ -1383,7 +1383,7 @@ function rollupHrTxnTotals(txns, employeeName) {
       paid = addMoney(paid, p.paid);
     }
   });
-  return { earned, paid, increment, due: roundMoney(Math.max(0, earned - paid)) };
+  return { earned, paid, increment, due: reconcileEarnedPaid(earned, paid).due };
 }
 
 function getHrDueFromTxns(employeeName, txns) {
@@ -1762,13 +1762,20 @@ function initHRFormListeners() {
     fDue.value = reconciled.due.toFixed(2);
   };
   fStart.addEventListener('input', runCalculations);
+  fStart.addEventListener('wheel', (e) => e.preventDefault(), { passive: false });
   runCalculations();
 
   creationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     if (!guardModuleEdit('hr')) return;
     const currentUser = fetchSessionUser(); runCalculations();
-    const payloadRow = [ document.getElementById('hr-name').value.trim(), document.getElementById('hr-designation').value.trim(), document.getElementById('hr-joining').value, parseFloat(fStart.value) || 0, parseFloat(fInc.value) || 0, parseFloat(fCurrent.value) || 0, parseFloat(fEarn.value) || 0, parseFloat(fPaid.value) || 0, parseFloat(fDue.value) || 0, document.getElementById('hr-status').value, currentUser.username ];
+    const startAmt = roundMoney(parseFloat(fStart.value) || 0);
+    const incAmt = roundMoney(parseFloat(fInc.value) || 0);
+    const currentAmt = addMoney(startAmt, incAmt);
+    const earnAmt = roundMoney(parseFloat(fEarn.value) || 0);
+    const paidAmt = roundMoney(parseFloat(fPaid.value) || 0);
+    const dueAmt = reconcileEarnedPaid(earnAmt, paidAmt).due;
+    const payloadRow = [ document.getElementById('hr-name').value.trim(), document.getElementById('hr-designation').value.trim(), document.getElementById('hr-joining').value, startAmt, incAmt, currentAmt, earnAmt, paidAmt, dueAmt, document.getElementById('hr-status').value, currentUser.username ];
     try {
       const res = await apiRequest({ action: "CREATE_RECORD", payload: { sheetName: "HR", rowData: payloadRow } }); alert(res.message); if (res.success) { creationForm.reset(); runCalculations(); await loadHRTableRecords(); await updateLiveUserCashDrawerBalance(); }
     } catch (err) { alert(t('alert.errorCommit')); }

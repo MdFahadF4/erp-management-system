@@ -239,6 +239,10 @@ export async function createGenericRecord(sheetName, rowData) {
   }
   await insertRecord(collection, record);
 
+  if (sheetName === 'HR') {
+    const empName = String(rowData[0] || '').trim();
+    if (empName) await syncHrMasterForEmployee(empName);
+  }
   if (sheetName === 'HR_Transactions') {
     await syncHrMasterForEmployee(rowData[1]);
   }

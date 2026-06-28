@@ -138,7 +138,10 @@ export function rollupHrTxnTotals(txns, employeeName) {
     }
     const p = parseHrTxnAmounts(t);
     if (p.isIncrement) {
-      increment = addMoney(increment, parseFloat(getCol(t, ['Amount', 'Amt', 'Transaction Amount'])) || 0);
+      increment = addMoney(
+        increment,
+        roundMoney(parseFloat(getCol(t, ['Amount', 'Amt', 'Transaction Amount'])) || 0)
+      );
     } else {
       earned = addMoney(earned, p.earned);
       paid = addMoney(paid, p.paid);

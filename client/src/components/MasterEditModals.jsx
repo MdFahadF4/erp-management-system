@@ -3,7 +3,7 @@ import { updateRecord } from '../services/dataService.js';
 import { getCol } from '../lib/dualHeadEngine.js';
 import { buildCustomerMasterUpdateRow, buildHrMasterUpdateRow, buildSupplierMasterUpdateRow } from '../lib/masterAdminEngine.js';
 import { rollupHrTxnTotals, getHrEmployeeName } from '../lib/hrEngine.js';
-import { addMoney, reconcileEarnedPaid, roundMoney } from '../lib/recordHelpers.js';
+import { addMoney, parseMoneyInput, preventNumberWheelScroll, reconcileEarnedPaid, roundMoney } from '../lib/recordHelpers.js';
 
 const STATUS_OPTIONS = ['Active', 'Vacation', 'Inactive', 'Released'];
 
@@ -38,7 +38,7 @@ export function HrEditModal({ open, record, hrTxns, user, onClose, onSaved }) {
   }, [totalEarn, totalPaid]);
 
   const currentSalaryPreview = useMemo(() => {
-    const base = roundMoney(parseFloat(salaryStart) || 0);
+    const base = parseMoneyInput(salaryStart);
     const totals = rollupHrTxnTotals(hrTxns, getHrEmployeeName(record || {}));
     return addMoney(base, totals.increment);
   }, [salaryStart, hrTxns, record]);
@@ -93,7 +93,17 @@ export function HrEditModal({ open, record, hrTxns, user, onClose, onSaved }) {
           </div>
           <div>
             <label className="block font-bold text-gray-600 mb-1">Salary Start</label>
-            <input type="number" step="0.01" required value={salaryStart} onChange={(e) => setSalaryStart(e.target.value)} className="w-full border rounded p-2 text-sm outline-none" />
+            <input
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              value={salaryStart}
+              onChange={(e) => setSalaryStart(e.target.value)}
+              onBlur={() => setSalaryStart(String(parseMoneyInput(salaryStart)))}
+              onWheel={preventNumberWheelScroll}
+              className="w-full border rounded p-2 text-sm outline-none"
+            />
           </div>
           <div>
             <label className="block font-bold text-gray-500 mb-1">Current Salary</label>

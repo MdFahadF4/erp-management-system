@@ -40,6 +40,19 @@ export function addMoney(a, b) {
   return fromCents(toCents(a) + toCents(b));
 }
 
+/** Parse form/input money safely (commas stripped, cent-rounded). */
+export function parseMoneyInput(val) {
+  if (val === undefined || val === null || val === '') return 0;
+  const cleaned = String(val).replace(/,/g, '').trim();
+  if (!cleaned) return 0;
+  return roundMoney(parseFloat(cleaned) || 0);
+}
+
+/** Stop mouse-wheel from changing focused number inputs (common 3000 → 2999 accident). */
+export function preventNumberWheelScroll(e) {
+  e.currentTarget.blur();
+}
+
 /** Snap 1-cent float drift on billed/discount/paid ledgers (e.g. paid 300.01 on 300 bill). */
 export function reconcileBillDiscPaid(billed, discount, paid) {
   let b = toCents(billed);
