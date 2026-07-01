@@ -24,11 +24,24 @@ const MODULE_COLORS = {
   Internal: 'bg-teal-100 text-teal-800'
 };
 
+const MODULE_FILTER_OPTIONS = [
+  { value: '', labelKey: 'allTxn.categoryAll' },
+  { value: 'HR', labelKey: 'allTxn.catHR' },
+  { value: 'Supplier', labelKey: 'allTxn.catSupplier' },
+  { value: 'Customer', labelKey: 'allTxn.catCustomer' },
+  { value: 'Expense', labelKey: 'allTxn.catExpense' },
+  { value: 'Creditor', labelKey: 'allTxn.catCreditor' },
+  { value: 'Income', labelKey: 'allTxn.catIncome' },
+  { value: 'Capital', labelKey: 'allTxn.catCapital' },
+  { value: 'Internal', labelKey: 'allTxn.catInternal' }
+];
+
 export default function AllTransactionsPage({ user, onDataChange }) {
   const { t } = useI18n();
   const defaults = todayDateRange();
   const [from, setFrom] = useState(defaults.from);
   const [to, setTo] = useState(defaults.to);
+  const [category, setCategory] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -61,8 +74,9 @@ export default function AllTransactionsPage({ user, onDataChange }) {
         combined.push({ ...mapped, id: rec.ID, sheet, rawRec: rec });
       });
     });
-    return combined.sort((a, b) => (b.rawDate?.getTime() || 0) - (a.rawDate?.getTime() || 0));
-  }, [data, from, to, loaded]);
+    const scoped = category ? combined.filter((row) => row.module === category) : combined;
+    return scoped.sort((a, b) => (b.rawDate?.getTime() || 0) - (a.rawDate?.getTime() || 0));
+  }, [data, from, to, loaded, category]);
 
   const reload = async () => {
     await load();
@@ -84,8 +98,23 @@ export default function AllTransactionsPage({ user, onDataChange }) {
           <label className="block font-bold text-gray-600 mb-1">{t('common.toDate')}</label>
           <input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="border border-gray-200 rounded p-2" />
         </div>
+        <div className="min-w-[180px]">
+          <label className="block font-bold text-gray-600 mb-1">{t('allTxn.transactionCategory')}</label>
+          <select
+            id="filter-module-all"
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+            className="w-full border border-gray-200 rounded p-2 bg-white outline-none focus:border-blue-500 font-medium"
+          >
+            {MODULE_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value || 'all'} value={opt.value}>
+                {t(opt.labelKey)}
+              </option>
+            ))}
+          </select>
+        </div>
         <button type="button" onClick={load} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-5 py-2 rounded disabled:opacity-60">
-          {loading ? t('common.loading') : t('common.executeQuery')}
+          {loading ? t('common.loading') : t('allTxn.searchFilter')}
         </button>
       </div>
       <div className="erp-ledger-wrap bg-white border border-gray-200 rounded-xl overflow-x-auto">
@@ -93,7 +122,7 @@ export default function AllTransactionsPage({ user, onDataChange }) {
           <thead className="bg-slate-800 text-white uppercase">
             <tr>
               <th className="p-2.5">{t('allTxn.colDate')}</th>
-              <th className="p-2.5">{t('allTxn.colModule')}</th>
+              <th className="p-2.5">{t('allTxn.colCategory')}</th>
               <th className="p-2.5">{t('allTxn.colDetails')}</th>
               <th className="p-2.5">{t('allTxn.colFinancial')}</th>
               <th className="p-2.5">{t('allTxn.colRemarks')}</th>
@@ -112,7 +141,7 @@ export default function AllTransactionsPage({ user, onDataChange }) {
             ) : rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="p-6 text-center text-gray-500">
-                  {t('allTxn.noResultsRange')}
+                  {t('allTxn.noResults')}
                 </td>
               </tr>
             ) : (
