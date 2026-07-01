@@ -1,7 +1,7 @@
+@import "tailwindcss";
+
 @import "tom-select/dist/css/tom-select.default.css";
 @import "../../css/searchable-select.css";
-
-@import "tailwindcss";
 
 /* Match original Tailwind CDN — subtle gray borders, not harsh black lines */
 @layer base {

@@ -2,6 +2,7 @@
 let TomSelectCtor = null;
 let observerInstalled = false;
 let tomSelectLoader = null;
+let pauseObserver = false;
 
 /** React/Vite client can inject bundled Tom Select before init. */
 export function setTomSelectLoader(loader) {
@@ -19,11 +20,22 @@ async function loadTomSelect() {
   return TomSelectCtor;
 }
 
+function tomSelectOptionCount(el) {
+  return Object.keys(el?.tomselect?.options || {}).length;
+}
+
 export function shouldEnhanceSelect(el) {
   if (!el || el.tagName !== 'SELECT') return false;
   if (el.disabled || el.hidden) return false;
   if (el.hasAttribute('data-no-search') || el.classList.contains('erp-no-search')) return false;
-  if (el.options.length < 2) return false;
+
+  const nativeCount = el.options.length;
+  const tsCount = tomSelectOptionCount(el);
+
+  if (nativeCount < 2) {
+    // Tom Select strips most native <option> nodes after init — keep enhanced list during loading placeholders.
+    return tsCount >= 2;
+  }
   return true;
 }
 
@@ -45,28 +57,56 @@ function buildTomSelectOptions(el) {
   };
 }
 
+/**
+ * Re-read options from the native select only when it has a full option list.
+ * Tom Select removes unselected <option> nodes from the DOM after init — syncing
+ * against that stripped DOM was clearing every dropdown (the production bug).
+ */
 export function syncSearchableSelect(el) {
   const ts = el?.tomselect;
   if (!ts) return;
-  const current = el.value;
-  ts.clearOptions();
-  [...el.options].forEach((opt) => {
-    ts.addOption({
-      value: opt.value,
-      text: (opt.textContent || opt.text || opt.value || '').trim()
+
+  const nativeCount = el.options.length;
+  const tsCount = tomSelectOptionCount(el);
+
+  if (nativeCount < 2) return;
+
+  if (nativeCount >= tsCount) {
+    pauseObserver = true;
+    try {
+      ts.sync(true);
+    } finally {
+      window.setTimeout(() => {
+        pauseObserver = false;
+      }, 0);
+    }
+  }
+}
+
+/** Call after programmatically replacing select.innerHTML in legacy modules. */
+export function notifySelectOptionsUpdated(el) {
+  if (!el || el.tagName !== 'SELECT') return;
+  if (el.tomselect) {
+    syncSearchableSelect(el);
+    return;
+  }
+  if (shouldEnhanceSelect(el)) {
+    enhanceSearchableSelect(el).catch((err) => {
+      console.warn('Searchable select enhance failed', err);
     });
-  });
-  ts.refreshOptions(false);
-  if (current !== undefined && current !== null && current !== '') {
-    ts.setValue(current, true);
-  } else {
-    ts.clear(true);
   }
 }
 
 export function destroySearchableSelect(el) {
   if (el?.tomselect) {
-    el.tomselect.destroy();
+    pauseObserver = true;
+    try {
+      el.tomselect.destroy();
+    } finally {
+      window.setTimeout(() => {
+        pauseObserver = false;
+      }, 0);
+    }
   }
 }
 
@@ -79,8 +119,20 @@ export async function enhanceSearchableSelect(el) {
     syncSearchableSelect(el);
     return el.tomselect;
   }
-  const TomSelect = await loadTomSelect();
-  return new TomSelect(el, buildTomSelectOptions(el));
+
+  pauseObserver = true;
+  try {
+    const TomSelect = await loadTomSelect();
+    const instance = new TomSelect(el, buildTomSelectOptions(el));
+    return instance;
+  } catch (err) {
+    console.warn('Searchable select init failed', err);
+    return null;
+  } finally {
+    window.setTimeout(() => {
+      pauseObserver = false;
+    }, 0);
+  }
 }
 
 export async function initSearchableSelects(root = document) {
@@ -88,7 +140,11 @@ export async function initSearchableSelects(root = document) {
   const scope = root?.querySelectorAll ? root : document;
   const selects = scope === document ? document.querySelectorAll('select') : scope.querySelectorAll('select');
   for (const el of selects) {
-    await enhanceSearchableSelect(el);
+    try {
+      await enhanceSearchableSelect(el);
+    } catch (err) {
+      console.warn('Searchable select skipped', err);
+    }
   }
 }
 
@@ -108,38 +164,62 @@ export function installSearchableSelectObserver(root = document.body) {
   if (observerInstalled && root.__erpSearchableObserver) return root.__erpSearchableObserver;
 
   let timer = null;
-  const scheduleRefresh = (target) => {
+  const scheduleSync = (target) => {
     clearTimeout(timer);
-    timer = setTimeout(async () => {
-      if (target?.tagName === 'SELECT' && target.tomselect) {
-        syncSearchableSelect(target);
+    timer = window.setTimeout(() => {
+      if (pauseObserver) return;
+      if (target?.tagName === 'SELECT') {
+        if (target.tomselect) {
+          syncSearchableSelect(target);
+        } else if (shouldEnhanceSelect(target)) {
+          enhanceSearchableSelect(target).catch((err) => {
+            console.warn('Searchable select enhance failed', err);
+          });
+        }
         return;
       }
-      await refreshSearchableSelects(root);
-    }, 60);
+      const pending = [];
+      root.querySelectorAll?.('select').forEach((el) => {
+        if (!el.tomselect && shouldEnhanceSelect(el)) pending.push(el);
+      });
+      pending.forEach((el) => {
+        enhanceSearchableSelect(el).catch((err) => {
+          console.warn('Searchable select enhance failed', err);
+        });
+      });
+    }, 80);
   };
 
   const observer = new MutationObserver((mutations) => {
-    let added = false;
-    let optionChange = false;
+    if (pauseObserver) return;
+
+    let optionChangeTarget = null;
+    let addedSelect = false;
 
     for (const m of mutations) {
       m.removedNodes.forEach((node) => {
-        collectSelectsFromNode(node).forEach(destroySearchableSelect);
+        if (pauseObserver) return;
+        collectSelectsFromNode(node).forEach((el) => {
+          if (!document.body.contains(el)) destroySearchableSelect(el);
+        });
       });
 
-      if (m.type === 'childList') {
-        m.addedNodes.forEach((node) => {
-          if (collectSelectsFromNode(node).length) added = true;
-        });
-        if (m.target.tagName === 'SELECT') optionChange = true;
+      if (m.type !== 'childList') continue;
+
+      if (m.target.tagName === 'SELECT') {
+        optionChangeTarget = m.target;
+        continue;
       }
+
+      m.addedNodes.forEach((node) => {
+        if (collectSelectsFromNode(node).length) addedSelect = true;
+      });
     }
 
-    if (optionChange) {
-      scheduleRefresh(mutations.find((m) => m.target.tagName === 'SELECT')?.target);
-    } else if (added) {
-      scheduleRefresh();
+    if (optionChangeTarget) {
+      scheduleSync(optionChangeTarget);
+    } else if (addedSelect) {
+      scheduleSync(null);
     }
   });
 

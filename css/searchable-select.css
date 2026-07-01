@@ -49,6 +49,12 @@
 
 .ts-dropdown-content {
   max-height: 240px;
+  overflow-y: auto;
+}
+
+.ts-dropdown .option,
+.ts-dropdown .optgroup-header {
+  display: block;
 }
 
 .ts-wrapper.disabled .ts-control {

@@ -145,11 +145,13 @@ export default function AppShell({ user: initialUser, onUserChange }) {
   useEffect(() => {
     document.getElementById('main-content')?.scrollTo(0, 0);
     const main = document.getElementById('main-content');
-    if (main) {
+    if (!main) return undefined;
+    const timer = window.setTimeout(() => {
       refreshSearchableSelects(main).catch((err) => {
         console.warn('Searchable selects refresh failed', err);
       });
-    }
+    }, 120);
+    return () => window.clearTimeout(timer);
   }, [activeModule]);
 
   useEffect(() => {
