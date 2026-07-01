@@ -66,7 +66,7 @@ export function computeDualTxnDue(bill, discount, pay) {
 
 export function computeRemainingHeadDue(currentDue, bill, discount, pay) {
   const delta = reconcileBillDiscPaid(parseMoneyInput(bill), parseMoneyInput(discount), parseMoneyInput(pay)).due;
-  return roundMoney(Math.max(0, parseMoneyInput(currentDue) + delta));
+  return roundMoney(parseMoneyInput(currentDue) + delta);
 }
 
 export function buildHeadLedgerRows(heads, txns, fieldMap, mainCols, subCols) {

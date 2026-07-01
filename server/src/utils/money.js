@@ -37,7 +37,6 @@ export function reconcileBillDiscPaid(billed, discount, paid) {
     due -= 1;
   }
 
-  if (due < 0) due = 0;
   return {
     billed: fromCents(b),
     discount: fromCents(d),
@@ -51,7 +50,7 @@ export function reconcileEarnedPaid(earned, paid) {
   let p = toCents(paid);
   let d = e - p;
 
-  if (d < 0) {
+  if (d < 0 && d >= -1) {
     p = e;
     d = 0;
   } else if (p % 100 === 99 && d > 0 && d % 100 === 1) {
@@ -59,7 +58,6 @@ export function reconcileEarnedPaid(earned, paid) {
     d -= 1;
   }
 
-  if (d < 0) d = 0;
   return {
     earned: fromCents(e),
     paid: fromCents(p),

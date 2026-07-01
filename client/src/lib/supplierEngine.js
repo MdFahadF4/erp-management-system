@@ -60,7 +60,7 @@ export function computeSupplierRemainingDue(currentDue, purchase, discount, paid
     parseMoneyInput(discount),
     parseMoneyInput(paid)
   ).due;
-  return roundMoney(Math.max(0, parseMoneyInput(currentDue) + delta));
+  return roundMoney(parseMoneyInput(currentDue) + delta);
 }
 
 export function getSupplierTxnCategory(rec) {

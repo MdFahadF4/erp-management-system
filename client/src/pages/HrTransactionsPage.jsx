@@ -78,7 +78,7 @@ export default function HrTransactionsPage({ user, onDataChange }) {
 
   const txnDelta = useMemo(() => getHrTxnDelta(amount, category), [amount, category]);
   const remainingDue = useMemo(
-    () => Math.max(0, currentDue + txnDelta),
+    () => roundMoney(currentDue + txnDelta),
     [currentDue, txnDelta]
   );
 

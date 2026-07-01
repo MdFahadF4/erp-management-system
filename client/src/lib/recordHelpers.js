@@ -87,7 +87,6 @@ export function reconcileBillDiscPaid(billed, discount, paid) {
     due -= 1;
   }
 
-  if (due < 0) due = 0;
   return {
     billed: fromCents(b),
     discount: fromCents(d),
@@ -102,7 +101,7 @@ export function reconcileEarnedPaid(earned, paid) {
   let p = toCents(paid);
   let d = e - p;
 
-  if (d < 0) {
+  if (d < 0 && d >= -1) {
     p = e;
     d = 0;
   } else if (p % 100 === 99 && d > 0 && d % 100 === 1) {
@@ -110,7 +109,6 @@ export function reconcileEarnedPaid(earned, paid) {
     d -= 1;
   }
 
-  if (d < 0) d = 0;
   return {
     earned: fromCents(e),
     paid: fromCents(p),
@@ -134,4 +132,21 @@ export function gF(obj, names) {
 
 export function fmtMoney(val) {
   return roundMoney(val).toFixed(2);
+}
+
+/** Red = owing, green = overpaid/credit (negative due). */
+export function dueAmountClassName(due) {
+  const n = roundMoney(parseMoneyInput(due));
+  if (n < -0.009) return 'text-emerald-700 font-bold';
+  if (n > 0.009) return 'text-red-600 font-bold';
+  return 'text-gray-600 font-bold';
+}
+
+export function formatDueWithHint(due, t) {
+  const n = roundMoney(parseMoneyInput(due));
+  const amount = fmtMoney(n);
+  if (n < -0.009 && t) {
+    return `${amount} (${t('field.excessPaid')}: ${fmtMoney(Math.abs(n))})`;
+  }
+  return amount;
 }

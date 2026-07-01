@@ -19,6 +19,7 @@ import {
   parseTxnDualAmounts,
   prepareDualTxnSubmit
 } from '../lib/dualHeadEngine.js';
+import { dueAmountClassName } from '../lib/recordHelpers.js';
 import { defaultDateRange } from '../lib/hrEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
 
@@ -243,11 +244,11 @@ export default function DualTxnPage({ user, config, onDataChange }) {
       <div className={`${showDueInfo ? '' : 'hidden'} bg-red-50 border border-red-100 rounded-lg p-3 space-y-1.5`}>
         <div className="flex justify-between items-center gap-2">
           <span className="font-bold text-red-800 text-[11px] uppercase">{t('field.currentAccountDue')}</span>
-          <span className="font-mono font-black text-red-700 text-sm">{fmtMoney(currentDue)}</span>
+          <span className={`font-mono font-black text-sm ${dueAmountClassName(currentDue)}`}>{fmtMoney(currentDue)}</span>
         </div>
         <div className="flex justify-between items-center gap-2 border-t border-red-100 pt-1.5">
           <span className="font-bold text-gray-600 text-[11px] uppercase">{t('field.remainingDueAfterTxn')}</span>
-          <span className="font-mono font-bold text-orange-700 text-sm">{fmtMoney(remainingDue)}</span>
+          <span className={`font-mono font-bold text-sm ${dueAmountClassName(remainingDue)}`}>{fmtMoney(remainingDue)}</span>
         </div>
       </div>
 
@@ -266,7 +267,7 @@ export default function DualTxnPage({ user, config, onDataChange }) {
         </div>
         <div className="pt-2 border-t border-gray-200">
           <label className="block font-bold text-red-600 mb-1">{t('field.transactionDueBalance')}</label>
-          <input type="number" readOnly value={txnDue.toFixed(2)} className="w-full border border-gray-200 rounded p-2 text-sm bg-white font-bold text-red-600 outline-none" />
+          <input type="number" readOnly value={txnDue.toFixed(2)} className={`w-full border border-gray-200 rounded p-2 text-sm bg-white font-bold outline-none ${dueAmountClassName(txnDue)}`} />
         </div>
       </div>
 
@@ -345,7 +346,7 @@ export default function DualTxnPage({ user, config, onDataChange }) {
                     <td className="p-2.5 font-mono">{fmtMoney(amounts.bill)}</td>
                     <td className="p-2.5 font-mono text-purple-600">{fmtMoney(amounts.discount)}</td>
                     <td className="p-2.5 font-mono text-emerald-600">{fmtMoney(amounts.pay)}</td>
-                    <td className="p-2.5 font-mono text-red-600 font-bold">{fmtMoney(amounts.txnDue)}</td>
+                    <td className={`p-2.5 font-mono ${dueAmountClassName(amounts.txnDue)}`}>{fmtMoney(amounts.txnDue)}</td>
                     <td className="p-2.5">{getCategoryLabel(amounts.category, t)}</td>
                     <td className="p-2.5 break-words">{getCol(rec, config.fieldMap.remarks) || '-'}</td>
                     <td className="p-2.5">{getCol(rec, ['Logged By', 'Username']) || ''}</td>

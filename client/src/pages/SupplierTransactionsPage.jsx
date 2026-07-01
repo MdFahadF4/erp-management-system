@@ -15,7 +15,7 @@ import {
   getSupplierTxnCategoryColor,
   parseSupplierTxnDue
 } from '../lib/supplierEngine.js';
-import { parseMoneyInput, preventNumberWheelScroll } from '../lib/recordHelpers.js';
+import { parseMoneyInput, preventNumberWheelScroll, dueAmountClassName } from '../lib/recordHelpers.js';
 import { parseSupplierTxnAmounts } from '../lib/txnParsers.js';
 import { defaultDateRange, filterRecordsByDateRange, parseRecordDate } from '../lib/hrEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
@@ -337,7 +337,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
             id="sup-txn-due"
             readOnly
             value={txnDue.toFixed(2)}
-            className="w-full border border-gray-200 rounded p-2 text-sm bg-white font-bold text-red-600 outline-none shadow-inner"
+            className={`w-full border border-gray-200 rounded p-2 text-sm bg-white font-bold outline-none shadow-inner ${dueAmountClassName(txnDue)}`}
           />
         </div>
       </div>
@@ -458,7 +458,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
                     <td className="p-2.5 font-mono">{fmtMoney(p.bill)}</td>
                     <td className="p-2.5 font-mono text-purple-600">{fmtMoney(p.discount)}</td>
                     <td className="p-2.5 font-mono font-bold text-emerald-600">{fmtMoney(p.pay)}</td>
-                    <td className="p-2.5 font-mono font-bold text-red-600">{fmtMoney(p.txnDue)}</td>
+                    <td className={`p-2.5 font-mono ${dueAmountClassName(p.txnDue)}`}>{fmtMoney(p.txnDue)}</td>
                     <td className="p-2.5">
                       <span className={`px-2 py-0.5 font-bold rounded text-[10px] ${getSupplierTxnCategoryColor(cat)}`}>
                         {getCategoryLabel(typeLabel, t)}

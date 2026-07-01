@@ -48,7 +48,7 @@ export function getCustomerDueBalance(rec) {
   if (due <= 0.009 && sell > 0.009) {
     due = roundMoney(parseFloat(getCol(rec, ['Due Balance', 'Due', 'Outstanding Balance Due'])) || 0);
   }
-  return Math.max(0, due);
+  return roundMoney(due);
 }
 
 export function canViewAllCustomers(user) {
@@ -107,7 +107,7 @@ export function computeRemainingCustomerDue(currentDue, sell, discount, received
     return roundMoney(Math.max(0, base - s + d + r));
   }
   const delta = reconcileBillDiscPaid(s, d, r).due;
-  return roundMoney(Math.max(0, base + delta));
+  return roundMoney(base + delta);
 }
 
 export function isCustomerTxnRefund(rec) {

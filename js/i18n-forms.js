@@ -65,6 +65,7 @@ export const FORM_EN = {
   'field.totalDepositIncurred': 'Total Deposit (Incurred Amt)',
   'field.actuallyPaidAmount': 'Actually Paid Amount',
   'field.transactionDueBalance': 'Transaction Due / Balance',
+  'field.excessPaid': 'Excess Paid',
   'field.hrAmountHint': 'Salary Earn and Previous Due increase due; Salary Paid decreases due; Increment updates salary only.',
   'dropdown.noEmployeesWithDue': 'No employees with due balance',
   'dropdown.noSuppliersWithDue': 'No suppliers with due balance',

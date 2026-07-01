@@ -918,26 +918,31 @@ function reconcileBillDiscPaid(billed, discount, paid) {
   if (due < 0 && due >= -1) {
     p = b - d;
     due = 0;
-  } else if (p % 100 === 99 && due > 0 && due % 100 === 1) {
+  } else   if (p % 100 === 99 && due > 0 && due % 100 === 1) {
     p += 1;
     due -= 1;
   }
-  if (due < 0) due = 0;
   return { billed: fromCents(b), discount: fromCents(d), paid: fromCents(p), due: fromCents(due) };
+}
+
+function dueCellClass(due) {
+  const n = roundMoney(parseFloat(due) || 0);
+  if (n < -0.009) return 'text-emerald-700';
+  if (n > 0.009) return 'text-red-600';
+  return 'text-gray-600';
 }
 
 function reconcileEarnedPaid(earned, paid) {
   let e = toCents(earned);
   let p = toCents(paid);
   let d = e - p;
-  if (d < 0) {
+  if (d < 0 && d >= -1) {
     p = e;
     d = 0;
   } else if (p % 100 === 99 && d > 0 && d % 100 === 1) {
     p += 1;
     d -= 1;
   }
-  if (d < 0) d = 0;
   return { earned: fromCents(e), paid: fromCents(p), due: fromCents(d) };
 }
 
@@ -1282,7 +1287,7 @@ function getCustomerDueBalance(rec) {
   if (due <= 0.009 && sell > 0.009) {
     due = roundMoney(parseFloat(getCol(rec, ["Due Balance", "Due", "Outstanding Balance Due"])) || 0);
   }
-  return Math.max(0, due);
+  return roundMoney(due);
 }
 
 function getSupplierTxnCategory(rec) {
@@ -1435,7 +1440,7 @@ function createHrTxnDueController(opts) {
   const runCalculations = () => {
     const delta = getTxnDelta();
     if (txnDeltaInput) txnDeltaInput.value = delta.toFixed(2);
-    if (remainingDueEl) remainingDueEl.textContent = Math.max(0, currentDue + delta).toFixed(2);
+    if (remainingDueEl) remainingDueEl.textContent = roundMoney(currentDue + delta).toFixed(2);
   };
 
   const showCurrentDue = (amount) => {
@@ -1552,7 +1557,11 @@ function parseTxnDualAmounts(rec, fieldMap) {
   discount = normalized.discount;
   pay = normalized.pay;
   let txnDue = normalized.txnDue;
-  if (Math.abs(txnDue) < 0.009 && !isNaN(storedDue)) txnDue = roundMoney(storedDue);
+  if (bill !== 0 || pay !== 0 || discount !== 0) {
+    txnDue = roundMoney(bill - discount - pay);
+  } else if (!isNaN(storedDue)) {
+    txnDue = roundMoney(storedDue);
+  }
   return {
     bill: roundMoney(bill),
     discount: roundMoney(discount),
@@ -1578,7 +1587,7 @@ function computeHeadPairDueBalance(main, sub, txns, fieldMap) {
       bill += amounts.bill; discount += amounts.discount; pay += amounts.pay;
     }
   });
-  return roundMoney(Math.max(0, bill + prevDue - discount - pay));
+  return reconcileBillDiscPaid(addMoney(bill, prevDue), discount, pay).due;
 }
 
 function createDualTxnDueController(opts) {
@@ -1598,11 +1607,11 @@ function createDualTxnDueController(opts) {
     const paid = roundMoney(parseFloat(payInput?.value) || 0);
     const reconciled = reconcileBillDiscPaid(bill, discount, paid);
     if (dueInput) dueInput.value = reconciled.due.toFixed(2);
-    if (remainingDueEl) remainingDueEl.textContent = roundMoney(Math.max(0, addMoney(currentDue, reconciled.due))).toFixed(2);
+    if (remainingDueEl) remainingDueEl.textContent = roundMoney(addMoney(currentDue, reconciled.due)).toFixed(2);
   };
 
   const showCurrentDue = (amount) => {
-    currentDue = Math.max(0, parseFloat(amount) || 0);
+    currentDue = roundMoney(parseFloat(amount) || 0);
     if (currentDueEl) currentDueEl.textContent = currentDue.toFixed(2);
     dueInfoBox?.classList.remove("hidden");
     runCalculations();
@@ -1671,7 +1680,7 @@ function accumulateExpenseTxnAmounts(txns, mainUpper, subUpper, rangeStart, rang
     }
   });
 
-  return { inc, paid, due: Math.max(0, inc - discount - paid) };
+  return { inc, paid, due: reconcileBillDiscPaid(inc, discount, paid).due };
 }
 
 // ---------------------------------------------------------------------------------
@@ -2665,9 +2674,9 @@ function initCustomerTxnFormListeners() {
     const txnDue = sell - discount - received;
     if (tDue) tDue.value = txnDue.toFixed(2);
     if (refundMode) {
-      if (remainingDueEl) remainingDueEl.textContent = Math.max(0, selectedCustomerDue - sell + discount + received).toFixed(2);
+      if (remainingDueEl) remainingDueEl.textContent = roundMoney(selectedCustomerDue - sell + discount + received).toFixed(2);
     } else {
-      const remaining = Math.max(0, selectedCustomerDue + sell - discount - received);
+      const remaining = roundMoney(selectedCustomerDue + sell - discount - received);
       if (remainingDueEl) remainingDueEl.textContent = remaining.toFixed(2);
     }
   };
@@ -3075,13 +3084,13 @@ async function loadExpenseHeadTableRecords() {
            rowPaid = getExpensePaidAmt(rec);
         }
         
-        const rowDue = Math.max(0, rowDeposit - rowDiscount - rowPaid);
+        const rowDue = reconcileBillDiscPaid(rowDeposit, rowDiscount, rowPaid).due;
 
         return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
           <td class="p-2.5 font-mono text-gray-400 text-[11px]">${trackingId}</td><td class="font-bold text-gray-800">${mainHead}</td><td class="text-blue-600 font-medium">${subHead}</td>
           <td class="font-mono font-bold text-gray-700">SAR ${rowDeposit.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">SAR ${rowPaid.toFixed(2)}</td>
-          <td class="font-mono font-bold text-red-600">SAR ${rowDue.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(rowDue)}">SAR ${rowDue.toFixed(2)}</td>
           <td>${getCol(rec, ["Authorized By", "Username", "Logged By"]) || ''}</td><td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Creation Stamp", "Timestamp"]) || ''}</td>
         </tr>`;
       }).join('');
@@ -3250,7 +3259,7 @@ async function loadExpenseTxnTableRecords(isFilter = false) {
           <td class="font-mono text-gray-700">${amounts.bill.toFixed(2)}</td>
           <td class="font-mono text-purple-600">${amounts.discount.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">${amounts.pay.toFixed(2)}</td>
-          <td class="font-mono font-bold text-red-600">${amounts.txnDue.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(amounts.txnDue)}">${amounts.txnDue.toFixed(2)}</td>
           ${renderDualTxnTypeCell(amounts.category, EXPENSE_TXN_FIELDS)}
           <td class="max-w-xs truncate" title="${getCol(rec, EXPENSE_TXN_FIELDS.remarks) || ''}">${getCol(rec, EXPENSE_TXN_FIELDS.remarks) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
@@ -3336,13 +3345,13 @@ async function loadCreditorTableRecords() {
             prevDueTotals[mHeadUpper] = 0; 
         }
         
-        const rowDue = Math.max(0, rowReceived - rowDiscount - rowReturned);
+        const rowDue = reconcileBillDiscPaid(rowReceived, rowDiscount, rowReturned).due;
 
         return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
           <td class="p-2.5 font-mono text-gray-400 text-[11px]">${trackingId}</td><td class="font-bold text-gray-800">${mainHead}</td><td class="text-orange-600 font-medium">${subHead}</td>
           <td class="font-mono font-bold text-gray-700">SAR ${rowReceived.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">SAR ${rowReturned.toFixed(2)}</td>
-          <td class="font-mono font-bold text-red-600">SAR ${rowDue.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(rowDue)}">SAR ${rowDue.toFixed(2)}</td>
           <td>${getCol(rec, ["Created By", "Authorized By", "Username"]) || ''}</td><td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Creation Stamp", "Timestamp"]) || ''}</td>
         </tr>`;
       }).join('');
@@ -3535,7 +3544,7 @@ async function loadCreditorTxnTableRecords(isFilter = false) {
           <td class="font-mono text-gray-700">${amounts.bill.toFixed(2)}</td>
           <td class="font-mono text-purple-600">${amounts.discount.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">${amounts.pay.toFixed(2)}</td>
-          <td class="font-mono font-bold text-red-600">${amounts.txnDue.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(amounts.txnDue)}">${amounts.txnDue.toFixed(2)}</td>
           ${renderDualTxnTypeCell(amounts.category, CREDITOR_TXN_FIELDS)}
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
@@ -3619,13 +3628,13 @@ async function loadIncomeHeadTableRecords() {
             rowReceivable += headTotals[key].prevDue;
         }
         
-        const rowDue = Math.max(0, rowReceivable - rowDiscount - rowReceived);
+        const rowDue = reconcileBillDiscPaid(rowReceivable, rowDiscount, rowReceived).due;
 
         return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
           <td class="p-2.5 font-mono text-gray-400 text-[11px]">${trackingId}</td><td class="font-bold text-gray-800">${mainHead}</td><td class="text-blue-600 font-medium">${subHead}</td>
           <td class="font-mono font-bold text-gray-700">SAR ${rowReceivable.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">SAR ${rowReceived.toFixed(2)}</td>
-          <td class="font-mono font-bold text-red-600">SAR ${rowDue.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(rowDue)}">SAR ${rowDue.toFixed(2)}</td>
           <td>${getCol(rec, ["Authorized By", "Created By", "Username"]) || ''}</td><td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Creation Stamp", "Timestamp"]) || ''}</td>
         </tr>`;
       }).join('');
@@ -3787,7 +3796,7 @@ async function loadIncomeTxnTableRecords(isFilter = false) {
           <td class="font-mono text-gray-700">${amounts.bill.toFixed(2)}</td>
           <td class="font-mono text-purple-600">${amounts.discount.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">${amounts.pay.toFixed(2)}</td>
-          <td class="font-mono font-bold text-red-600">${amounts.txnDue.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(amounts.txnDue)}">${amounts.txnDue.toFixed(2)}</td>
           ${renderDualTxnTypeCell(amounts.category, INCOME_TXN_FIELDS)}
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>
@@ -3872,13 +3881,13 @@ async function loadCapitalHeadTableRecords() {
             prevDueTotals[mHeadUpper] = 0;
         }
 
-        const rowNet = Math.max(0, rowIn - rowDisc - rowOut);
+        const rowNet = reconcileBillDiscPaid(rowIn, rowDisc, rowOut).due;
 
         return `<tr class="hover:bg-gray-50 border-b border-gray-100 whitespace-nowrap">
           <td class="p-2.5 font-mono text-gray-400 text-[11px]">${trackingId}</td><td class="font-bold text-gray-800">${mainHead}</td><td class="text-violet-600 font-medium">${subHead}</td>
           <td class="font-mono font-bold text-gray-700">SAR ${rowIn.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">SAR ${rowOut.toFixed(2)}</td>
-          <td class="font-mono font-bold text-violet-600">SAR ${rowNet.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(rowNet)}">SAR ${rowNet.toFixed(2)}</td>
           <td>${getCol(rec, ["Created By", "Authorized By", "Username"]) || ''}</td><td class="text-gray-400 font-mono text-[10px]">${getCol(rec, ["Creation Stamp", "Timestamp"]) || ''}</td>
         </tr>`;
       }).join('');
@@ -4040,7 +4049,7 @@ async function loadCapitalTxnTableRecords(isFilter = false) {
           <td class="font-mono text-gray-700">${amounts.bill.toFixed(2)}</td>
           <td class="font-mono text-purple-600">${amounts.discount.toFixed(2)}</td>
           <td class="font-mono font-bold text-emerald-600">${amounts.pay.toFixed(2)}</td>
-          <td class="font-mono font-bold text-violet-600">${amounts.txnDue.toFixed(2)}</td>
+          <td class="font-mono font-bold ${dueCellClass(amounts.txnDue)}">${amounts.txnDue.toFixed(2)}</td>
           ${renderDualTxnTypeCell(amounts.category, CAPITAL_TXN_FIELDS)}
           <td class="max-w-xs truncate" title="${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || ''}">${getCol(rec, ["Remarks / Vouchers", "Remarks"]) || '-'}</td>
           <td>${getCol(rec, ["Logged By", "Username"]) || ''}</td>

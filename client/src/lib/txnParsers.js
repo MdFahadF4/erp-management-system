@@ -53,7 +53,11 @@ export function parseTxnDualAmounts(rec, fieldMap) {
   discount = normalized.discount;
   pay = normalized.pay;
   let txnDue = normalized.txnDue;
-  if (Math.abs(txnDue) < 0.009 && !Number.isNaN(storedDue)) txnDue = roundMoney(storedDue);
+  if (bill !== 0 || pay !== 0 || discount !== 0) {
+    txnDue = roundMoney(bill - discount - pay);
+  } else if (!Number.isNaN(storedDue)) {
+    txnDue = roundMoney(storedDue);
+  }
   return {
     bill: roundMoney(bill),
     discount: roundMoney(discount),
