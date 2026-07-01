@@ -117,6 +117,14 @@ setupPasswordToggle('toggle-password', 'login-password');
 async function initApp() {
   initForgotPasswordSystem();
   initCreatorCredit();
+  document.addEventListener(
+    'wheel',
+    (e) => {
+      const el = document.activeElement;
+      if (el && el.tagName === 'INPUT' && el.type === 'number') e.preventDefault();
+    },
+    { passive: false, capture: true }
+  );
   initLanguageSwitcher(async () => {
     applyTranslations(document);
     applyCompanyBranding(document);
@@ -1293,17 +1301,23 @@ function parseSupplierTxnAmounts(rec) {
     let pay = parseFloat(getCol(rec, ["Payment Paid", "Paid Amount", "Payment Paid Amt"])) || 0;
     const storedDue = parseFloat(getCol(rec, ["Transaction Due", "Txn Due"]));
     if (isPrev) {
-      bill = bill || pay;
+      bill = roundMoney(bill || pay);
       return { bill, discount: 0, pay: 0, txnDue: bill, category: "Previous Due" };
     }
     if (catKey.includes("payment paid") || catKey.includes("paid")) {
-      pay = pay || bill;
-      return { bill: 0, discount: 0, pay, txnDue: -pay, category: "Payment Paid" };
+      pay = roundMoney(pay || bill);
+      return { bill: 0, discount: 0, pay, txnDue: roundMoney(-pay), category: "Payment Paid" };
     }
-    const txnDue = !isNaN(storedDue) ? storedDue : bill - discount - pay;
-    return { bill, discount, pay, txnDue, category: category || "Purchase" };
+    const txnDue = !isNaN(storedDue) ? roundMoney(storedDue) : reconcileBillDiscPaid(bill, discount, pay).due;
+    return {
+      bill: roundMoney(bill),
+      discount: roundMoney(discount),
+      pay: roundMoney(pay),
+      txnDue,
+      category: category || "Purchase"
+    };
   }
-  const amt = parseFloat(getCol(rec, ["Amount"])) || 0;
+  const amt = roundMoney(parseFloat(getCol(rec, ["Amount"])) || 0);
   if (isPrev) return { bill: amt, discount: 0, pay: 0, txnDue: amt, category: "Previous Due" };
   if (catKey.includes("paid")) return { bill: 0, discount: 0, pay: amt, txnDue: -amt, category: "Payment Paid" };
   return { bill: amt, discount: 0, pay: 0, txnDue: amt, category: "Purchase" };
@@ -1324,11 +1338,12 @@ function rollupSupplierTxnTotals(txns, supplierName) {
   (txns || []).forEach((t) => {
     if (name && String(getCol(t, ["Supplier Name"]) || "").trim() !== name) return;
     const p = parseSupplierTxnAmounts(t);
-    bill += p.bill;
-    discount += p.discount;
-    pay += p.pay;
+    bill = addMoney(bill, p.bill);
+    discount = addMoney(discount, p.discount);
+    pay = addMoney(pay, p.pay);
   });
-  return { bill, discount, pay, due: Math.max(0, bill - discount - pay) };
+  const reconciled = reconcileBillDiscPaid(bill, discount, pay);
+  return { bill: reconciled.billed, discount: reconciled.discount, pay: reconciled.paid, due: reconciled.due };
 }
 
 function getSupplierDueFromTxns(supplierName, txns) {
@@ -1571,12 +1586,12 @@ function createDualTxnDueController(opts) {
   };
 
   const runCalculations = () => {
-    const bill = parseFloat(billInput?.value) || 0;
-    const discount = parseFloat(discountInput?.value) || 0;
-    const paid = parseFloat(payInput?.value) || 0;
-    const txnDue = bill - discount - paid;
-    if (dueInput) dueInput.value = txnDue.toFixed(2);
-    if (remainingDueEl) remainingDueEl.textContent = Math.max(0, currentDue + bill - discount - paid).toFixed(2);
+    const bill = roundMoney(parseFloat(billInput?.value) || 0);
+    const discount = roundMoney(parseFloat(discountInput?.value) || 0);
+    const paid = roundMoney(parseFloat(payInput?.value) || 0);
+    const reconciled = reconcileBillDiscPaid(bill, discount, paid);
+    if (dueInput) dueInput.value = reconciled.due.toFixed(2);
+    if (remainingDueEl) remainingDueEl.textContent = roundMoney(Math.max(0, addMoney(currentDue, reconciled.due))).toFixed(2);
   };
 
   const showCurrentDue = (amount) => {
@@ -1586,7 +1601,10 @@ function createDualTxnDueController(opts) {
     runCalculations();
   };
 
-  [billInput, discountInput, payInput].forEach((el) => el?.addEventListener("input", runCalculations));
+  [billInput, discountInput, payInput].forEach((el) => {
+    el?.addEventListener("input", runCalculations);
+    el?.addEventListener("wheel", (e) => e.preventDefault(), { passive: false });
+  });
 
   return { runCalculations, resetDueInfo, showCurrentDue, getCurrentDue: () => currentDue };
 }
@@ -2323,9 +2341,9 @@ function initSupplierTxnFormListeners() {
 
     const category = catSelect?.value || 'Purchase';
     let remarksText = remarksInput?.value.trim() || '';
-    let purchase = parseFloat(purchaseInput?.value) || 0;
-    let discount = parseFloat(discountInput?.value) || 0;
-    let paid = parseFloat(paidInput?.value) || 0;
+    let purchase = roundMoney(parseFloat(purchaseInput?.value) || 0);
+    let discount = roundMoney(parseFloat(discountInput?.value) || 0);
+    let paid = roundMoney(parseFloat(paidInput?.value) || 0);
 
     if (category === 'Previous Due') {
       discount = 0;
@@ -2339,7 +2357,11 @@ function initSupplierTxnFormListeners() {
       paid = paid || purchase;
     }
 
-    const txnDue = purchase - discount - paid;
+    const txnDue = category === 'Payment Paid'
+      ? roundMoney(-paid)
+      : category === 'Previous Due'
+        ? purchase
+        : reconcileBillDiscPaid(purchase, discount, paid).due;
     const rowPayload = [
       document.getElementById('sup-txn-date').value,
       supplierSelect.value,

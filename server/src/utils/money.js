@@ -16,6 +16,13 @@ export function addMoney(a, b) {
   return fromCents(toCents(a) + toCents(b));
 }
 
+export function parseMoneyInput(val) {
+  if (val === undefined || val === null || val === '') return 0;
+  const cleaned = String(val).replace(/,/g, '').trim();
+  if (!cleaned) return 0;
+  return roundMoney(parseFloat(cleaned) || 0);
+}
+
 export function reconcileBillDiscPaid(billed, discount, paid) {
   let b = toCents(billed);
   let d = toCents(discount);

@@ -1,4 +1,4 @@
-import { addMoney, getCol, fmtMoney, parseMoneyInput, reconcileEarnedPaid, roundMoney } from './recordHelpers.js';
+import { addMoney, getCol, fmtMoney, parseMoneyInput, reconcileBillDiscPaid, reconcileEarnedPaid, roundMoney } from './recordHelpers.js';
 import { getCustomerDueBalance, getCustomerUid, getCustomerName } from './customerEngine.js';
 import { getHrEmployeeName, rollupHrTxnTotals, normalizeHrEmployeeName as normHr } from './hrEngine.js';
 import { getSupplierName, getSupplierDueBalance, rollupSupplierTxnTotals } from './supplierEngine.js';
@@ -116,11 +116,11 @@ export function buildCustomerMasterUpdateRow(rec, fields, user) {
 
 export function buildSupplierMasterUpdateRow(rec, txns, fields, user) {
   const totals = rollupSupplierTxnTotals(txns, getSupplierName(rec));
-  const purchase = parseFloat(fields.purchase);
-  const payments = parseFloat(fields.payments);
-  const usePurchase = Number.isFinite(purchase) ? purchase : totals.bill;
-  const usePayments = Number.isFinite(payments) ? payments : totals.pay;
-  const due = Math.max(0, usePurchase - totals.discount - usePayments);
+  const purchase = parseMoneyInput(fields.purchase);
+  const payments = parseMoneyInput(fields.payments);
+  const usePurchase = Number.isFinite(parseFloat(fields.purchase)) ? purchase : totals.bill;
+  const usePayments = Number.isFinite(parseFloat(fields.payments)) ? payments : totals.pay;
+  const due = reconcileBillDiscPaid(usePurchase, totals.discount, usePayments).due;
   return [
     fields.name.trim(),
     fields.mobile.trim(),

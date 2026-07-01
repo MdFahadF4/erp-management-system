@@ -5,6 +5,8 @@ import { useI18n } from '../i18n/I18nProvider.jsx';
 import { createRecord, fetchSupplierModuleData } from '../services/dataService.js';
 import TxnLedgerActions from '../components/TxnLedgerActions.jsx';
 import {
+  computeSupplierRemainingDue,
+  computeSupplierTxnDueValue,
   fmtMoney,
   getCol,
   getSupplierDueBalance,
@@ -13,6 +15,7 @@ import {
   getSupplierTxnCategoryColor,
   parseSupplierTxnDue
 } from '../lib/supplierEngine.js';
+import { parseMoneyInput, preventNumberWheelScroll } from '../lib/recordHelpers.js';
 import { parseSupplierTxnAmounts } from '../lib/txnParsers.js';
 import { defaultDateRange, filterRecordsByDateRange, parseRecordDate } from '../lib/hrEngine.js';
 import { userCanEditModule } from '../utils/userSession.js';
@@ -88,7 +91,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
   );
 
   const remainingDue = useMemo(
-    () => Math.max(0, currentDue + parseSupplierTxnDue(purchase, discount, paid)),
+    () => computeSupplierRemainingDue(currentDue, purchase, discount, paid),
     [currentDue, purchase, discount, paid]
   );
 
@@ -141,9 +144,9 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
     setSubmitting(true);
     try {
       let remarksText = remarks.trim();
-      let purchaseVal = parseFloat(purchase) || 0;
-      let discountVal = parseFloat(discount) || 0;
-      let paidVal = parseFloat(paid) || 0;
+      let purchaseVal = parseMoneyInput(purchase);
+      let discountVal = parseMoneyInput(discount);
+      let paidVal = parseMoneyInput(paid);
 
       if (category === 'Previous Due') {
         discountVal = 0;
@@ -157,7 +160,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
         paidVal = paidVal || purchaseVal;
       }
 
-      const dueVal = purchaseVal - discountVal - paidVal;
+      const dueVal = computeSupplierTxnDueValue(category, purchaseVal, discountVal, paidVal);
       const rowPayload = [
         txnDate,
         supplier,
@@ -291,6 +294,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
             min="0"
             value={purchase}
             onChange={(e) => setPurchase(e.target.value)}
+            onWheel={preventNumberWheelScroll}
             readOnly={isPay}
             disabled={!canEdit}
             className="w-full border border-gray-200 rounded p-2 text-sm font-bold font-mono outline-none"
@@ -305,6 +309,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
             min="0"
             value={discount}
             onChange={(e) => setDiscount(e.target.value)}
+            onWheel={preventNumberWheelScroll}
             readOnly={isPrev || isPay}
             disabled={!canEdit}
             className="w-full border border-gray-200 rounded p-2 text-sm font-mono outline-none"
@@ -319,6 +324,7 @@ export default function SupplierTransactionsPage({ user, onDataChange }) {
             min="0"
             value={paid}
             onChange={(e) => setPaid(e.target.value)}
+            onWheel={preventNumberWheelScroll}
             readOnly={isPrev}
             disabled={!canEdit}
             className="w-full border border-gray-200 rounded p-2 text-sm font-bold font-mono outline-none"

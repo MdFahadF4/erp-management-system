@@ -1,4 +1,4 @@
-import { getCol, fmtMoney, roundMoney } from './recordHelpers.js';
+import { getCol, fmtMoney, addMoney, parseMoneyInput, reconcileBillDiscPaid, roundMoney } from './recordHelpers.js';
 import { parseTxnDualAmounts } from './txnParsers.js';
 import { filterRecordsByDateRange, parseRecordDate } from './hrEngine.js';
 
@@ -49,22 +49,24 @@ export function computeHeadPairDueBalance(main, sub, txns, fieldMap) {
     const isPrev = isDualTxnPrevDue(t, fieldMap);
     if (tM !== m) return;
     if (isPrev && tS === s) {
-      prevDue += Math.max(amounts.bill, amounts.pay);
+      prevDue = addMoney(prevDue, Math.max(amounts.bill, amounts.pay));
     } else if (!isPrev && tS === s) {
-      bill += amounts.bill;
-      discount += amounts.discount;
-      pay += amounts.pay;
+      bill = addMoney(bill, amounts.bill);
+      discount = addMoney(discount, amounts.discount);
+      pay = addMoney(pay, amounts.pay);
     }
   });
-  return roundMoney(Math.max(0, bill + prevDue - discount - pay));
+  const reconciled = reconcileBillDiscPaid(addMoney(bill, prevDue), discount, pay);
+  return reconciled.due;
 }
 
 export function computeDualTxnDue(bill, discount, pay) {
-  return roundMoney((parseFloat(bill) || 0) - (parseFloat(discount) || 0) - (parseFloat(pay) || 0));
+  return reconcileBillDiscPaid(parseMoneyInput(bill), parseMoneyInput(discount), parseMoneyInput(pay)).due;
 }
 
 export function computeRemainingHeadDue(currentDue, bill, discount, pay) {
-  return roundMoney(Math.max(0, currentDue + (parseFloat(bill) || 0) - (parseFloat(discount) || 0) - (parseFloat(pay) || 0)));
+  const delta = reconcileBillDiscPaid(parseMoneyInput(bill), parseMoneyInput(discount), parseMoneyInput(pay)).due;
+  return roundMoney(Math.max(0, parseMoneyInput(currentDue) + delta));
 }
 
 export function buildHeadLedgerRows(heads, txns, fieldMap, mainCols, subCols) {
@@ -80,11 +82,11 @@ export function buildHeadLedgerRows(heads, txns, fieldMap, mainCols, subCols) {
     const key = `${mHead}|||${sHead}`;
     if (!headTotals[key]) headTotals[key] = { bill: 0, pay: 0, discount: 0, prevDue: 0 };
     if (isDualTxnPrevDue(t, fieldMap)) {
-      headTotals[key].prevDue += Math.max(amounts.bill, amounts.pay);
+      headTotals[key].prevDue = addMoney(headTotals[key].prevDue, Math.max(amounts.bill, amounts.pay));
     } else {
-      headTotals[key].bill += amounts.bill;
-      headTotals[key].pay += amounts.pay;
-      headTotals[key].discount += amounts.discount;
+      headTotals[key].bill = addMoney(headTotals[key].bill, amounts.bill);
+      headTotals[key].pay = addMoney(headTotals[key].pay, amounts.pay);
+      headTotals[key].discount = addMoney(headTotals[key].discount, amounts.discount);
     }
   });
 
@@ -94,10 +96,10 @@ export function buildHeadLedgerRows(heads, txns, fieldMap, mainCols, subCols) {
     const subHead = getCol(rec, subCols) || '';
     const key = `${String(mainHead).trim().toUpperCase()}|||${String(subHead).trim().toUpperCase()}`;
     const totals = headTotals[key] || { bill: 0, pay: 0, discount: 0, prevDue: 0 };
-    let bill = totals.bill + totals.prevDue;
+    const bill = addMoney(totals.bill, totals.prevDue);
     const pay = totals.pay;
     const discount = totals.discount;
-    const due = Math.max(0, bill - discount - pay);
+    const due = reconcileBillDiscPaid(bill, discount, pay).due;
     return {
       id: rec.ID,
       trackingId,
@@ -121,9 +123,9 @@ export function getSubHeadsForMain(heads, main, mainCols, subCols) {
 }
 
 export function prepareDualTxnSubmit(category, bill, discount, pay, remarks) {
-  let b = roundMoney(parseFloat(bill) || 0);
-  let d = roundMoney(parseFloat(discount) || 0);
-  let p = roundMoney(parseFloat(pay) || 0);
+  let b = parseMoneyInput(bill);
+  let d = parseMoneyInput(discount);
+  let p = parseMoneyInput(pay);
   let remarksText = String(remarks || '').trim();
   const cat = String(category || '').trim();
   const catLower = cat.toLowerCase();
@@ -134,13 +136,24 @@ export function prepareDualTxnSubmit(category, bill, discount, pay, remarks) {
     if (!remarksText.toLowerCase().includes('previous due')) {
       remarksText = remarksText ? `Previous Due - ${remarksText}` : 'Previous Due';
     }
-  } else if (catLower.includes('paid') || catLower.includes('payment') || catLower.includes('return') || catLower.includes('out')) {
+    return { bill: b, discount: 0, pay: 0, txnDue: b, category: cat, remarksText };
+  }
+  if (catLower.includes('paid') || catLower.includes('payment') || catLower.includes('return') || catLower.includes('out')) {
     b = 0;
     d = 0;
+    p = p || b;
+    return { bill: 0, discount: 0, pay: p, txnDue: roundMoney(-p), category: cat, remarksText };
   }
 
-  const txnDue = roundMoney(b - d - p);
-  return { bill: b, discount: d, pay: p, txnDue, category: cat, remarksText };
+  const reconciled = reconcileBillDiscPaid(b, d, p);
+  return {
+    bill: reconciled.billed,
+    discount: reconciled.discount,
+    pay: reconciled.paid,
+    txnDue: reconciled.due,
+    category: cat,
+    remarksText
+  };
 }
 
 export function filterDualTxnsByDate(records, fromStr, toStr) {

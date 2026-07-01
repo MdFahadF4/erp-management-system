@@ -50,7 +50,26 @@ export function parseMoneyInput(val) {
 
 /** Stop mouse-wheel from changing focused number inputs (common 3000 → 2999 accident). */
 export function preventNumberWheelScroll(e) {
+  e.preventDefault();
   e.currentTarget.blur();
+}
+
+let numberWheelGuardInstalled = false;
+
+/** Prevent scroll-wheel drift on every number input in the React app. */
+export function installGlobalNumberInputWheelGuard() {
+  if (numberWheelGuardInstalled || typeof document === 'undefined') return;
+  numberWheelGuardInstalled = true;
+  document.addEventListener(
+    'wheel',
+    (e) => {
+      const el = document.activeElement;
+      if (el && el.tagName === 'INPUT' && el.type === 'number') {
+        e.preventDefault();
+      }
+    },
+    { passive: false, capture: true }
+  );
 }
 
 /** Snap 1-cent float drift on billed/discount/paid ledgers (e.g. paid 300.01 on 300 bill). */

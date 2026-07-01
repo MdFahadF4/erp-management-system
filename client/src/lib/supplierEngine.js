@@ -1,5 +1,5 @@
 import { parseSupplierTxnAmounts } from './txnParsers.js';
-import { getCol, fmtMoney } from './recordHelpers.js';
+import { addMoney, getCol, fmtMoney, parseMoneyInput, reconcileBillDiscPaid, roundMoney } from './recordHelpers.js';
 
 export function getSupplierName(rec) {
   return String(getCol(rec, ['Supplier Name']) || '').trim();
@@ -13,11 +13,17 @@ export function rollupSupplierTxnTotals(txns, supplierName) {
   (txns || []).forEach((t) => {
     if (name && getSupplierName(t) !== name) return;
     const p = parseSupplierTxnAmounts(t);
-    bill += p.bill;
-    discount += p.discount;
-    pay += p.pay;
+    bill = addMoney(bill, p.bill);
+    discount = addMoney(discount, p.discount);
+    pay = addMoney(pay, p.pay);
   });
-  return { bill, discount, pay, due: Math.max(0, bill - discount - pay) };
+  const reconciled = reconcileBillDiscPaid(bill, discount, pay);
+  return {
+    bill: reconciled.billed,
+    discount: reconciled.discount,
+    pay: reconciled.paid,
+    due: reconciled.due
+  };
 }
 
 export function getSupplierDueBalance(supplierRec, txns) {
@@ -26,10 +32,35 @@ export function getSupplierDueBalance(supplierRec, txns) {
 }
 
 export function parseSupplierTxnDue(purchase, discount, paid) {
-  const bill = parseFloat(purchase) || 0;
-  const disc = parseFloat(discount) || 0;
-  const pay = parseFloat(paid) || 0;
-  return bill - disc - pay;
+  const reconciled = reconcileBillDiscPaid(
+    parseMoneyInput(purchase),
+    parseMoneyInput(discount),
+    parseMoneyInput(paid)
+  );
+  return reconciled.due;
+}
+
+export function computeSupplierTxnDueValue(category, purchase, discount, paid) {
+  const cat = String(category || '').trim().toLowerCase();
+  const bill = parseMoneyInput(purchase);
+  const disc = parseMoneyInput(discount);
+  const pay = parseMoneyInput(paid);
+  if (cat.includes('previous due') || cat.includes('opening balance')) {
+    return bill;
+  }
+  if (cat.includes('payment paid') || (cat.includes('paid') && !cat.includes('previous'))) {
+    return roundMoney(-pay);
+  }
+  return reconcileBillDiscPaid(bill, disc, pay).due;
+}
+
+export function computeSupplierRemainingDue(currentDue, purchase, discount, paid) {
+  const delta = reconcileBillDiscPaid(
+    parseMoneyInput(purchase),
+    parseMoneyInput(discount),
+    parseMoneyInput(paid)
+  ).due;
+  return roundMoney(Math.max(0, parseMoneyInput(currentDue) + delta));
 }
 
 export function getSupplierTxnCategory(rec) {

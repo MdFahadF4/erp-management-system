@@ -1,5 +1,5 @@
 import { getField, normalizeHrName, normalizeSupplierName } from '../utils/helpers.js';
-import { roundMoney, addMoney, reconcileEarnedPaid } from '../utils/money.js';
+import { roundMoney, addMoney, reconcileEarnedPaid, reconcileBillDiscPaid, parseMoneyInput } from '../utils/money.js';
 import {
   findAllRecords,
   insertRecord,
@@ -43,7 +43,11 @@ export function normalizeSupplierTxnCategory(category, purchase, discount, payme
     discount = 0;
   }
 
-  return { purchase, discount, paymentPaid };
+  return {
+    purchase: roundMoney(purchase),
+    discount: roundMoney(discount),
+    paymentPaid: roundMoney(paymentPaid)
+  };
 }
 
 export function parseSupplierTxnPayload(rowData) {
@@ -54,17 +58,17 @@ export function parseSupplierTxnPayload(rowData) {
   let category = '';
 
   if (rowData.length >= 10) {
-    purchase = parseFloat(rowData[2]) || 0;
-    discount = parseFloat(rowData[3]) || 0;
-    paymentPaid = parseFloat(rowData[4]) || 0;
+    purchase = parseMoneyInput(rowData[2]);
+    discount = parseMoneyInput(rowData[3]);
+    paymentPaid = parseMoneyInput(rowData[4]);
     category = String(rowData[6] || '').trim();
   } else if (rowData.length >= 9) {
-    purchase = parseFloat(rowData[2]) || 0;
-    discount = parseFloat(rowData[3]) || 0;
-    paymentPaid = parseFloat(rowData[4]) || 0;
+    purchase = parseMoneyInput(rowData[2]);
+    discount = parseMoneyInput(rowData[3]);
+    paymentPaid = parseMoneyInput(rowData[4]);
     category = inferSupplierTxnCategory(purchase, discount, paymentPaid, rowData[6]);
   } else {
-    const amount = parseFloat(rowData[2]) || 0;
+    const amount = parseMoneyInput(rowData[2]);
     category = String(rowData[3] || '').trim();
     if (category === 'Purchase' || category === 'Previous Due') purchase = amount;
     else if (category === 'Payment Paid') paymentPaid = amount;
@@ -82,9 +86,9 @@ export function parseSupplierTxnPayload(rowData) {
 
 export function parseSupplierTxnRecord(record) {
   const supplierName = String(getField(record, ['Supplier Name']) || '').trim();
-  let purchase = parseFloat(getField(record, ['Purchase Amount']) || 0) || 0;
-  let discount = parseFloat(getField(record, ['Discount']) || 0) || 0;
-  let paymentPaid = parseFloat(getField(record, ['Payment Paid']) || 0) || 0;
+  let purchase = roundMoney(parseFloat(getField(record, ['Purchase Amount']) || 0) || 0);
+  let discount = roundMoney(parseFloat(getField(record, ['Discount']) || 0) || 0);
+  let paymentPaid = roundMoney(parseFloat(getField(record, ['Payment Paid']) || 0) || 0);
   let category = String(getField(record, ['Category']) || '').trim();
   const remarks = getField(record, ['Remarks']);
 
@@ -257,22 +261,21 @@ export async function syncSupplierMasterForSupplier(supplierName) {
   for (const txn of txnRecords) {
     const parsed = parseSupplierTxnRecord(txn);
     if (normalizeSupplierName(parsed.supplierName) !== targetKey) continue;
-    totalPurchase += parsed.purchase;
-    totalDiscount += parsed.discount;
-    totalPayments += parsed.paymentPaid;
+    totalPurchase = addMoney(totalPurchase, parsed.purchase);
+    totalDiscount = addMoney(totalDiscount, parsed.discount);
+    totalPayments = addMoney(totalPayments, parsed.paymentPaid);
   }
 
-  let dueBalance = totalPurchase - totalPayments - totalDiscount;
-  if (dueBalance < 0) dueBalance = 0;
+  const reconciled = reconcileBillDiscPaid(totalPurchase, totalDiscount, totalPayments);
 
   const supRecords = await findAllRecords(SUPPLIERS_COLLECTION);
   for (const sup of supRecords) {
     if (normalizeSupplierName(getField(sup, ['Supplier Name'])) !== targetKey) continue;
     const updated = {
       ...sup,
-      'Total Purchase': totalPurchase,
-      'Total Payments': totalPayments,
-      'Due Balance': dueBalance
+      'Total Purchase': reconciled.billed,
+      'Total Payments': reconciled.paid,
+      'Due Balance': reconciled.due
     };
     await updateRecordById(SUPPLIERS_COLLECTION, sup.ID, updated);
     return true;

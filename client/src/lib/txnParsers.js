@@ -1,4 +1,4 @@
-import { getCol, cln, roundMoney } from './recordHelpers.js';
+import { getCol, cln, parseMoneyInput, reconcileBillDiscPaid, roundMoney } from './recordHelpers.js';
 
 export function getDualTxnCategory(rec, fieldMap) {
   const cats = fieldMap.categories || {};
@@ -81,9 +81,9 @@ export function parseSupplierTxnAmounts(rec) {
 
   const purchaseRaw = getCol(rec, ['Purchase Amount', 'Purchase Amt', 'Purchase']);
   if (purchaseRaw !== undefined && purchaseRaw !== null && purchaseRaw !== '') {
-    let bill = parseFloat(purchaseRaw) || 0;
-    let discount = parseFloat(getCol(rec, ['Discount', 'Discount Allowed'])) || 0;
-    let pay = parseFloat(getCol(rec, ['Payment Paid', 'Paid Amount', 'Payment Paid Amt'])) || 0;
+    let bill = parseMoneyInput(purchaseRaw);
+    let discount = parseMoneyInput(getCol(rec, ['Discount', 'Discount Allowed']));
+    let pay = parseMoneyInput(getCol(rec, ['Payment Paid', 'Paid Amount', 'Payment Paid Amt']));
     const storedDue = parseFloat(getCol(rec, ['Transaction Due', 'Txn Due']));
     if (isPrev) {
       bill = roundMoney(bill || pay);
@@ -93,7 +93,7 @@ export function parseSupplierTxnAmounts(rec) {
       pay = roundMoney(pay || bill);
       return { bill: 0, discount: 0, pay, txnDue: roundMoney(-pay), category: 'Payment Paid' };
     }
-    const txnDue = !Number.isNaN(storedDue) ? roundMoney(storedDue) : roundMoney(bill - discount - pay);
+    const txnDue = !Number.isNaN(storedDue) ? roundMoney(storedDue) : reconcileBillDiscPaid(bill, discount, pay).due;
     return {
       bill: roundMoney(bill),
       discount: roundMoney(discount),

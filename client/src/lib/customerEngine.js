@@ -1,4 +1,4 @@
-import { getCol, fmtMoney, roundMoney } from './recordHelpers.js';
+import { getCol, fmtMoney, parseMoneyInput, reconcileBillDiscPaid, roundMoney } from './recordHelpers.js';
 import { filterRecordsByDateRange, parseRecordDate } from './hrEngine.js';
 
 export function formatCustomDateString(dateObj) {
@@ -95,17 +95,19 @@ export function buildCustomerLedgerRow(rec, canEdit) {
 }
 
 export function computeCustomerTxnDue(sell, discount, received) {
-  return (parseFloat(sell) || 0) - (parseFloat(discount) || 0) - (parseFloat(received) || 0);
+  return reconcileBillDiscPaid(parseMoneyInput(sell), parseMoneyInput(discount), parseMoneyInput(received)).due;
 }
 
 export function computeRemainingCustomerDue(currentDue, sell, discount, received, refundMode) {
-  const s = parseFloat(sell) || 0;
-  const d = parseFloat(discount) || 0;
-  const r = parseFloat(received) || 0;
+  const s = parseMoneyInput(sell);
+  const d = parseMoneyInput(discount);
+  const r = parseMoneyInput(received);
+  const base = parseMoneyInput(currentDue);
   if (refundMode) {
-    return Math.max(0, currentDue - s + d + r);
+    return roundMoney(Math.max(0, base - s + d + r));
   }
-  return Math.max(0, currentDue + s - d - r);
+  const delta = reconcileBillDiscPaid(s, d, r).due;
+  return roundMoney(Math.max(0, base + delta));
 }
 
 export function isCustomerTxnRefund(rec) {

@@ -3,7 +3,10 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { I18nProvider } from './i18n/I18nProvider.jsx';
 import App from './App.jsx';
+import { installGlobalNumberInputWheelGuard } from './lib/recordHelpers.js';
 import './index.css';
+
+installGlobalNumberInputWheelGuard();
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
