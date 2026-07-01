@@ -19,6 +19,7 @@ import {
   masterInitialCustomerCash,
   readCustomerMasterAmounts
 } from './customerFinancials.js';
+import { installSearchableSelectSystem, refreshSearchableSelects } from './searchable-select.js';
 
 const loginScreen = document.getElementById('login-screen');
 const formLogin = document.getElementById('form-login');
@@ -136,6 +137,10 @@ async function initApp() {
   });
   applyTranslations(document);
   applyCompanyBranding(document);
+
+  installSearchableSelectSystem(document).catch((err) => {
+    console.warn('Searchable selects init failed', err);
+  });
 
   // =====================================================================
 // GLOBAL DATE FORMATTER OVERRIDE (Forces DD MMM YYYY across entire app)
@@ -797,6 +802,8 @@ async function loadModulePage(target, { pushHistory = false, replaceHistory = fa
   } else if (replaceHistory) {
     history.replaceState({ module: target }, '', `#${target}`);
   }
+
+  await refreshSearchableSelects(mainContent);
 }
 
 window.addEventListener('popstate', (e) => {

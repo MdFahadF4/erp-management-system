@@ -21,6 +21,7 @@ import { TxnEditProvider } from '../context/TxnEditContext.jsx';
 import { resolveModuleComponent } from '../config/moduleRegistry.jsx';
 import { useI18n } from '../i18n/I18nProvider.jsx';
 import { NAV_ITEMS } from '../utils/userSession.js';
+import { refreshSearchableSelects } from '../../../js/searchable-select.js';
 
 function isMobileViewport() {
   return typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
@@ -143,6 +144,12 @@ export default function AppShell({ user: initialUser, onUserChange }) {
 
   useEffect(() => {
     document.getElementById('main-content')?.scrollTo(0, 0);
+    const main = document.getElementById('main-content');
+    if (main) {
+      refreshSearchableSelects(main).catch((err) => {
+        console.warn('Searchable selects refresh failed', err);
+      });
+    }
   }, [activeModule]);
 
   useEffect(() => {

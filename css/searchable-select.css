@@ -1,0 +1,62 @@
+/* Tom Select — match Mehrin ERP form controls */
+.ts-wrapper {
+  width: 100%;
+}
+
+.ts-wrapper.single .ts-control {
+  min-height: 42px;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.25rem;
+  background: #fff;
+  box-shadow: none;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ts-wrapper.single.input-active .ts-control,
+.ts-wrapper.single.focus .ts-control {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgb(59 130 246 / 0.25);
+}
+
+.ts-wrapper.single .ts-control input {
+  font-size: 0.875rem;
+}
+
+.ts-dropdown {
+  z-index: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 0.375rem;
+  box-shadow: 0 10px 25px rgb(15 23 42 / 0.12);
+  font-size: 0.875rem;
+}
+
+.ts-dropdown .option {
+  padding: 0.5rem 0.75rem;
+}
+
+.ts-dropdown .option.active {
+  background: #eff6ff;
+  color: #1e3a8a;
+}
+
+.ts-dropdown .option:hover,
+.ts-dropdown .option.selected {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.ts-dropdown-content {
+  max-height: 240px;
+}
+
+.ts-wrapper.disabled .ts-control {
+  background: #f3f4f6;
+  opacity: 0.75;
+}
+
+.fixed.inset-0 .ts-dropdown,
+.modal-portal-root .ts-dropdown {
+  z-index: 1000;
+}
