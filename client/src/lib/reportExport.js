@@ -78,8 +78,8 @@ function parseMoney(text) {
 }
 
 function isNonAmountColumn(headerText) {
-  const h = String(headerText || '').toLowerCase();
-  return /date|user|remark|name|method|type|uid|memo|status|stamp|tracking|contact|permission|role/.test(h);
+  const h = String(headerText || '').trim().toLowerCase();
+  return /date|user|remark|name|method|type|uid|memo|status|stamp|tracking|contact|permission|role|serial|sno|\bsl\b|^sl\.|^no\.|^#|^nr|^n°|^n\.º|^क्र|^ম\.|^ن\./.test(h);
 }
 
 function isSummableCell(cell, headerText) {
@@ -90,7 +90,8 @@ function isSummableCell(cell, headerText) {
   if (/amount|amt|sar|paid|earn|due|bill|recv|sell|balance|total|purchase|discount|cash|card|flow|profit|loss/.test(h)) {
     return true;
   }
-  return cell.classList.contains('font-mono');
+  // Amount columns are right-aligned; serial/index columns use font-mono but are centered.
+  return cell.classList.contains('font-mono') && cell.classList.contains('text-right');
 }
 
 function buildQrPayload(meta, root, profile) {
@@ -325,10 +326,6 @@ function addGrandTotalToTable(table) {
       }
       td.textContent = t('report.grandTotal');
       td.className += ' font-bold uppercase text-[10px] text-gray-700';
-      if (sums[i] !== null) {
-        td.className += ' text-right font-mono';
-        td.textContent = `${t('report.grandTotal')} ${sums[i].toFixed(2)}`;
-      }
       tr.appendChild(td);
       continue;
     }
