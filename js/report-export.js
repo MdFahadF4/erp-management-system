@@ -810,9 +810,32 @@ function buildCustomerTxnSlipQrPayload(data) {
     .join('\n');
 }
 
-async function getSlipQrDataUrl(data) {
-  const QRCode = (await import('https://esm.sh/qrcode@1.5.4')).default;
-  return QRCode.toDataURL(buildCustomerTxnSlipQrPayload(data), { width: 120, margin: 1 });
+const SLIP_QR_SIZE = 72;
+
+function buildSlipQrBlock(qrDataUrl, slotId = 'cust-txn-slip-qr') {
+  const wrapStyle = `width:${SLIP_QR_SIZE}px;height:${SLIP_QR_SIZE}px;min-width:${SLIP_QR_SIZE}px;min-height:${SLIP_QR_SIZE}px;`;
+  const wrapClass =
+    'erp-txn-slip-qr-wrap flex-shrink-0 border border-gray-200 rounded bg-white flex items-center justify-center overflow-hidden';
+  if (qrDataUrl) {
+    return `<div class="${wrapClass}" style="${wrapStyle}"><img src="${qrDataUrl}" alt="QR" class="block w-full h-full object-contain" width="${SLIP_QR_SIZE}" height="${SLIP_QR_SIZE}" /></div>`;
+  }
+  return `<div class="${wrapClass}" style="${wrapStyle}" id="${slotId}"></div>`;
+}
+
+function buildSlipHeaderHtml({ co, qrDataUrl, typeLabel, qrSlotId = 'cust-txn-slip-qr' }) {
+  return `
+    <div class="erp-txn-slip-header border-b-2 border-gray-800 pb-3 mb-4">
+      <div class="grid grid-cols-[minmax(0,1fr)_72px] gap-3 items-start">
+        <div class="erp-txn-slip-header-main text-center min-w-0 pr-1">
+          <h1 class="text-xl font-black uppercase tracking-wide break-words">${co.COMPANY_NAME}</h1>
+          <p class="text-xs text-gray-600 mt-1">${getCompanyLegalLine()}</p>
+          <p class="text-sm font-bold mt-3 text-gray-900">${t('custTxn.slipTitle')}</p>
+          <p class="text-[11px] font-semibold text-gray-700 mt-1">${typeLabel}</p>
+          <p class="text-[10px] text-gray-500 mt-2">${t('report.printedOn')}: ${formatPrintDateTime()}</p>
+        </div>
+        ${buildSlipQrBlock(qrDataUrl, qrSlotId)}
+      </div>
+    </div>`;
 }
 
 function customerSlipFieldRows(data) {
@@ -833,18 +856,10 @@ function customerSlipFieldRows(data) {
 export function buildCustomerTxnSlipHtml(data, options = {}) {
   const co = getCompanyInfo();
   const qrDataUrl = options.qrDataUrl || '';
-  const qrBlock = qrDataUrl
-    ? `<img src="${qrDataUrl}" alt="QR" class="absolute top-0 right-0 w-24 h-24 object-contain" />`
-    : `<div class="erp-txn-slip-qr-slot absolute top-0 right-0 w-24 h-24" id="cust-txn-slip-qr"></div>`;
+  const typeLabel = data.refundMode ? t('custTxn.modeRefund') : t('custTxn.modeNormal');
   return `
     <div class="erp-txn-slip print:block">
-      <div class="erp-txn-slip-header text-center border-b-2 border-gray-800 pb-3 mb-4 relative">
-        ${qrBlock}
-        <h1 class="text-xl font-black uppercase tracking-wide">${co.COMPANY_NAME}</h1>
-        <p class="text-xs text-gray-600 mt-1">${getCompanyLegalLine()}</p>
-        <p class="text-sm font-bold mt-3 uppercase">${t('custTxn.slipTitle')}</p>
-        <p class="text-[10px] text-gray-500 mt-2">${t('report.printedOn')}: ${formatPrintDateTime()}</p>
-      </div>
+      ${buildSlipHeaderHtml({ co, qrDataUrl, typeLabel })}
       <table class="w-full text-xs border-collapse mb-4">
         <tbody>
           ${customerSlipFieldRows(data).map(([label, val]) =>
@@ -859,21 +874,27 @@ export function buildCustomerTxnSlipHtml(data, options = {}) {
 function buildCustomerTxnSlipExportHtml(data, qrDataUrl) {
   const co = getCompanyInfo();
   const rows = customerSlipFieldRows(data);
+  const typeLabel = data.refundMode ? t('custTxn.modeRefund') : t('custTxn.modeNormal');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${t('custTxn.slipTitle')}</title>
 <style>
 body{font-family:Arial,sans-serif;margin:24px;color:#111}
-.header{text-align:center;border-bottom:2px solid #333;padding-bottom:12px;margin-bottom:16px;position:relative;min-height:110px}
-.header img{position:absolute;top:0;right:0;width:96px;height:96px}
+.header{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:12px;align-items:start;border-bottom:2px solid #333;padding-bottom:12px;margin-bottom:16px}
+.header-main{text-align:center;min-width:0;padding-right:4px}
+.header-qr{width:72px;height:72px;min-width:72px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.header-qr img{width:100%;height:100%;object-fit:contain;display:block}
 table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}
 td{border:1px solid #ccc;padding:8px}
 .footer{text-align:center;font-size:12px;color:#444;margin-top:20px;padding:12px 8px 16px;line-height:1.6;border-top:1px solid #ccc}
 </style></head><body>
 <div class="header">
-  ${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR" />` : ''}
-  <h1 style="margin:0;font-size:22px">${co.COMPANY_NAME}</h1>
-  <p style="font-size:12px;color:#555">${getCompanyLegalLine()}</p>
-  <p style="font-weight:bold;margin-top:12px">${t('custTxn.slipTitle')}</p>
-  <p style="font-size:11px;color:#666">${t('report.printedOn')}: ${formatPrintDateTime()}</p>
+  <div class="header-main">
+    <h1 style="margin:0;font-size:22px">${co.COMPANY_NAME}</h1>
+    <p style="font-size:12px;color:#555">${getCompanyLegalLine()}</p>
+    <p style="font-weight:bold;margin-top:12px">${t('custTxn.slipTitle')}</p>
+    <p style="font-size:11px;margin-top:6px">${typeLabel}</p>
+    <p style="font-size:11px;color:#666">${t('report.printedOn')}: ${formatPrintDateTime()}</p>
+  </div>
+  <div class="header-qr">${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR" width="${SLIP_QR_SIZE}" height="${SLIP_QR_SIZE}" />` : ''}</div>
 </div>
 <table><tbody>
   ${rows.map(([l, v]) => `<tr><td><b>${l}</b></td><td>${v}</td></tr>`).join('')}
@@ -942,14 +963,30 @@ async function renderSlipPdf(slipData, qrDataUrl, base) {
   }
 }
 
+async function getSlipQrDataUrl(data) {
+  const QRCode = (await import('https://esm.sh/qrcode@1.5.4')).default;
+  return QRCode.toDataURL(buildCustomerTxnSlipQrPayload(data), {
+    width: SLIP_QR_SIZE,
+    margin: 1,
+    errorCorrectionLevel: 'M'
+  });
+}
+
 async function renderSlipQr(hostId, data) {
-  const host = document.getElementById(hostId);
+  const host = typeof hostId === 'string' ? document.getElementById(hostId) : hostId;
   if (!host) return;
   host.innerHTML = '';
   try {
     const QRCode = (await import('https://esm.sh/qrcode@1.5.4')).default;
     const canvas = document.createElement('canvas');
-    await QRCode.toCanvas(canvas, buildCustomerTxnSlipQrPayload(data), { width: 80, margin: 1 });
+    await QRCode.toCanvas(canvas, buildCustomerTxnSlipQrPayload(data), {
+      width: SLIP_QR_SIZE,
+      margin: 1,
+      errorCorrectionLevel: 'M'
+    });
+    canvas.style.width = `${SLIP_QR_SIZE}px`;
+    canvas.style.height = `${SLIP_QR_SIZE}px`;
+    canvas.style.display = 'block';
     host.appendChild(canvas);
   } catch { /* optional */ }
 }

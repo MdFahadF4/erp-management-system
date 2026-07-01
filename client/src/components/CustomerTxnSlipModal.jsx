@@ -21,7 +21,7 @@ export default function CustomerTxnSlipModal({ open, slipData, onClose }) {
   return (
     <ModalPortal>
       <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[145] flex items-center justify-center p-4">
-        <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="bg-white rounded-xl shadow-2xl border border-gray-200 max-w-xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center p-4 border-b no-print">
             <h3 className="font-bold text-gray-800">{t('custTxn.slipPreview')}</h3>
             <button type="button" onClick={onClose} className="text-2xl text-gray-400 hover:text-gray-700">

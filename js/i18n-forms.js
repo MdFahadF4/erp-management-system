@@ -481,7 +481,7 @@ export const FORM_EN = {
   'custTxn.helpClose': 'Close',
   'custTxn.previewSlip': 'Print / Export Slip',
   'custTxn.slipPreview': 'Customer Transaction Receipt',
-  'custTxn.slipTitle': 'Customer Transaction Receipt',
+  'custTxn.slipTitle': 'Customer Transaction Invoice',
   'custTxn.slipFooter': 'Thank you for your business.',
   'custTxn.selectCustomerFirst': 'Select a customer before previewing the slip.',
 };
