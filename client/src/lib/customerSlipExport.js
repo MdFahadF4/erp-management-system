@@ -244,7 +244,7 @@ async function renderSlipQr(hostEl, data) {
   }
 }
 
-async function renderSlipPdf(slipData, qrDataUrl, base) {
+async function buildSlipPdfBlob(slipData, qrDataUrl) {
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-10000px;top:0;width:720px;background:#fff;padding:24px;z-index:-1;';
   const qrSize = resolveSlipQrSize(buildCustomerTxnSlipQrPayload(slipData).length);
@@ -274,10 +274,15 @@ async function renderSlipPdf(slipData, qrDataUrl, base) {
         pos -= pageH;
       }
     }
-    pdf.save(`${base}.pdf`);
+    return pdf.output('blob');
   } finally {
     host.remove();
   }
+}
+
+async function renderSlipPdf(slipData, qrDataUrl, base) {
+  const blob = await buildSlipPdfBlob(slipData, qrDataUrl);
+  downloadBlob(blob, `${base}.pdf`);
 }
 
 function slipExportFilename(data) {
@@ -353,4 +358,47 @@ export function printCustomerTxnSlip(bodyEl, slipData) {
   const cleanup = () => document.body.classList.remove('erp-print-slip');
   window.addEventListener('afterprint', cleanup, { once: true });
   window.print();
+}
+
+export async function shareCustomerTxnSlip(slipData) {
+  if (!slipData?.uid) {
+    alert(t('custTxn.selectCustomerFirst'));
+    return;
+  }
+
+  const base = slipExportFilename(slipData);
+  const title = `${t('custTxn.slipTitle')} - ${slipData.customerName || slipData.uidText || slipData.uid}`;
+  const text = buildCustomerTxnSlipQrPayload(slipData);
+
+  let qrDataUrl = '';
+  try {
+    qrDataUrl = await getSlipQrDataUrl(slipData);
+  } catch {
+    /* continue without QR image */
+  }
+
+  try {
+    const pdfBlob = await buildSlipPdfBlob(slipData, qrDataUrl);
+    const pdfFile = new File([pdfBlob], `${base}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.share) {
+      const withFile = { title, text, files: [pdfFile] };
+      if (!navigator.canShare || navigator.canShare(withFile)) {
+        await navigator.share(withFile);
+        return;
+      }
+      await navigator.share({ title, text });
+      return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    }
+    downloadBlob(pdfBlob, `${base}.pdf`);
+    alert(t('custTxn.shareFallback'));
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    console.warn('Customer slip share failed', err);
+    alert(t('custTxn.shareFailed'));
+  }
 }

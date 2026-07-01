@@ -66,6 +66,7 @@ const STRINGS = {
     'modal.overwritePassword': 'OVERWRITE PASSWORD',
     'common.show': 'Show',
     'common.print': 'Print',
+    'common.share': 'Share',
     'common.hide': 'Hide',
     'common.refresh': 'Refresh Data',
     'common.ledgerView': 'Ledger View',

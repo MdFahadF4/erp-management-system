@@ -484,6 +484,8 @@ export const FORM_EN = {
   'custTxn.slipTitle': 'Customer Transaction Invoice',
   'custTxn.slipFooter': 'Thank you for your business.',
   'custTxn.selectCustomerFirst': 'Select a customer before previewing the slip.',
+  'custTxn.shareFallback': 'Invoice text copied and PDF downloaded. Attach the PDF in WhatsApp, email, or any app.',
+  'custTxn.shareFailed': 'Sharing failed. Try PDF export and send the file manually.',
 };
 
 const CATEGORY_I18N = {

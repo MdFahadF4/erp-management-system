@@ -4,7 +4,8 @@ import { useI18n } from '../i18n/I18nProvider.jsx';
 import {
   exportCustomerTxnSlipAs,
   printCustomerTxnSlip,
-  renderCustomerTxnSlipPreview
+  renderCustomerTxnSlipPreview,
+  shareCustomerTxnSlip
 } from '../lib/customerSlipExport.js';
 
 export default function CustomerTxnSlipModal({ open, slipData, onClose }) {
@@ -36,6 +37,13 @@ export default function CustomerTxnSlipModal({ open, slipData, onClose }) {
               className="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-2 rounded text-xs"
             >
               {t('common.print')}
+            </button>
+            <button
+              type="button"
+              onClick={() => shareCustomerTxnSlip(slipData)}
+              className="bg-violet-600 hover:bg-violet-700 text-white font-bold px-3 py-2 rounded text-xs"
+            >
+              {t('common.share')}
             </button>
             <button
               type="button"

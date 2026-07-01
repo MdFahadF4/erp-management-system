@@ -945,7 +945,7 @@ function styleCustomerSlipWorksheet(ws, rowCount) {
   ws['!merges'] = [{ s: { r: rowCount - 1, c: 0 }, e: { r: rowCount - 1, c: 1 } }];
 }
 
-async function renderSlipPdf(slipData, qrDataUrl, base) {
+async function buildSlipPdfBlob(slipData, qrDataUrl) {
   const host = document.createElement('div');
   host.style.cssText = 'position:fixed;left:-10000px;top:0;width:720px;background:#fff;padding:24px;z-index:-1;';
   host.innerHTML = `<div id="cust-txn-slip-print-root">${buildCustomerTxnSlipHtml(slipData, { qrDataUrl, qrSize: resolveSlipQrSize(buildCustomerTxnSlipQrPayload(slipData).length) })}</div>`;
@@ -975,10 +975,15 @@ async function renderSlipPdf(slipData, qrDataUrl, base) {
         pos -= pageH;
       }
     }
-    pdf.save(`${base}.pdf`);
+    return pdf.output('blob');
   } finally {
     host.remove();
   }
+}
+
+async function renderSlipPdf(slipData, qrDataUrl, base) {
+  const blob = await buildSlipPdfBlob(slipData, qrDataUrl);
+  downloadBlob(blob, `${base}.pdf`);
 }
 
 async function getSlipQrDataUrl(data) {
@@ -1099,6 +1104,50 @@ export async function exportCustomerTxnSlipAs(format, data = null) {
   }
 }
 
+export async function shareCustomerTxnSlip(data = null) {
+  const slipData = data || collectCustomerTxnSlipData();
+  if (!slipData.uid) {
+    alert(t('custTxn.selectCustomerFirst'));
+    return;
+  }
+
+  const base = slipExportFilename(slipData);
+  const title = `${t('custTxn.slipTitle')} - ${slipData.customerName || slipData.uidText || slipData.uid}`;
+  const text = buildCustomerTxnSlipQrPayload(slipData);
+
+  let qrDataUrl = '';
+  try {
+    qrDataUrl = await getSlipQrDataUrl(slipData);
+  } catch {
+    /* continue without QR image */
+  }
+
+  try {
+    const pdfBlob = await buildSlipPdfBlob(slipData, qrDataUrl);
+    const pdfFile = new File([pdfBlob], `${base}.pdf`, { type: 'application/pdf' });
+
+    if (navigator.share) {
+      const withFile = { title, text, files: [pdfFile] };
+      if (!navigator.canShare || navigator.canShare(withFile)) {
+        await navigator.share(withFile);
+        return;
+      }
+      await navigator.share({ title, text });
+      return;
+    }
+
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+    }
+    downloadBlob(pdfBlob, `${base}.pdf`);
+    alert(t('custTxn.shareFallback'));
+  } catch (err) {
+    if (err?.name === 'AbortError') return;
+    console.warn('Customer slip share failed', err);
+    alert(t('custTxn.shareFailed'));
+  }
+}
+
 function ensureSlipModal() {
   let modal = document.getElementById('modal-cust-txn-slip');
   if (modal) return modal;
@@ -1115,6 +1164,7 @@ function ensureSlipModal() {
       <div id="cust-txn-slip-body" class="p-4"></div>
       <div class="p-4 border-t flex flex-wrap gap-2 justify-end no-print">
         <button type="button" id="cust-txn-slip-print" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-2 rounded text-xs">${t('common.print')}</button>
+        <button type="button" id="cust-txn-slip-share" class="bg-violet-600 hover:bg-violet-700 text-white font-bold px-3 py-2 rounded text-xs">${t('common.share')}</button>
         <button type="button" id="cust-txn-slip-pdf" class="bg-red-700 hover:bg-red-800 text-white font-bold px-3 py-2 rounded text-xs">PDF</button>
         <button type="button" id="cust-txn-slip-word" class="bg-blue-700 hover:bg-blue-800 text-white font-bold px-3 py-2 rounded text-xs">Word</button>
         <button type="button" id="cust-txn-slip-excel" class="bg-emerald-700 hover:bg-emerald-800 text-white font-bold px-3 py-2 rounded text-xs">Excel</button>
@@ -1124,6 +1174,10 @@ function ensureSlipModal() {
   document.body.appendChild(modal);
 
   modal.querySelector('#close-cust-txn-slip')?.addEventListener('click', () => modal.classList.add('hidden'));
+
+  modal.querySelector('#cust-txn-slip-share')?.addEventListener('click', async () => {
+    await shareCustomerTxnSlip(collectCustomerTxnSlipData());
+  });
 
   const slipFormats = {
     'cust-txn-slip-print': 'print',
