@@ -787,45 +787,57 @@ function collectCustomerTxnSlipData() {
 
 function buildCustomerTxnSlipQrPayload(data) {
   const co = getCompanyInfo();
-  const rows = customerSlipFieldRows(data);
-  return [
-    '=== MEHRIN CUSTOMER TXN ===',
+  const typeLabel = data.refundMode ? t('custTxn.modeRefund') : t('custTxn.modeNormal');
+  const lines = [
+    '=== MEHRIN CUSTOMER INVOICE ===',
     co.COMPANY_NAME,
+    getCompanyLegalLine(),
     `CR: ${co.CR_NUMBER || ''}`,
     `VAT: ${co.VAT_NUMBER || ''}`,
-    getCompanyLegalLine(),
     t('custTxn.slipTitle'),
-    `Type: ${data.refundMode ? 'REFUND / CANCELLATION' : 'NORMAL SALE / PAYMENT'}`,
-    `Date: ${data.date || ''}`,
-    `UID: ${data.uidText || data.uid || ''}`,
-    data.customerName ? `Customer: ${data.customerName}` : '',
-    data.txnId ? `Txn ID: ${data.txnId}` : '',
-    ...rows.map(([label, val]) => `${label}: ${val}`),
-    data.remainingDue != null ? `${t('field.remainingDueAfterTxn')}: ${Number(data.remainingDue).toFixed(2)}` : '',
-    data.stamp ? `Posted: ${data.stamp}` : '',
-    `User: ${data.user || '-'}`,
-    `Printed: ${formatPrintDateTime()}`
-  ]
-    .filter(Boolean)
-    .join('\n');
+    typeLabel,
+    `${t('report.printedOn')}: ${formatPrintDateTime()}`,
+    '------------------------------'
+  ];
+
+  customerSlipFieldRows(data).forEach(([label, val]) => {
+    lines.push(`${label}: ${String(val ?? '-').trim()}`);
+  });
+
+  if (data.remainingDue != null) {
+    lines.push(`${t('field.remainingDueAfterTxn')}: ${Number(data.remainingDue).toFixed(2)}`);
+  }
+  if (data.txnId) lines.push(`Txn ID: ${data.txnId}`);
+  if (data.stamp) lines.push(`Posted: ${data.stamp}`);
+
+  return lines.join('\n');
 }
 
-const SLIP_QR_SIZE = 72;
+const SLIP_QR_DISPLAY = 96;
+
+function getSlipQrRenderOptions(payloadLength) {
+  let width = 200;
+  if (payloadLength > 500) width = 240;
+  if (payloadLength > 750) width = 280;
+  if (payloadLength > 1000) width = 320;
+  return { width, margin: 2, errorCorrectionLevel: 'L' };
+}
 
 function buildSlipQrBlock(qrDataUrl, slotId = 'cust-txn-slip-qr') {
-  const wrapStyle = `width:${SLIP_QR_SIZE}px;height:${SLIP_QR_SIZE}px;min-width:${SLIP_QR_SIZE}px;min-height:${SLIP_QR_SIZE}px;`;
+  const wrapStyle = `width:${SLIP_QR_DISPLAY}px;height:${SLIP_QR_DISPLAY}px;min-width:${SLIP_QR_DISPLAY}px;min-height:${SLIP_QR_DISPLAY}px;`;
   const wrapClass =
     'erp-txn-slip-qr-wrap flex-shrink-0 border border-gray-200 rounded bg-white flex items-center justify-center overflow-hidden';
+  const title = 'Scan to view full customer transaction invoice details';
   if (qrDataUrl) {
-    return `<div class="${wrapClass}" style="${wrapStyle}"><img src="${qrDataUrl}" alt="QR" class="block w-full h-full object-contain" width="${SLIP_QR_SIZE}" height="${SLIP_QR_SIZE}" /></div>`;
+    return `<div class="${wrapClass}" style="${wrapStyle}" title="${title}"><img src="${qrDataUrl}" alt="Invoice QR" class="block w-full h-full object-contain" width="${SLIP_QR_DISPLAY}" height="${SLIP_QR_DISPLAY}" /></div>`;
   }
-  return `<div class="${wrapClass}" style="${wrapStyle}" id="${slotId}"></div>`;
+  return `<div class="${wrapClass}" style="${wrapStyle}" id="${slotId}" title="${title}"></div>`;
 }
 
 function buildSlipHeaderHtml({ co, qrDataUrl, typeLabel, qrSlotId = 'cust-txn-slip-qr' }) {
   return `
     <div class="erp-txn-slip-header border-b-2 border-gray-800 pb-3 mb-4">
-      <div class="grid grid-cols-[minmax(0,1fr)_72px] gap-3 items-start">
+      <div class="grid grid-cols-[minmax(0,1fr)_96px] gap-3 items-start">
         <div class="erp-txn-slip-header-main text-center min-w-0 pr-1">
           <h1 class="text-xl font-black uppercase tracking-wide break-words">${co.COMPANY_NAME}</h1>
           <p class="text-xs text-gray-600 mt-1">${getCompanyLegalLine()}</p>
@@ -878,9 +890,9 @@ function buildCustomerTxnSlipExportHtml(data, qrDataUrl) {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${t('custTxn.slipTitle')}</title>
 <style>
 body{font-family:Arial,sans-serif;margin:24px;color:#111}
-.header{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:12px;align-items:start;border-bottom:2px solid #333;padding-bottom:12px;margin-bottom:16px}
+.header{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:12px;align-items:start;border-bottom:2px solid #333;padding-bottom:12px;margin-bottom:16px}
 .header-main{text-align:center;min-width:0;padding-right:4px}
-.header-qr{width:72px;height:72px;min-width:72px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.header-qr{width:96px;height:96px;min-width:96px;border:1px solid #ccc;border-radius:4px;padding:2px;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .header-qr img{width:100%;height:100%;object-fit:contain;display:block}
 table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:16px}
 td{border:1px solid #ccc;padding:8px}
@@ -894,7 +906,7 @@ td{border:1px solid #ccc;padding:8px}
     <p style="font-size:11px;margin-top:6px">${typeLabel}</p>
     <p style="font-size:11px;color:#666">${t('report.printedOn')}: ${formatPrintDateTime()}</p>
   </div>
-  <div class="header-qr">${qrDataUrl ? `<img src="${qrDataUrl}" alt="QR" width="${SLIP_QR_SIZE}" height="${SLIP_QR_SIZE}" />` : ''}</div>
+  <div class="header-qr">${qrDataUrl ? `<img src="${qrDataUrl}" alt="Invoice QR" width="${SLIP_QR_DISPLAY}" height="${SLIP_QR_DISPLAY}" />` : ''}</div>
 </div>
 <table><tbody>
   ${rows.map(([l, v]) => `<tr><td><b>${l}</b></td><td>${v}</td></tr>`).join('')}
@@ -964,12 +976,9 @@ async function renderSlipPdf(slipData, qrDataUrl, base) {
 }
 
 async function getSlipQrDataUrl(data) {
+  const payload = buildCustomerTxnSlipQrPayload(data);
   const QRCode = (await import('https://esm.sh/qrcode@1.5.4')).default;
-  return QRCode.toDataURL(buildCustomerTxnSlipQrPayload(data), {
-    width: SLIP_QR_SIZE,
-    margin: 1,
-    errorCorrectionLevel: 'M'
-  });
+  return QRCode.toDataURL(payload, getSlipQrRenderOptions(payload.length));
 }
 
 async function renderSlipQr(hostId, data) {
@@ -977,18 +986,18 @@ async function renderSlipQr(hostId, data) {
   if (!host) return;
   host.innerHTML = '';
   try {
+    const payload = buildCustomerTxnSlipQrPayload(data);
     const QRCode = (await import('https://esm.sh/qrcode@1.5.4')).default;
     const canvas = document.createElement('canvas');
-    await QRCode.toCanvas(canvas, buildCustomerTxnSlipQrPayload(data), {
-      width: SLIP_QR_SIZE,
-      margin: 1,
-      errorCorrectionLevel: 'M'
-    });
-    canvas.style.width = `${SLIP_QR_SIZE}px`;
-    canvas.style.height = `${SLIP_QR_SIZE}px`;
+    await QRCode.toCanvas(canvas, payload, getSlipQrRenderOptions(payload.length));
+    canvas.style.width = `${SLIP_QR_DISPLAY}px`;
+    canvas.style.height = `${SLIP_QR_DISPLAY}px`;
     canvas.style.display = 'block';
+    canvas.setAttribute('aria-label', 'Customer transaction invoice QR code');
     host.appendChild(canvas);
-  } catch { /* optional */ }
+  } catch (err) {
+    console.warn('Customer slip QR render failed', err);
+  }
 }
 
 function slipExportFilename(data) {
