@@ -11,10 +11,7 @@ function todayIsoDate() {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-const REPORT_OPTIONS = [
-  ...Object.entries(REPORT_OPTION_I18N).map(([value, key]) => ({ value, key })),
-  { value: 'customer_due_balance', key: 'report.customerDueBalance' }
-];
+const REPORT_OPTIONS = Object.entries(REPORT_OPTION_I18N).map(([value, key]) => ({ value, key }));
 
 export default function ReportsPage() {
   const { t } = useI18n();
