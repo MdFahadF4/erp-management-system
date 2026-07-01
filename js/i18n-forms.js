@@ -275,6 +275,7 @@ export const FORM_EN = {
   'dropdown.queryingPersonnel': '-- Querying Personnel --',
   'dropdown.loadingEmployees': 'Loading active employees...',
   'dropdown.chooseEmployee': '-- Choose Employee --',
+  'dropdown.typeToSearch': 'Type to search…',
   'dropdown.noEmployees': 'No employees indexed yet',
   'dropdown.errorRecords': 'Error compiling records',
   'dropdown.queryingAccounts': '-- Querying Registered Accounts --',

@@ -1,155 +1,206 @@
-/** Searchable native selects — type to filter options; keeps scroll and existing values. */
-let TomSelectCtor = null;
+/**
+ * Searchable native <select> — keeps the original dropdown intact.
+ * Adds a small search field that filters options (option.hidden) so React
+ * controlled selects and legacy innerHTML updates keep working.
+ */
+import { t } from './i18n.js';
+
+const WRAP_CLASS = 'erp-searchable-select-wrap';
+const FILTER_CLASS = 'erp-searchable-select-filter';
+const ENHANCED_ATTR = 'data-erp-searchable';
+
 let observerInstalled = false;
-let tomSelectLoader = null;
 let pauseObserver = false;
 
-/** React/Vite client can inject bundled Tom Select before init. */
-export function setTomSelectLoader(loader) {
-  tomSelectLoader = loader;
-}
-
-async function loadTomSelect() {
-  if (!TomSelectCtor) {
-    if (tomSelectLoader) {
-      TomSelectCtor = await tomSelectLoader();
-    } else {
-      TomSelectCtor = (await import('https://esm.sh/tom-select@2.3.1')).default;
-    }
-  }
-  return TomSelectCtor;
-}
-
-function tomSelectOptionCount(el) {
-  return Object.keys(el?.tomselect?.options || {}).length;
-}
+/** Backwards compatible no-op (React client used to inject Tom Select). */
+export function setTomSelectLoader() {}
 
 export function shouldEnhanceSelect(el) {
   if (!el || el.tagName !== 'SELECT') return false;
   if (el.disabled || el.hidden) return false;
   if (el.hasAttribute('data-no-search') || el.classList.contains('erp-no-search')) return false;
-
-  const nativeCount = el.options.length;
-  const tsCount = tomSelectOptionCount(el);
-
-  if (nativeCount < 2) {
-    // Tom Select strips most native <option> nodes after init — keep enhanced list during loading placeholders.
-    return tsCount >= 2;
-  }
+  if (el.options.length < 2) return false;
   return true;
 }
 
-function buildTomSelectOptions(el) {
-  const placeholderOpt = [...el.options].find((opt) => opt.value === '');
-  return {
-    create: false,
-    maxOptions: 5000,
-    allowEmptyOption: true,
-    openOnFocus: true,
-    selectOnTab: true,
-    closeAfterSelect: true,
-    dropdownParent: document.body,
-    placeholder: placeholderOpt?.textContent?.trim() || undefined,
-    render: {
-      no_results: (_data, escape) =>
-        `<div class="no-results px-3 py-2 text-xs text-gray-500">${escape('No matches found')}</div>`
+function cleanupTomSelect(el) {
+  if (!el?.tomselect) return;
+  try {
+    el.tomselect.destroy();
+  } catch (_) {
+    el.classList.remove('tomselected', 'ts-hidden-accessible');
+  }
+}
+
+function normalizeQuery(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
+function optionSearchText(opt) {
+  return (opt.textContent || opt.text || opt.value || '').trim().toLowerCase();
+}
+
+function getFilterInput(select) {
+  return select.closest(`.${WRAP_CLASS}`)?.querySelector(`.${FILTER_CLASS}`) || null;
+}
+
+function applyFilter(select, query) {
+  const q = normalizeQuery(query);
+  [...select.options].forEach((opt) => {
+    if (!q) {
+      opt.hidden = false;
+      return;
+    }
+    if (opt.value === '') {
+      opt.hidden = false;
+      return;
+    }
+    opt.hidden = !optionSearchText(opt).includes(q);
+  });
+}
+
+function resetAllOptionsVisible(select) {
+  [...select.options].forEach((opt) => {
+    opt.hidden = false;
+  });
+}
+
+function bindFilterInput(select, input) {
+  const openSelect = () => {
+    if (select.disabled) return;
+    select.focus();
+    if (typeof select.showPicker === 'function') {
+      try {
+        select.showPicker();
+      } catch (_) {
+        select.click();
+      }
+    } else {
+      select.click();
     }
   };
-}
 
-/**
- * Re-read options from the native select only when it has a full option list.
- * Tom Select removes unselected <option> nodes from the DOM after init — syncing
- * against that stripped DOM was clearing every dropdown (the production bug).
- */
-export function syncSearchableSelect(el) {
-  const ts = el?.tomselect;
-  if (!ts) return;
+  input.addEventListener('input', () => {
+    applyFilter(select, input.value);
+    if (normalizeQuery(input.value)) openSelect();
+  });
 
-  const nativeCount = el.options.length;
-  const tsCount = tomSelectOptionCount(el);
-
-  if (nativeCount < 2) return;
-
-  if (nativeCount >= tsCount) {
-    pauseObserver = true;
-    try {
-      ts.sync(true);
-    } finally {
-      window.setTimeout(() => {
-        pauseObserver = false;
-      }, 0);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown' || e.key === 'Enter') {
+      e.preventDefault();
+      openSelect();
+    } else if (e.key === 'Escape') {
+      input.value = '';
+      applyFilter(select, '');
     }
-  }
+  });
+
+  select.addEventListener('change', () => {
+    if (!input.value) return;
+    input.value = '';
+    applyFilter(select, '');
+  });
 }
 
-/** Call after programmatically replacing select.innerHTML in legacy modules. */
-export function notifySelectOptionsUpdated(el) {
-  if (!el || el.tagName !== 'SELECT') return;
-  if (el.tomselect) {
-    syncSearchableSelect(el);
-    return;
+function wrapSelect(select) {
+  cleanupTomSelect(select);
+
+  if (select.hasAttribute(ENHANCED_ATTR)) {
+    resetAllOptionsVisible(select);
+    applyFilter(select, getFilterInput(select)?.value || '');
+    return select.closest(`.${WRAP_CLASS}`);
   }
-  if (shouldEnhanceSelect(el)) {
-    enhanceSearchableSelect(el).catch((err) => {
-      console.warn('Searchable select enhance failed', err);
-    });
-  }
+
+  const parent = select.parentElement;
+  if (!parent) return null;
+
+  const wrap = document.createElement('div');
+  wrap.className = WRAP_CLASS;
+
+  const input = document.createElement('input');
+  input.type = 'search';
+  input.className = FILTER_CLASS;
+  input.setAttribute('autocomplete', 'off');
+  input.setAttribute('spellcheck', 'false');
+  input.setAttribute('data-i18n-placeholder', 'dropdown.typeToSearch');
+  input.placeholder = t('dropdown.typeToSearch');
+
+  parent.insertBefore(wrap, select);
+  wrap.appendChild(input);
+  wrap.appendChild(select);
+
+  bindFilterInput(select, input);
+  select.setAttribute(ENHANCED_ATTR, '1');
+  applyFilter(select, '');
+
+  return wrap;
 }
 
 export function destroySearchableSelect(el) {
-  if (el?.tomselect) {
-    pauseObserver = true;
-    try {
-      el.tomselect.destroy();
-    } finally {
-      window.setTimeout(() => {
-        pauseObserver = false;
-      }, 0);
-    }
+  if (!el || el.tagName !== 'SELECT') return;
+  cleanupTomSelect(el);
+  resetAllOptionsVisible(el);
+
+  const wrap = el.closest(`.${WRAP_CLASS}`);
+  if (wrap?.parentElement) {
+    wrap.parentElement.insertBefore(el, wrap);
+    wrap.remove();
   }
+
+  el.removeAttribute(ENHANCED_ATTR);
 }
 
-export async function enhanceSearchableSelect(el) {
+export function syncSearchableSelect(el) {
+  if (!el || el.tagName !== 'SELECT') return;
+  cleanupTomSelect(el);
+
   if (!shouldEnhanceSelect(el)) {
-    if (el?.tomselect) destroySearchableSelect(el);
-    return null;
-  }
-  if (el.tomselect) {
-    syncSearchableSelect(el);
-    return el.tomselect;
+    if (el.hasAttribute(ENHANCED_ATTR)) destroySearchableSelect(el);
+    return;
   }
 
-  pauseObserver = true;
-  try {
-    const TomSelect = await loadTomSelect();
-    const instance = new TomSelect(el, buildTomSelectOptions(el));
-    return instance;
-  } catch (err) {
-    console.warn('Searchable select init failed', err);
-    return null;
-  } finally {
-    window.setTimeout(() => {
-      pauseObserver = false;
-    }, 0);
+  if (!el.hasAttribute(ENHANCED_ATTR)) {
+    wrapSelect(el);
+    return;
   }
+
+  resetAllOptionsVisible(el);
+  applyFilter(el, getFilterInput(el)?.value || '');
 }
 
-export async function initSearchableSelects(root = document) {
-  await loadTomSelect();
+export function notifySelectOptionsUpdated(el) {
+  syncSearchableSelect(el);
+}
+
+export function enhanceSearchableSelect(el) {
+  if (!shouldEnhanceSelect(el)) {
+    if (el?.hasAttribute(ENHANCED_ATTR)) destroySearchableSelect(el);
+    return null;
+  }
+  return wrapSelect(el);
+}
+
+export function initSearchableSelects(root = document) {
   const scope = root?.querySelectorAll ? root : document;
   const selects = scope === document ? document.querySelectorAll('select') : scope.querySelectorAll('select');
-  for (const el of selects) {
+
+  selects.forEach((el) => {
     try {
-      await enhanceSearchableSelect(el);
+      cleanupTomSelect(el);
+      if (shouldEnhanceSelect(el)) {
+        if (el.hasAttribute(ENHANCED_ATTR)) syncSearchableSelect(el);
+        else wrapSelect(el);
+      } else if (el.hasAttribute(ENHANCED_ATTR)) {
+        destroySearchableSelect(el);
+      }
     } catch (err) {
       console.warn('Searchable select skipped', err);
     }
-  }
+  });
 }
 
 export async function refreshSearchableSelects(root = document) {
-  await initSearchableSelects(root);
+  initSearchableSelects(root);
 }
 
 function collectSelectsFromNode(node) {
@@ -169,23 +220,13 @@ export function installSearchableSelectObserver(root = document.body) {
     timer = window.setTimeout(() => {
       if (pauseObserver) return;
       if (target?.tagName === 'SELECT') {
-        if (target.tomselect) {
-          syncSearchableSelect(target);
-        } else if (shouldEnhanceSelect(target)) {
-          enhanceSearchableSelect(target).catch((err) => {
-            console.warn('Searchable select enhance failed', err);
-          });
-        }
+        syncSearchableSelect(target);
         return;
       }
-      const pending = [];
       root.querySelectorAll?.('select').forEach((el) => {
-        if (!el.tomselect && shouldEnhanceSelect(el)) pending.push(el);
-      });
-      pending.forEach((el) => {
-        enhanceSearchableSelect(el).catch((err) => {
-          console.warn('Searchable select enhance failed', err);
-        });
+        if (shouldEnhanceSelect(el) && !el.hasAttribute(ENHANCED_ATTR)) {
+          enhanceSearchableSelect(el);
+        }
       });
     }, 80);
   };
@@ -198,7 +239,6 @@ export function installSearchableSelectObserver(root = document.body) {
 
     for (const m of mutations) {
       m.removedNodes.forEach((node) => {
-        if (pauseObserver) return;
         collectSelectsFromNode(node).forEach((el) => {
           if (!document.body.contains(el)) destroySearchableSelect(el);
         });
@@ -216,25 +256,18 @@ export function installSearchableSelectObserver(root = document.body) {
       });
     }
 
-    if (optionChangeTarget) {
-      scheduleSync(optionChangeTarget);
-    } else if (addedSelect) {
-      scheduleSync(null);
-    }
+    if (optionChangeTarget) scheduleSync(optionChangeTarget);
+    else if (addedSelect) scheduleSync(null);
   });
 
-  observer.observe(root, {
-    childList: true,
-    subtree: true
-  });
-
+  observer.observe(root, { childList: true, subtree: true });
   root.__erpSearchableObserver = observer;
   observerInstalled = true;
   return observer;
 }
 
 export async function installSearchableSelectSystem(root = document) {
-  await initSearchableSelects(root);
+  initSearchableSelects(root);
   const observeRoot = root?.body || (root?.nodeType === 1 ? root : document.body);
   installSearchableSelectObserver(observeRoot);
 }
